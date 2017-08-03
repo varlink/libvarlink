@@ -33,10 +33,10 @@ global:
         varlink_connection_process_events;
         varlink_connection_receive_reply;
         varlink_connection_set_close_callback;
+        varlink_listen;
         varlink_server_free;
         varlink_server_freep;
         varlink_server_get_fd;
-        varlink_server_get_listen_fd;
         varlink_server_new;
         varlink_server_process_events;
         varlink_server_set_method_callback;

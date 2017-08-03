@@ -20,7 +20,7 @@ struct VarlinkServer {
         VarlinkService *service;
 
         int listen_fd;
-        bool listen_fd_cleanup;
+        char *path_to_unlink;
         int epoll_fd;
 
         AVLTree *connections;
@@ -196,7 +196,6 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
                                  const char **interfacestrings,
                                  unsigned long n_interfaces) {
         _cleanup_(varlink_server_freep) VarlinkServer *server = NULL;
-        const char *parameter;
         long r;
 
         server = calloc(1, sizeof(VarlinkServer));
@@ -205,25 +204,12 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
         server->epoll_fd = -1;
 
         if (listen_fd < 0) {
-                switch (varlink_address_get_type(address, &parameter)) {
-                        case VARLINK_ADDRESS_UNIX:
-                                r = varlink_socket_listen_unix(parameter, &server->listen_fd);
-                                break;
-                        case VARLINK_ADDRESS_TCP:
-                                r = varlink_socket_listen_tcp(parameter, &server->listen_fd);
-                                break;
-                        default:
-                                return -VARLINK_ERROR_INVALID_ADDRESS;
-                }
-
-                /* CannotListen or InvalidAddress */
-                if (r < 0)
-                        return r;
-
-                server->listen_fd_cleanup = true;
-        } else {
-                server->listen_fd = listen_fd;
+                listen_fd = varlink_listen(address, &server->path_to_unlink);
+                if (listen_fd < 0)
+                        return listen_fd;
         }
+
+        server->listen_fd = listen_fd;
 
         /* An activator only sets up the listen_fd only */
         if (interfacestrings) {
@@ -276,15 +262,12 @@ _public_ VarlinkServer *varlink_server_free(VarlinkServer *server) {
         if (server->epoll_fd >= 0)
                 close(server->epoll_fd);
 
-        if (server->listen_fd >= 0) {
-                const char *parameter;
-
-                if (server->listen_fd_cleanup &&
-                    varlink_address_get_type(server->address, &parameter) == VARLINK_ADDRESS_UNIX)
-                        /* ignore errors - continue freeing the server */
-                        varlink_socket_cleanup_unix(parameter);
-
+        if (server->listen_fd >= 0)
                 close(server->listen_fd);
+
+        if (server->path_to_unlink) {
+                unlink(server->path_to_unlink);
+                free(server->path_to_unlink);
         }
 
         if (server->connections)
@@ -306,10 +289,6 @@ _public_ void varlink_server_freep(VarlinkServer **serverp) {
 
 _public_ int varlink_server_get_fd(VarlinkServer *server) {
         return server->epoll_fd;
-}
-
-_public_ int varlink_server_get_listen_fd(VarlinkServer *server) {
-        return server->listen_fd;
 }
 
 static long varlink_server_accept(VarlinkServer *server) {

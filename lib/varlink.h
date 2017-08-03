@@ -210,7 +210,13 @@ long varlink_server_set_method_callback(VarlinkServer *server,
  */
 int varlink_server_get_fd(VarlinkServer *server);
 
-int varlink_server_get_listen_fd(VarlinkServer *server);
+/*
+ * Create a listen file descriptor for a varlink address and return it.
+ * If the address is for a unix domain socket in the file system, it's
+ * path will be returned in pathp and should be unlinked after closing
+ * the socket.
+ */
+int varlink_listen(const char *address, char **pathp);
 
 /*
  * Process pending events in the VarlinkServer. It needs to be called whenever

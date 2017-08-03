@@ -1,5 +1,6 @@
 #include "socket.h"
 
+#include "address.h"
 #include "object.h"
 #include "util.h"
 
@@ -150,4 +151,37 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {
         socket->out_end += length + 1;
 
         return 0;
+}
+
+_public_ int varlink_listen(const char *address, char **pathp) {
+        const char *parameter;
+        const char *path = NULL;
+        int fd;
+        long r;
+
+        switch (varlink_address_get_type(address, &parameter)) {
+                case VARLINK_ADDRESS_UNIX:
+                        /* abstract namespace */
+                        if (parameter[0] != '@')
+                                path = parameter;
+
+                        r = varlink_socket_listen_unix(parameter, &fd);
+                        break;
+
+                case VARLINK_ADDRESS_TCP:
+                        r = varlink_socket_listen_tcp(parameter, &fd);
+                        break;
+
+                default:
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+        }
+
+        /* CannotListen or InvalidAddress */
+        if (r < 0)
+                return r;
+
+        if (pathp)
+                *pathp = path ? strdup(path) : NULL;
+
+        return fd;
 }

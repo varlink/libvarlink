@@ -132,13 +132,3 @@ long varlink_socket_accept_unix(int listen_fd, VarlinkSocket *socket, VarlinkObj
 
         return 0;
 }
-
-long varlink_socket_cleanup_unix(const char *path) {
-        /* abstract namespace */
-        if (path[0] == '\0')
-                return 0;
-
-        unlink(path);
-
-        return 0;
-}

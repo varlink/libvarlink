@@ -30,7 +30,6 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message);
 long varlink_socket_connect_unix(VarlinkSocket *socket, const char *path);
 long varlink_socket_listen_unix(const char *path, int *fdp);
 long varlink_socket_accept_unix(int listen_fd, VarlinkSocket *socket, VarlinkObject **credentialsp);
-long varlink_socket_cleanup_unix(const char *path);
 
 long varlink_socket_connect_tcp(VarlinkSocket *socket, const char *address);
 long varlink_socket_listen_tcp(const char *address, int *fdp);
