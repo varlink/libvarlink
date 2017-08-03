@@ -211,45 +211,42 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
 
         server->listen_fd = listen_fd;
 
-        /* An activator only sets up the listen_fd only */
-        if (interfacestrings) {
-                if (!varlink_interface_name_valid(name))
-                        return -VARLINK_ERROR_INVALID_INTERFACE;
+        if (!varlink_interface_name_valid(name))
+                return -VARLINK_ERROR_INVALID_INTERFACE;
 
-                avl_tree_new(&server->connections, connection_compare, (AVLFreeFunc)server_connection_free);
+        avl_tree_new(&server->connections, connection_compare, (AVLFreeFunc)server_connection_free);
 
-                server->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+        server->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 
-                if (epoll_add(server->epoll_fd, server->listen_fd, EPOLLIN, server) < 0)
-                        return -VARLINK_ERROR_PANIC;
+        if (epoll_add(server->epoll_fd, server->listen_fd, EPOLLIN, server) < 0)
+                return -VARLINK_ERROR_PANIC;
 
-                r = varlink_service_new(&server->service, name, properties);
+        r = varlink_service_new(&server->service, name, properties);
+        if (r < 0)
+                return r;
+
+        r = varlink_server_set_method_callback(server,
+                                               "org.varlink.service.GetInfo",
+                                               org_varlink_service_GetInfo, NULL);
+        if (r < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        r = varlink_server_set_method_callback(server,
+                                               "org.varlink.service.GetInterface",
+                                               org_varlink_service_GetInterface, NULL);
+        if (r < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        for (unsigned long i = 0; i < n_interfaces; i += 1) {
+                VarlinkInterface *interface;
+
+                r = varlink_interface_new(&interface, interfacestrings[i], NULL);
                 if (r < 0)
                         return r;
 
-                r = varlink_server_set_method_callback(server,
-                                                       "org.varlink.service.GetInfo",
-                                                       org_varlink_service_GetInfo, NULL);
+                r = varlink_service_add_interface(server->service, interface);
                 if (r < 0)
-                        return -VARLINK_ERROR_PANIC;
-
-                r = varlink_server_set_method_callback(server,
-                                                       "org.varlink.service.GetInterface",
-                                                       org_varlink_service_GetInterface, NULL);
-                if (r < 0)
-                        return -VARLINK_ERROR_PANIC;
-
-                for (unsigned long i = 0; i < n_interfaces; i += 1) {
-                        VarlinkInterface *interface;
-
-                        r = varlink_interface_new(&interface, interfacestrings[i], NULL);
-                        if (r < 0)
-                                return r;
-
-                        r = varlink_service_add_interface(server->service, interface);
-                        if (r < 0)
-                                return r;
-                }
+                        return r;
         }
 
         *serverp = server;
