@@ -39,19 +39,13 @@ long exit_error(long error) {
         return error;
 }
 
-struct VarlinkCli {
-        char *address;
-        VarlinkConnection *connection;
-
-        int epoll_fd;
-        int signal_fd;
-};
-
 long varlink_cli_new(VarlinkCli **mp) {
         _cleanup_(varlink_cli_freep) VarlinkCli *cli = NULL;
         sigset_t mask;
 
         cli = calloc(1, sizeof(VarlinkCli));
+
+        cli->resolver = "unix:/run/org.varlink.resolver";
 
         cli->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
         if (cli->epoll_fd < 0)
@@ -121,11 +115,11 @@ long varlink_cli_resolve(VarlinkCli *cli, const char *interface, char **addressp
 
         /* don't resolve the resolver */
         if (strcmp(interface, "org.varlink.resolver") == 0) {
-                *addressp = strdup("unix:/run/org.varlink.resolver");
+                *addressp = strdup(cli->resolver);
                 return 0;
         }
 
-        r = varlink_cli_connect(cli, "unix:/run/org.varlink.resolver");
+        r = varlink_cli_connect(cli, cli->resolver);
         if (r < 0)
                 return r;
 

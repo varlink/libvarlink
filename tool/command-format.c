@@ -34,7 +34,7 @@ static long read_file(FILE *file, char **contentsp) {
         return 0;
 }
 
-static long format(VarlinkCli *cli, int argc, char **argv) {
+static long format(VarlinkCli *cli) {
         static const struct option options[] = {
                 { "help",   no_argument,       NULL, 'h' },
                 { "output", required_argument, NULL, 'o' },
@@ -51,7 +51,7 @@ static long format(VarlinkCli *cli, int argc, char **argv) {
         _cleanup_(freep) char *out = NULL;
         long r;
 
-        while ((c = getopt_long(argc, argv, "ho:", options, NULL)) >= 0) {
+        while ((c = getopt_long(cli->argc, cli->argv, "ho:", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s format [OPTIONS]... ARGUMENTS\n", program_invocation_short_name);
@@ -73,7 +73,7 @@ static long format(VarlinkCli *cli, int argc, char **argv) {
                 }
         }
 
-        in_filename = argv[optind];
+        in_filename = cli->argv[optind];
         if (!in_filename) {
                 fprintf(stderr, "Usage: %s [OPTIONS]... FILE\n", program_invocation_short_name);
                 return EXIT_FAILURE;

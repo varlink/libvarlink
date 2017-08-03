@@ -21,9 +21,18 @@ enum {
 const char *error_string(long error);
 long exit_error(long error);
 
-typedef struct VarlinkCli VarlinkCli;
+typedef struct {
+        int argc;
+        char **argv;
+        const char *resolver;
+
+        VarlinkConnection *connection;
+        int epoll_fd;
+        int signal_fd;
+} VarlinkCli;
+
 typedef struct Command Command;
-typedef long (*CommandFunction)(VarlinkCli *cli, int argc, char **argv);
+typedef long (*CommandFunction)(VarlinkCli *cli);
 
 struct Command {
         const char *name;

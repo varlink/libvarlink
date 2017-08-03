@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long resolve(VarlinkCli *cli, int argc, char **argv) {
+static long resolve(VarlinkCli *cli) {
         static const struct option options[] = {
                 { "help",    no_argument,       NULL, 'h' },
                 {}
@@ -18,7 +18,7 @@ static long resolve(VarlinkCli *cli, int argc, char **argv) {
         int c;
         long r;
 
-        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
+        while ((c = getopt_long(cli->argc, cli->argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s resolve INTERFACE\n", program_invocation_short_name);
@@ -33,7 +33,7 @@ static long resolve(VarlinkCli *cli, int argc, char **argv) {
                 }
         }
 
-        interface = argv[optind];
+        interface = cli->argv[optind];
         if (!interface) {
                 fprintf(stderr, "Error: expecting INTERFACE\n");
 

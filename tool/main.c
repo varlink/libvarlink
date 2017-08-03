@@ -13,22 +13,24 @@ const Command *commands[] = {
         &command_resolve
 };
 
-static long lookup_command(int *argcp, char ***argvp, const char **cmdp, CommandFunction *commandp) {
-        int argc = *argcp;
-        char **argv = *argvp;
+static long lookup_command(VarlinkCli *cli, const char **cmdp, CommandFunction *commandp) {
         const char *cmd;
-
         static const struct option options[] = {
                 { "help",    no_argument, NULL, 'h' },
+                { "resolver", required_argument, NULL, 'R' },
                 { "version", no_argument, NULL, 'V' },
                 {}
         };
         int c;
 
-        while ((c = getopt_long(argc, argv, "+hV", options, NULL)) >= 0) {
+        while ((c = getopt_long(cli->argc, cli->argv, "+hR:V", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 return 'h';
+
+                        case 'R':
+                                cli->resolver = optarg;
+                                break;
 
                         case 'V':
                                 return 'V';
@@ -38,18 +40,15 @@ static long lookup_command(int *argcp, char ***argvp, const char **cmdp, Command
                 }
         }
 
-        if (!argv[optind])
+        if (!cli->argv[optind])
                 return -CLI_ERROR_MISSING_COMMAND;
 
-        cmd = argv[optind];
+        cmd = cli->argv[optind];
         *cmdp = cmd;
 
-        argc -= optind;
-        argv += optind;
+        cli->argc -= optind;
+        cli->argv += optind;
         optind = 0;
-
-        *argcp = argc;
-        *argvp = argv;
 
         for (unsigned long i = 0; i < ARRAY_SIZE(commands); i += 1) {
                 if (strcmp(cmd, commands[i]->name) == 0) {
@@ -68,7 +67,14 @@ int main(int argc, char **argv) {
         CommandFunction command;
         long r;
 
-        r = lookup_command(&argc, &argv, &cmd, &command);
+        r = varlink_cli_new(&cli);
+        if (r < 0)
+                return exit_error(-r);
+
+        cli->argv = argv;
+        cli->argc = argc;
+
+        r = lookup_command(cli, &cmd, &command);
         switch (r) {
                 case 0:
                         break;
@@ -76,8 +82,9 @@ int main(int argc, char **argv) {
                 case 'h':
                         printf("Usage: %s COMMAND [OPTIONS]...\n", program_invocation_short_name);
                         printf("\n");
-                        printf("  -h, --help      display this help text and exit\n");
-                        printf("  -V, --version   output version information and exit\n");
+                        printf("  -h, --help             display this help text and exit\n");
+                        printf("  -R, --resolver=ADDRESS address of the resolver\n");
+                        printf("  -V, --version          output version information and exit\n");
                         printf("\n");
                         printf("Commands:\n");
                         for (unsigned long i = 0; i < ARRAY_SIZE(commands); i += 1)
@@ -107,9 +114,5 @@ int main(int argc, char **argv) {
                         return exit_error(CLI_ERROR_PANIC);
         }
 
-        r = varlink_cli_new(&cli);
-        if (r < 0)
-                return exit_error(-r);
-
-        return command(cli, argc, argv);
+        return command(cli);
 }

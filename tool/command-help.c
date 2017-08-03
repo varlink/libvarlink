@@ -130,7 +130,7 @@ static long help_interface(VarlinkCli *cli, const char *name) {
         return 0;
 }
 
-static long help(VarlinkCli *cli, int argc, char **argv) {
+static long help(VarlinkCli *cli) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -142,7 +142,7 @@ static long help(VarlinkCli *cli, int argc, char **argv) {
         const char *interface = NULL;
         long r;
 
-        while ((c = getopt_long(argc, argv, "a:h", options, NULL)) >= 0) {
+        while ((c = getopt_long(cli->argc, cli->argv, "a:h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'a':
                                 address = strdup(optarg);
@@ -164,7 +164,7 @@ static long help(VarlinkCli *cli, int argc, char **argv) {
                 }
         }
 
-        topic = argv[optind];
+        topic = cli->argv[optind];
         if (!topic) {
                 fprintf(stderr, "Usage: %s help [ INTERFACE | ADDRESS ]\n", program_invocation_short_name);
                 return EXIT_FAILURE;
