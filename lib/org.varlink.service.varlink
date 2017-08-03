@@ -1,0 +1,23 @@
+# The Varlink Service Interface is provided by every varlink service. It
+# describes the service and the interfaces it implements.
+interface org.varlink.service
+
+# Returns information about a service. It contains the service name and the
+# names of all available interfaces.
+method GetInfo() -> (
+  name: string,
+  description: string,
+  interfaces: string[],
+  properties: object
+)
+
+# Get the description of an interface that is implemented by this service.
+method GetInterface(name: string) -> (interfacestring: string)
+
+error InterfaceNotFound ()
+error MethodNotFound ()
+error MethodNotImplemented ()
+
+error InvalidParameters (
+  names: string[]
+)

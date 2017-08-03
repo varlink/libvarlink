@@ -1,0 +1,5 @@
+Name: libvarlink
+Description: Variant Link Protocol C library
+Version: @VERSION@
+Libs: -L@libdir@ -lvarlink
+Cflags: -I@includedir@

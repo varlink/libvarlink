@@ -1,0 +1,9 @@
+lineend=linux
+style=java
+indent=spaces=8
+convert-tabs
+indent-switches
+min-conditional-indent=0
+max-instatement-indent=120
+align-pointer=name
+max-code-length=120
