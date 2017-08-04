@@ -33,7 +33,6 @@ _varlink_module()
                                         ;;
 
                                 *)
-                                        compopt -o nospace
                                         COMPREPLY=( $(compgen -W "$(varlink list interfaces)" -- $cur) )
                                         return 0
                                         ;;
@@ -71,6 +70,7 @@ _varlink_module()
                                         ;;
 
                                 *)
+                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces) $(varlink list addresses)" -- $cur) )
                                         return 0
                                         ;;
                         esac

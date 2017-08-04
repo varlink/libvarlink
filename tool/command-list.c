@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_interfaces(VarlinkCli *cli) {
+static long print_interfaces(VarlinkCli *cli, const char *field) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         VarlinkArray *interfaces;
@@ -44,7 +44,7 @@ static long print_interfaces(VarlinkCli *cli) {
                 const char *s;
 
                 varlink_array_get_object(interfaces, i, &interface);
-                varlink_object_get_string(interface, "interface", &s);
+                varlink_object_get_string(interface, field, &s);
                 printf("%s\n", s);
         }
 
@@ -62,9 +62,9 @@ static long list(VarlinkCli *cli) {
         while ((c = getopt_long(cli->argc, cli->argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
-                                printf("Usage: %s list interfaces\n", program_invocation_short_name);
+                                printf("Usage: %s list interfaces|addresses\n", program_invocation_short_name);
                                 printf("\n");
-                                printf("List available interfaces\n");
+                                printf("List available interfaces, addresses\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
                                 return EXIT_SUCCESS;
@@ -82,13 +82,15 @@ static long list(VarlinkCli *cli) {
         }
 
         if (strcmp(type, "interfaces") == 0)
-                return print_interfaces(cli);
+                return print_interfaces(cli, "interface");
+        else if (strcmp(type, "addresses") == 0)
+                return print_interfaces(cli, "address");
 
         return exit_error(CLI_ERROR_INVALID_ARGUMENT);
 }
 
 const Command command_list = {
         .name = "list",
-        .info = "List interfaces, methods, addresses",
+        .info = "List interfaces, addresses",
         .function = list
 };
