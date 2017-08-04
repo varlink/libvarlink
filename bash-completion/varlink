@@ -24,19 +24,49 @@ _varlink_module()
 
         case $verb in
                 'call')
-                        compopt -o nospace
-                        COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
+                        case $cur in
+                                -*)
+                                        compopt -o nospace
+                                        COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
+                                        return 0
+                                        ;;
+
+                                *)
+                                        compopt -o nospace
+                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces)" -- $cur) )
+                                        return 0
+                                        ;;
+                        esac
                         return 0
                         ;;
 
                 'error')
-                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                        case $cur in
+                                -*)
+                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        return 0
+                                        ;;
+
+                                *)
+                                        COMPREPLY=( $(compgen -W "$(varlink error)" -- $cur) )
+                                        return 0
+                                        ;;
+                        esac
                         return 0
                         ;;
 
                 'help')
-                        compopt -o nospace
-                        COMPREPLY=( $(compgen -W "--address --help" -- $cur) )
+                        case $cur in
+                                -*)
+                                        compopt -o nospace
+                                        COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
+                                        return 0
+                                        ;;
+
+                                *)
+                                        return 0
+                                        ;;
+                        esac
                         return 0
                         ;;
 
@@ -47,7 +77,17 @@ _varlink_module()
                         ;;
 
                 'resolve')
-                        COMPREPLY=( $(compgen -W "$(varlink list interfaces) --help" -- $cur) )
+                        case $cur in
+                                -*)
+                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        return 0
+                                        ;;
+
+                                *)
+                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces)" -- $cur) )
+                                        return 0
+                                        ;;
+                        esac
                         return 0
                         ;;
 
