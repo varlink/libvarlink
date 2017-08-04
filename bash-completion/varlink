@@ -7,8 +7,9 @@ _varlink_module()
         local verbs=(
                 call
                 error
-                help
                 format
+                help
+                list
                 resolve
         )
         local i
@@ -55,6 +56,12 @@ _varlink_module()
                         return 0
                         ;;
 
+                'format')
+                        compopt -o filenames
+                        COMPREPLY=( $(compgen -f -- $cur) )
+                        return 0
+                        ;;
+
                 'help')
                         case $cur in
                                 -*)
@@ -70,10 +77,19 @@ _varlink_module()
                         return 0
                         ;;
 
-                'format')
-                        compopt -o filenames
-                        COMPREPLY=( $(compgen -f -- $cur) )
-                        return 0
+                'list')
+                        case $cur in
+                                -*)
+                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        return 0
+                                        ;;
+
+                                *)
+                                        COMPREPLY=( $(compgen -W "interfaces" -- $cur) )
+                                        return 0
+                                        ;;
+                        esac
+                        return 0;
                         ;;
 
                 'resolve')
@@ -91,6 +107,7 @@ _varlink_module()
                         return 0
                         ;;
 
+                # No verb found, offer one and global options
                 '')
                         case $cur in
                                 -*)
