@@ -10,6 +10,7 @@ const Command *commands[] = {
         &command_error,
         &command_format,
         &command_help,
+        &command_list,
         &command_resolve
 };
 

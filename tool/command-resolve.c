@@ -10,7 +10,7 @@
 
 static long resolve(VarlinkCli *cli) {
         static const struct option options[] = {
-                { "help",    no_argument,       NULL, 'h' },
+                { "help", no_argument, NULL, 'h' },
                 {}
         };
         _cleanup_(freep) char *address = NULL;
@@ -29,7 +29,7 @@ static long resolve(VarlinkCli *cli) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return EXIT_FAILURE;
+                                return exit_error(CLI_ERROR_PANIC);
                 }
         }
 

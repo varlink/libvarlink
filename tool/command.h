@@ -53,4 +53,5 @@ extern const Command command_call;
 extern const Command command_error;
 extern const Command command_format;
 extern const Command command_help;
+extern const Command command_list;
 extern const Command command_resolve;
