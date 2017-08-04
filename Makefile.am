@@ -19,12 +19,14 @@ export GCC_COLORS
 .PRECIOUS: $(TEST_SUITE_LOG) Makefile
 
 pkgconfiglibdir=$(libdir)/pkgconfig
+bashcompletiondir = $(datadir)/bash-completion/completions
 
 include_HEADERS =
 pkgconfiglib_DATA =
 bin_PROGRAMS =
 noinst_PROGRAMS =
 noinst_LIBRARIES =
+dist_bashcompletion_DATA =
 check_PROGRAMS =
 TESTS=
 
@@ -245,6 +247,9 @@ varlink_CFLAGS = \
 
 varlink_LDADD = \
 	libvarlink.a
+
+dist_bashcompletion_DATA += \
+	bash-completion/varlink
 
 # ------------------------------------------------------------------------------¶
 # test suite

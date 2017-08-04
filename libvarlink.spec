@@ -42,6 +42,7 @@ make %{?_smp_mflags}
 %license LICENSE
 %{_libdir}/libvarlink.so.*
 %{_bindir}/varlink
+%{_datadir}/bash-completion/completions/varlink
 
 %files devel
 %{_includedir}/varlink.h

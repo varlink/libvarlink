@@ -1,0 +1,61 @@
+_varlink_module()
+{
+        local cur prev OPTS
+        COMPREPLY=()
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+        case $prev in
+                'call')
+                        COMPREPLY=( $(compgen -W "--address --help" -- $cur) )
+                        return 0
+			;;
+
+		'error')
+                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                        return 0
+			;;
+
+                'help')
+                        COMPREPLY=( $(compgen -W "--address --help" -- $cur) )
+                        return 0
+                        ;;
+
+		'format')
+			local IFS=$'\n'
+			compopt -o filenames
+			COMPREPLY=( $(compgen -f -- $cur) )
+                        return 0
+			;;
+
+		'resolve')
+                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                        return 0
+			;;
+        esac
+
+	case $cur in
+                -*)
+                        OPTS="--resolver
+			      --version
+			      --help
+			"
+                        COMPREPLY=( $(compgen -W "${OPTS[*]}" -- $cur) )
+                        return 0
+                        ;;
+
+                *)
+                        OPTS="call
+                              error
+                              help
+			      format
+                              resolve
+			"
+                        COMPREPLY=( $(compgen -W "${OPTS[*]}" -- $cur) )
+                        return 0
+                        ;;
+        esac
+
+	return 0
+}
+complete -F _varlink_module varlink
