@@ -1,7 +1,9 @@
 _varlink_module()
 {
         COMPREPLY=()
-        local cur="${COMP_WORDS[COMP_CWORD]}"
+        local cur prev words cword
+        _init_completion -n = || return
+        COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
         # Find known verb
         local verbs=(
@@ -26,6 +28,11 @@ _varlink_module()
         case $verb in
                 'call')
                         case $cur in
+                                --address=*)
+                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        return 0
+                                        ;;
+
                                 -*)
                                         compopt -o nospace
                                         COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
@@ -63,6 +70,11 @@ _varlink_module()
 
                 'help')
                         case $cur in
+                                --address=*)
+                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        return 0
+                                        ;;
+
                                 -*)
                                         compopt -o nospace
                                         COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
@@ -123,6 +135,11 @@ _varlink_module()
                 # No verb found, offer one and global options
                 '')
                         case $cur in
+                                --resolver=*)
+                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        return 0
+                                        ;;
+
                                 -*)
                                         compopt -o nospace
                                         COMPREPLY=( $(compgen -W "--resolver= --version --help" -- $cur) )

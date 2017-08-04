@@ -76,7 +76,7 @@ static long list(VarlinkCli *cli) {
 
         type = cli->argv[optind];
         if (!type) {
-                fprintf(stderr, "Error: expecting interfaces\n");
+                fprintf(stderr, "Error: expecting addresses|interfaces\n");
 
                 return CLI_ERROR_MISSING_ARGUMENT;
         }
