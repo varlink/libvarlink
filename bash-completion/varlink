@@ -85,7 +85,20 @@ _varlink_module()
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "interfaces" -- $cur) )
+                                        local types=(
+                                                interfaces
+                                        )
+                                        local i
+                                        local type=
+                                        for ((i = 1; i < ${#COMP_WORDS[@]}; i++)); do
+                                                for ((j = 0; j < ${#types[@]}; j++)); do
+                                                        if [[ ${COMP_WORDS[i]} == ${types[j]} ]]; then
+                                                                return 0
+                                                        fi
+                                                done
+                                        done
+
+                                        COMPREPLY=( $(compgen -W "${types[*]}" -- $cur) )
                                         return 0
                                         ;;
                         esac
