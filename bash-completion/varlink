@@ -45,7 +45,20 @@ _varlink_module()
                                         ;;
 
                                 *)
-                                        COMPREPLY=($(compgen -W "$(varlink list interfaces)" -- $cur))
+                                        # Add empty input parameters
+                                        if [[ $prev == [a-z]*.* ]]; then
+                                                compopt -o nospace
+                                                COMPREPLY=($(compgen -W "\'{}\'"))
+                                                return 0
+                                        fi
+
+                                        local methods=$(varlink list methods ${cur%.*})
+                                        if [[ -n "$methods" ]]; then
+                                                COMPREPLY=($(compgen -P ${cur%.*}. -W "${methods[*]}" -- ${cur##*.}))
+                                        else
+                                                compopt -o nospace
+                                                COMPREPLY=($(compgen -S . -W "$(varlink list interfaces)" -- $cur))
+                                        fi
                                         return 0
                                         ;;
                         esac
