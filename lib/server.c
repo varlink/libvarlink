@@ -169,8 +169,8 @@ static long org_varlink_service_GetInterface(VarlinkServer *server,
         _cleanup_(freep) char *string = NULL;
         long r;
 
-        if (varlink_object_get_string(parameters, "name", &name) < 0)
-                return varlink_call_reply_invalid_parameters(call, "name", NULL);
+        if (varlink_object_get_string(parameters, "interface", &name) < 0)
+                return varlink_call_reply_invalid_parameters(call, "interface", NULL);
 
         interface = varlink_service_get_interface_by_name(server->service, name);
         if (!interface)

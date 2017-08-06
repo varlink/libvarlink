@@ -70,7 +70,7 @@ static long print_methods(VarlinkCli *cli, const char *interface_name) {
                 return r;
 
         varlink_object_new(&parameters);
-        varlink_object_set_string(parameters, "name", interface_name);
+        varlink_object_set_string(parameters, "interface", interface_name);
         r = varlink_cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
         if (r < 0)
                 return r;

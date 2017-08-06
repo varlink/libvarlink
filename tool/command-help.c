@@ -89,7 +89,7 @@ static long help_interface(VarlinkCli *cli, const char *name) {
         long r;
 
         varlink_object_new(&parameters);
-        varlink_object_set_string(parameters, "name", name);
+        varlink_object_set_string(parameters, "interface", name);
         r = varlink_cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
         if (r < 0)
                 return r;

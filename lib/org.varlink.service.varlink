@@ -12,7 +12,7 @@ method GetInfo() -> (
 )
 
 # Get the description of an interface that is implemented by this service.
-method GetInterface(name: string) -> (interfacestring: string)
+method GetInterface(interface: string) -> (interfacestring: string)
 
 error InterfaceNotFound ()
 error MethodNotFound ()
