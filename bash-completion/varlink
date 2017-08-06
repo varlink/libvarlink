@@ -1,11 +1,14 @@
 _varlink_module()
 {
         COMPREPLY=()
+
+        # Do not split words at '=', long options use it
         local cur prev words cword
         _init_completion -n = || return
+
+        # Do not split words at ':', varlink addresses use it
         COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
-        # Find known verb
         local verbs=(
                 call
                 error
@@ -14,8 +17,9 @@ _varlink_module()
                 list
                 resolve
         )
-        local i
-        local verb=
+
+        # Find known verb in the current list of words
+        local i verb=
         for ((i = 1; i < ${#COMP_WORDS[@]}; i++)); do
                 for ((j = 0; j < ${#verbs[@]}; j++)); do
                         if [[ ${COMP_WORDS[i]} == ${verbs[j]} ]]; then
@@ -25,22 +29,23 @@ _varlink_module()
                 done
         done
 
+        # Handle verbs and their local options, options are offered if a '-' is given
         case $verb in
                 'call')
                         case $cur in
                                 --address=*)
-                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        COMPREPLY=($(compgen -W "$(varlink list addresses)" -- ${cur#*=}))
                                         return 0
                                         ;;
 
                                 -*)
                                         compopt -o nospace
-                                        COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--address= --help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces)" -- $cur) )
+                                        COMPREPLY=($(compgen -W "$(varlink list interfaces)" -- $cur))
                                         return 0
                                         ;;
                         esac
@@ -50,12 +55,12 @@ _varlink_module()
                 'error')
                         case $cur in
                                 -*)
-                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "$(varlink error)" -- $cur) )
+                                        COMPREPLY=($(compgen -W "$(varlink error)" -- $cur))
                                         return 0
                                         ;;
                         esac
@@ -64,25 +69,25 @@ _varlink_module()
 
                 'format')
                         compopt -o filenames
-                        COMPREPLY=( $(compgen -f -- $cur) )
+                        COMPREPLY=($(compgen -f -- $cur))
                         return 0
                         ;;
 
                 'help')
                         case $cur in
                                 --address=*)
-                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        COMPREPLY=($(compgen -W "$(varlink list addresses)" -- ${cur#*=}))
                                         return 0
                                         ;;
 
                                 -*)
                                         compopt -o nospace
-                                        COMPREPLY=( $(compgen -W "--address= --help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--address= --help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces) $(varlink list addresses)" -- $cur) )
+                                        COMPREPLY=($(compgen -W "$(varlink list interfaces) $(varlink list addresses)" -- $cur))
                                         return 0
                                         ;;
                         esac
@@ -92,12 +97,13 @@ _varlink_module()
                 'list')
                         case $cur in
                                 -*)
-                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
                                         local types=(
+                                                adresses
                                                 interfaces
                                         )
                                         local i
@@ -110,7 +116,7 @@ _varlink_module()
                                                 done
                                         done
 
-                                        COMPREPLY=( $(compgen -W "${types[*]}" -- $cur) )
+                                        COMPREPLY=($(compgen -W "${types[*]}" -- $cur))
                                         return 0
                                         ;;
                         esac
@@ -120,34 +126,34 @@ _varlink_module()
                 'resolve')
                         case $cur in
                                 -*)
-                                        COMPREPLY=( $(compgen -W "--help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "$(varlink list interfaces)" -- $cur) )
+                                        COMPREPLY=($(compgen -W "$(varlink list interfaces)" -- $cur))
                                         return 0
                                         ;;
                         esac
                         return 0
                         ;;
 
-                # No verb found, offer one and global options
+                # No verb found, offer them or global options, options are offered if a '-' is given
                 '')
                         case $cur in
                                 --resolver=*)
-                                        COMPREPLY=( $(compgen -W "$(varlink list addresses)" -- ${cur#*=}) )
+                                        COMPREPLY=($(compgen -W "$(varlink list addresses)" -- ${cur#*=}))
                                         return 0
                                         ;;
 
                                 -*)
                                         compopt -o nospace
-                                        COMPREPLY=( $(compgen -W "--resolver= --version --help" -- $cur) )
+                                        COMPREPLY=($(compgen -W "--resolver= --version --help" -- $cur))
                                         return 0
                                         ;;
 
                                 *)
-                                        COMPREPLY=( $(compgen -W "${verbs[*]}" -- $cur) )
+                                        COMPREPLY=($(compgen -W "${verbs[*]}" -- $cur))
                                         return 0
                                         ;;
                         esac
