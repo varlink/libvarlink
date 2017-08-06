@@ -1,5 +1,5 @@
 %define build_date %(date +"%%a %%b %%d %%Y")
-%define build_timestamp %(date +"%%Y%%m%%d.%%H%m%%S")
+%define build_timestamp %(date +"%%Y%%m%%d.%%H%M%%S")
 
 Name:           libvarlink
 Version:        1
