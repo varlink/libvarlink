@@ -29,6 +29,9 @@ developing applications that use %{name}.
 %configure
 make %{?_smp_mflags}
 
+%check
+make check
+
 %install
 %make_install
 
