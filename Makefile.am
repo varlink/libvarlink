@@ -233,6 +233,7 @@ bin_PROGRAMS += \
 varlink_SOURCES = \
 	tool/cli.c \
 	tool/cli.h \
+	tool/command.c \
 	tool/command.h \
 	tool/command-call.c \
 	tool/command-error.c \

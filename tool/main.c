@@ -5,15 +5,6 @@
 #include <getopt.h>
 #include <string.h>
 
-const CliCommand *commands[] = {
-        &command_call,
-        &command_error,
-        &command_format,
-        &command_help,
-        &command_list,
-        &command_resolve
-};
-
 static long lookup_command(Cli *cli, const char **cmdp, CommandFunction *commandp) {
         const char *cmd;
         static const struct option options[] = {
@@ -51,9 +42,9 @@ static long lookup_command(Cli *cli, const char **cmdp, CommandFunction *command
         cli->argv += optind;
         optind = 0;
 
-        for (unsigned long i = 0; i < ARRAY_SIZE(commands); i += 1) {
-                if (strcmp(cmd, commands[i]->name) == 0) {
-                        *commandp = commands[i]->function;
+        for (unsigned long i = 0; cli_commands[i]; i += 1) {
+                if (strcmp(cmd, cli_commands[i]->name) == 0) {
+                        *commandp = cli_commands[i]->function;
 
                         return 0;
                 }
@@ -88,8 +79,8 @@ int main(int argc, char **argv) {
                         printf("  -V, --version          output version information and exit\n");
                         printf("\n");
                         printf("Commands:\n");
-                        for (unsigned long i = 0; i < ARRAY_SIZE(commands); i += 1)
-                                printf("  %-16.16s %s\n", commands[i]->name, commands[i]->info);
+                        for (unsigned long i = 0; cli_commands[i]; i += 1)
+                                printf("  %-16.16s %s\n", cli_commands[i]->name, cli_commands[i]->info);
                         printf("\n");
                         printf("Errors:\n");
                         for (long i = 1 ; i < CLI_ERROR_MAX; i += 1)
