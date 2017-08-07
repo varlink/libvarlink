@@ -6,7 +6,6 @@ interface org.varlink.service
 # names of all available interfaces.
 method GetInfo() -> (
   name: string,
-  description: string,
   interfaces: string[],
   properties: object
 )
