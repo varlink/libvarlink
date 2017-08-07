@@ -8,29 +8,29 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_registry(VarlinkCli *cli, const char *field) {
+static long print_registry(Cli *cli, const char *field) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         VarlinkArray *interfaces;
         long n_interfaces;
         long r;
 
-        r = varlink_cli_connect(cli, cli->resolver);
+        r = cli_connect(cli, cli->resolver);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
+        r = cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_wait_reply(cli, &out, &error, NULL);
         if (r < 0)
                 return r;
 
         if (error)
                 return -CLI_ERROR_CANNOT_RESOLVE;
 
-        r = varlink_cli_disconnect(cli);
+        r = cli_disconnect(cli);
         if (r < 0)
                 return r;
 
@@ -51,7 +51,7 @@ static long print_registry(VarlinkCli *cli, const char *field) {
         return 0;
 }
 
-static long print_methods(VarlinkCli *cli, const char *interface_name) {
+static long print_methods(Cli *cli, const char *interface_name) {
         _cleanup_(freep) char *address = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
@@ -61,21 +61,21 @@ static long print_methods(VarlinkCli *cli, const char *interface_name) {
         _cleanup_(freep) char *string = NULL;
         long r;
 
-        r = varlink_cli_resolve(cli, interface_name, &address);
+        r = cli_resolve(cli, interface_name, &address);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_connect(cli, address);
+        r = cli_connect(cli, address);
         if (r < 0)
                 return r;
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface_name);
-        r = varlink_cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
+        r = cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_wait_reply(cli, &reply, &error, NULL);
+        r = cli_wait_reply(cli, &reply, &error, NULL);
         if (r < 0)
                 return r;
 
@@ -104,7 +104,7 @@ static long print_methods(VarlinkCli *cli, const char *interface_name) {
         return 0;
 }
 
-static long list(VarlinkCli *cli) {
+static long list(Cli *cli) {
         static const struct option options[] = {
                 { "help",             no_argument, NULL, 'h' },
                 {}
@@ -128,7 +128,7 @@ static long list(VarlinkCli *cli) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return exit_error(CLI_ERROR_PANIC);
+                                return cli_exit_error(CLI_ERROR_PANIC);
                 }
         }
 
@@ -148,10 +148,10 @@ static long list(VarlinkCli *cli) {
         else if (strcmp(type, "methods") == 0)
                 return print_methods(cli, argument);
 
-        return exit_error(CLI_ERROR_INVALID_ARGUMENT);
+        return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
 }
 
-const Command command_list = {
+const CliCommand command_list = {
         .name = "list",
         .info = "List interfaces, addresses",
         .function = list

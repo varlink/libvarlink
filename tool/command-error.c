@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long error(VarlinkCli *cli) {
+static long error(Cli *cli) {
         static const struct option options[] = {
                 { "help",    no_argument,       NULL, 'h' },
                 {}
@@ -25,7 +25,7 @@ static long error(VarlinkCli *cli) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return exit_error(CLI_ERROR_PANIC);
+                                return cli_exit_error(CLI_ERROR_PANIC);
                 }
         }
 
@@ -48,7 +48,7 @@ static long error(VarlinkCli *cli) {
                         return EXIT_SUCCESS;
                 }
 
-                return exit_error(CLI_ERROR_INVALID_ARGUMENT);
+                return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
 
         }
 
@@ -58,7 +58,7 @@ static long error(VarlinkCli *cli) {
         return EXIT_SUCCESS;
 }
 
-const Command command_error = {
+const CliCommand command_error = {
         .name = "error",
         .info = "Print the error codes and strings of libvarlink",
         .function = error

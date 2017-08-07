@@ -1,4 +1,5 @@
-#include "command.h"
+#include "cli.h"
+
 #include "util.h"
 
 #include <assert.h>
@@ -23,7 +24,7 @@ static const char *error_strings[] = {
         [CLI_ERROR_CALL_FAILED] = "CallFailed"
 };
 
-const char *error_string(long error) {
+const char *cli_error_string(long error) {
         if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
                 return "<invalid>";
 
@@ -33,17 +34,17 @@ const char *error_string(long error) {
         return error_strings[error];
 }
 
-long exit_error(long error) {
-        fprintf(stderr, "Error: %s\n", error_string(error));
+long cli_exit_error(long error) {
+        fprintf(stderr, "Error: %s\n", cli_error_string(error));
 
         return error;
 }
 
-long varlink_cli_new(VarlinkCli **mp) {
-        _cleanup_(varlink_cli_freep) VarlinkCli *cli = NULL;
+long cli_new(Cli **mp) {
+        _cleanup_(cli_freep) Cli *cli = NULL;
         sigset_t mask;
 
-        cli = calloc(1, sizeof(VarlinkCli));
+        cli = calloc(1, sizeof(Cli));
 
         cli->resolver = "unix:/run/org.varlink.resolver";
 
@@ -70,9 +71,9 @@ long varlink_cli_new(VarlinkCli **mp) {
         return 0;
 }
 
-VarlinkCli *varlink_cli_free(VarlinkCli *cli) {
+Cli *cli_free(Cli *cli) {
         if (cli->connection)
-                varlink_cli_disconnect(cli);
+                cli_disconnect(cli);
 
         if (cli->epoll_fd > 0)
                 close(cli->epoll_fd);
@@ -85,12 +86,12 @@ VarlinkCli *varlink_cli_free(VarlinkCli *cli) {
         return NULL;
 }
 
-void varlink_cli_freep(VarlinkCli **mp) {
+void cli_freep(Cli **mp) {
         if (*mp)
-                varlink_cli_free(*mp);
+                cli_free(*mp);
 }
 
-long varlink_cli_connect(VarlinkCli *cli, const char *address) {
+long cli_connect(Cli *cli, const char *address) {
         long r;
 
         r = varlink_connection_new(&cli->connection, address);
@@ -106,7 +107,7 @@ long varlink_cli_connect(VarlinkCli *cli, const char *address) {
         return 0;
 }
 
-long varlink_cli_resolve(VarlinkCli *cli, const char *interface, char **addressp) {
+long cli_resolve(Cli *cli, const char *interface, char **addressp) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
@@ -119,25 +120,25 @@ long varlink_cli_resolve(VarlinkCli *cli, const char *interface, char **addressp
                 return 0;
         }
 
-        r = varlink_cli_connect(cli, cli->resolver);
+        r = cli_connect(cli, cli->resolver);
         if (r < 0)
                 return r;
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface);
 
-        r = varlink_cli_call(cli, "org.varlink.resolver.Resolve", parameters, 0);
+        r = cli_call(cli, "org.varlink.resolver.Resolve", parameters, 0);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_wait_reply(cli, &out, &error, NULL);
         if (r < 0)
                 return r;
 
         if (error)
                 return -CLI_ERROR_CANNOT_RESOLVE;
 
-        r = varlink_cli_disconnect(cli);
+        r = cli_disconnect(cli);
         if (r < 0)
                 return r;
 
@@ -150,7 +151,7 @@ long varlink_cli_resolve(VarlinkCli *cli, const char *interface, char **addressp
         return 0;
 }
 
-long varlink_cli_disconnect(VarlinkCli *cli) {
+long cli_disconnect(Cli *cli) {
         assert(cli->connection);
 
         epoll_del(cli->epoll_fd, varlink_connection_get_fd(cli->connection));
@@ -159,10 +160,10 @@ long varlink_cli_disconnect(VarlinkCli *cli) {
         return 0;
 }
 
-long varlink_cli_call(VarlinkCli *cli,
-                      const char *qualified_method,
-                      VarlinkObject *parameters,
-                      long flags) {
+long cli_call(Cli *cli,
+              const char *qualified_method,
+              VarlinkObject *parameters,
+              long flags) {
         long r;
 
         r = varlink_connection_call(cli->connection, qualified_method, parameters, flags);
@@ -174,10 +175,10 @@ long varlink_cli_call(VarlinkCli *cli,
         return -CLI_ERROR_PANIC;
 }
 
-long varlink_cli_wait_reply(VarlinkCli *cli,
-                            VarlinkObject **parametersp,
-                            char **errorp,
-                            long *flagsp) {
+long cli_wait_reply(Cli *cli,
+                    VarlinkObject **parametersp,
+                    char **errorp,
+                    long *flagsp) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(freep) char *error = NULL;
         long r;

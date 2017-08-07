@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long call(VarlinkCli *cli) {
+static long call(Cli *cli) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -43,7 +43,7 @@ static long call(VarlinkCli *cli) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return exit_error(CLI_ERROR_PANIC);
+                                return cli_exit_error(CLI_ERROR_PANIC);
                 }
         }
 
@@ -60,14 +60,14 @@ static long call(VarlinkCli *cli) {
         }
 
         if (!address) {
-                r = varlink_cli_resolve(cli, interface, &address);
+                r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
                         fprintf(stderr, "Error resolving interface: %s\n", interface);
                         return CLI_ERROR_CANNOT_RESOLVE;
                 }
         }
 
-        r = varlink_cli_connect(cli, address);
+        r = cli_connect(cli, address);
         if (r < 0) {
                 fprintf(stderr, "Error connecting to: %s\n", interface);
                 return CLI_ERROR_CANNOT_CONNECT;
@@ -105,17 +105,17 @@ static long call(VarlinkCli *cli) {
                 return CLI_ERROR_INVALID_JSON;
         }
 
-        r = varlink_cli_call(cli, qualified_method, parameters, VARLINK_CALL_MORE);
+        r = cli_call(cli, qualified_method, parameters, VARLINK_CALL_MORE);
         if (r < 0)
-                return exit_error(-r);
+                return cli_exit_error(-r);
 
         for (;;) {
                 _cleanup_(freep) char *error = NULL;
                 long flags;
 
-                r = varlink_cli_wait_reply(cli, &reply, &error, &flags);
+                r = cli_wait_reply(cli, &reply, &error, &flags);
                 if (r < 0)
-                        return exit_error(-r);
+                        return cli_exit_error(-r);
 
                 if (error)
                         fprintf(stderr, "Error: %s\n", error);
@@ -146,7 +146,7 @@ static long call(VarlinkCli *cli) {
         return EXIT_SUCCESS;
 }
 
-const Command command_call = {
+const CliCommand command_call = {
         .name = "call",
         .info = "Call a method",
         .function = call

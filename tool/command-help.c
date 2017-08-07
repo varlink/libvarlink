@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(VarlinkCli *cli) {
+static long print_service(Cli *cli) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *name;
@@ -17,11 +17,11 @@ static long print_service(VarlinkCli *cli) {
         unsigned long n_interfaces;
         long r;
 
-        r = varlink_cli_call(cli, "org.varlink.service.GetInfo", NULL, 0);
+        r = cli_call(cli, "org.varlink.service.GetInfo", NULL, 0);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_wait_reply(cli, &info, &error, NULL);
+        r = cli_wait_reply(cli, &info, &error, NULL);
         if (r < 0)
                 return r;
 
@@ -79,7 +79,7 @@ static long print_service(VarlinkCli *cli) {
         return 0;
 }
 
-static long help_interface(VarlinkCli *cli, const char *name) {
+static long help_interface(Cli *cli, const char *name) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
         _cleanup_(freep) char *error = NULL;
@@ -90,11 +90,11 @@ static long help_interface(VarlinkCli *cli, const char *name) {
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
-        r = varlink_cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
+        r = cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
         if (r < 0)
                 return r;
 
-        r = varlink_cli_wait_reply(cli, &reply, &error, NULL);
+        r = cli_wait_reply(cli, &reply, &error, NULL);
         if (r < 0)
                 return r;
 
@@ -130,7 +130,7 @@ static long help_interface(VarlinkCli *cli, const char *name) {
         return 0;
 }
 
-static long help(VarlinkCli *cli) {
+static long help(Cli *cli) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -182,7 +182,7 @@ static long help(VarlinkCli *cli) {
                 interface = topic;
 
                 if (!address) {
-                        r = varlink_cli_resolve(cli, interface, &address);
+                        r = cli_resolve(cli, interface, &address);
                         if (r < 0) {
                                 fprintf(stderr, "Error resolving interface %s: %s\n", interface, strerror(-r));
                                 return EXIT_FAILURE;
@@ -190,7 +190,7 @@ static long help(VarlinkCli *cli) {
                 }
         }
 
-        r = varlink_cli_connect(cli, address);
+        r = cli_connect(cli, address);
         if (r < 0) {
                 fprintf(stderr, "Error connecting to %s: %s\n", interface, strerror(-r));
                 return EXIT_FAILURE;
@@ -206,7 +206,7 @@ static long help(VarlinkCli *cli) {
         return EXIT_SUCCESS;
 }
 
-const Command command_help = {
+const CliCommand command_help = {
         .name = "help",
         .info = "Documentation for interfaces and types",
         .function = help

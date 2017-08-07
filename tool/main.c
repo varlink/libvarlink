@@ -5,7 +5,7 @@
 #include <getopt.h>
 #include <string.h>
 
-const Command *commands[] = {
+const CliCommand *commands[] = {
         &command_call,
         &command_error,
         &command_format,
@@ -14,7 +14,7 @@ const Command *commands[] = {
         &command_resolve
 };
 
-static long lookup_command(VarlinkCli *cli, const char **cmdp, CommandFunction *commandp) {
+static long lookup_command(Cli *cli, const char **cmdp, CommandFunction *commandp) {
         const char *cmd;
         static const struct option options[] = {
                 { "help",    no_argument, NULL, 'h' },
@@ -63,14 +63,14 @@ static long lookup_command(VarlinkCli *cli, const char **cmdp, CommandFunction *
 }
 
 int main(int argc, char **argv) {
-        _cleanup_(varlink_cli_freep) VarlinkCli *cli = NULL;
+        _cleanup_(cli_freep) Cli *cli = NULL;
         const char *cmd;
         CommandFunction command;
         long r;
 
-        r = varlink_cli_new(&cli);
+        r = cli_new(&cli);
         if (r < 0)
-                return exit_error(-r);
+                return cli_exit_error(-r);
 
         cli->argv = argv;
         cli->argc = argc;
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
                         printf("\n");
                         printf("Errors:\n");
                         for (long i = 1 ; i < CLI_ERROR_MAX; i += 1)
-                                printf(" %3li %s\n", i, error_string(i));
+                                printf(" %3li %s\n", i, cli_error_string(i));
                         printf("\n");
                         return EXIT_SUCCESS;
 
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
                         return CLI_ERROR_COMMAND_NOT_FOUND;
 
                 default:
-                        return exit_error(CLI_ERROR_PANIC);
+                        return cli_exit_error(CLI_ERROR_PANIC);
         }
 
         return command(cli);

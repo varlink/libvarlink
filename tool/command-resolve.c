@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long resolve(VarlinkCli *cli) {
+static long resolve(Cli *cli) {
         static const struct option options[] = {
                 { "help", no_argument, NULL, 'h' },
                 {}
@@ -29,7 +29,7 @@ static long resolve(VarlinkCli *cli) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return exit_error(CLI_ERROR_PANIC);
+                                return cli_exit_error(CLI_ERROR_PANIC);
                 }
         }
 
@@ -40,7 +40,7 @@ static long resolve(VarlinkCli *cli) {
                 return EXIT_FAILURE;
         }
 
-        r = varlink_cli_resolve(cli, interface, &address);
+        r = cli_resolve(cli, interface, &address);
         if (r < 0) {
                 fprintf(stderr, "Error resolving interface %s: %s\n", interface, strerror(-r));
                 return r;
@@ -51,7 +51,7 @@ static long resolve(VarlinkCli *cli) {
         return EXIT_SUCCESS;
 }
 
-const Command command_resolve = {
+const CliCommand command_resolve = {
         .name = "resolve",
         .info = "Resolve an interface name to a varlink address",
         .function = resolve
