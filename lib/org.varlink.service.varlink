@@ -13,10 +13,15 @@ method GetInfo() -> (
 # Get the description of an interface that is implemented by this service.
 method GetInterface(interface: string) -> (interfacestring: string)
 
-error InterfaceNotFound ()
-error MethodNotFound ()
-error MethodNotImplemented ()
+# The requested interface was not found.
+error InterfaceNotFound (interface: string)
 
-error InvalidParameters (
-  names: string[]
-)
+# The requested method was not found
+error MethodNotFound (method: string)
+
+# The interface defines the requested method, but the service does not
+# implement it.
+error MethodNotImplemented (method: string)
+
+# One of the passed parameters is invalid.
+error InvalidParameter (parameter: string)

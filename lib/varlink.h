@@ -252,8 +252,7 @@ long varlink_call_reply_error(VarlinkCall *call,
                               const char *error,
                               VarlinkObject *parameters);
 
-__attribute__((sentinel))
-long varlink_call_reply_invalid_parameters(VarlinkCall *call, ...);
+long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *parameter);
 
 long varlink_connection_new(VarlinkConnection **connectionp, const char *address);
 

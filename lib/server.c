@@ -169,7 +169,7 @@ static long org_varlink_service_GetInterface(VarlinkServer *server,
         long r;
 
         if (varlink_object_get_string(parameters, "interface", &name) < 0)
-                return varlink_call_reply_invalid_parameters(call, "interface", NULL);
+                return varlink_call_reply_invalid_parameter(call, "interface");
 
         interface = varlink_service_get_interface_by_name(server->service, name);
         if (!interface)
@@ -337,11 +337,11 @@ static long varlink_server_handle_call(VarlinkServer *server,
 
         if (varlink_object_get_string(message, "method", &qualified_method) < 0 ||
             varlink_interface_parse_qualified_name(qualified_method, &interface_name, &method_name) < 0)
-                return varlink_call_reply_invalid_parameters(connection->call, "method", NULL);
+                return varlink_call_reply_invalid_parameter(connection->call, "method");
 
         r = varlink_object_get_object(message, "parameters", &parameters);
         if (r < 0)
-                return varlink_call_reply_invalid_parameters(connection->call, "parameters", NULL);
+                return varlink_call_reply_invalid_parameter(connection->call, "parameters");
 
         if (varlink_object_get_bool(message, "more", &more) == 0 && more)
                 flags |= VARLINK_CALL_MORE;
@@ -549,32 +549,15 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         return 0;
 }
 
-_public_ long varlink_call_reply_invalid_parameters(VarlinkCall *call, ...) {
+_public_ long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *parameter) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(varlink_array_unrefp) VarlinkArray *names = NULL;
-        va_list ap;
         long r;
-
-        r = varlink_array_new(&names);
-        if (r < 0)
-                return r;
-
-        va_start(ap, call);
-        for (;;) {
-                const char *name = va_arg(ap, const char *);
-
-                if (!name)
-                        break;
-
-                varlink_array_append_string(names, name);
-        }
-        va_end(ap);
 
         r = varlink_object_new(&parameters);
         if (r < 0)
                 return r;
 
-        varlink_object_set_array(parameters, "names", names);
+        varlink_object_set_string(parameters, "parameter", parameter);
 
         return varlink_call_reply_error(call, "org.varlink.service.InvalidParameters", parameters);
 }

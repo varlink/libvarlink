@@ -20,7 +20,7 @@ global:
         varlink_call_ref;
         varlink_call_reply;
         varlink_call_reply_error;
-        varlink_call_reply_invalid_parameters;
+        varlink_call_reply_invalid_parameter;
         varlink_call_set_canceled_callback;
         varlink_call_unref;
         varlink_call_unrefp;
