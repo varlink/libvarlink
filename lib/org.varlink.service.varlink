@@ -5,7 +5,6 @@ interface org.varlink.service
 # Returns information about a service. It contains the service name and the
 # names of all available interfaces.
 method GetInfo() -> (
-  name: string,
   interfaces: string[],
   properties: object
 )
