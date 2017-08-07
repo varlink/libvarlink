@@ -39,3 +39,4 @@ long cli_resolve(Cli *cli, const char *interface, char **addressp);
 long cli_disconnect(Cli *cli);
 long cli_call(Cli *cli, const char *qualified_method, VarlinkObject *parameters, long flags);
 long cli_wait_reply(Cli *cli, VarlinkObject **replyp, char **errorp, long *flagsp);
+long cli_run(Cli *cli, int argc, char **argv);
