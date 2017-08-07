@@ -89,7 +89,6 @@ int main(void) {
         assert(varlink_server_new(&test.server,
                                   "unix:test.socket",
                                   -1,
-                                  "org.varlink.example",
                                   NULL,
                                   &interface, 1) == 0);
         assert(varlink_server_set_method_callback(test.server,

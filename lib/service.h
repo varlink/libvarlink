@@ -4,14 +4,11 @@
 #include <varlink.h>
 
 typedef struct VarlinkService {
-        char *name;
         VarlinkObject *properties;
         AVLTree *interfaces;
 } VarlinkService;
 
-long varlink_service_new(VarlinkService **servicep,
-                         const char *name,
-                         VarlinkObject *properties);
+long varlink_service_new(VarlinkService **servicep, VarlinkObject *properties);
 VarlinkService *varlink_service_free(VarlinkService *service);
 void varlink_service_freep(VarlinkService **servicepp);
 VarlinkInterface *varlink_service_get_interface_by_name(VarlinkService *service, const char *name);

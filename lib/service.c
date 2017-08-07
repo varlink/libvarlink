@@ -18,7 +18,6 @@ VarlinkService *varlink_service_free(VarlinkService *service) {
                 varlink_object_unref(service->properties);
 
         avl_tree_free(service->interfaces);
-        free(service->name);
         free(service);
 
         return NULL;
@@ -35,18 +34,13 @@ static long interface_compare(const void *key, void *value) {
         return strcmp(key, interface->name);
 }
 
-long varlink_service_new(VarlinkService **servicep,
-                         const char *name,
-                         VarlinkObject *properties) {
+long varlink_service_new(VarlinkService **servicep, VarlinkObject *properties) {
         _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         long r;
 
         service = calloc(1, sizeof(VarlinkService));
         avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
-
-        if (name)
-                service->name = strdup(name);
 
         r = varlink_interface_new(&interface, org_varlink_service_varlink, NULL);
         if (r < 0)

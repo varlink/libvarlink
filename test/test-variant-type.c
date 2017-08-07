@@ -100,7 +100,6 @@ static void test_interface_type_add(void) {
         assert(varlink_server_new(&server,
                                   "unix:@org.example.foo",
                                   -1,
-                                  "org.example.foo",
                                   NULL,
                                   &interfacestring, 1) == 0);
 
@@ -125,7 +124,6 @@ static void test_interface_type_lookup(void) {
         assert(varlink_server_new(&server,
                                   "unix:@org.example.foo",
                                   -1,
-                                  "org.example.foo",
                                   NULL,
                                   &interfacestring, 1) == 0);
 

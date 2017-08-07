@@ -174,9 +174,9 @@ long varlink_array_append_object(VarlinkArray *array, VarlinkObject *object);
 long varlink_server_new(VarlinkServer **serverp,
                         const char *address,
                         int listen_fd,
-                        const char *name,
                         VarlinkObject *properties,
-                        const char **interfacestrings, unsigned long n_interfaces);
+                        const char **interfacestrings,
+                        unsigned long n_interfaces);
 
 /*
  * Destroys a VarlinkServer, close all its connections and free all its

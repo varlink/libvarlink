@@ -147,8 +147,7 @@ static long org_varlink_service_GetInfo(VarlinkServer *server,
         if (r < 0)
                 return r;
 
-        if (varlink_object_set_string(info, "name", server->service->name) < 0 ||
-            varlink_object_set_array(info, "interfaces", interfaces))
+        if (varlink_object_set_array(info, "interfaces", interfaces))
                 return -VARLINK_ERROR_PANIC;
 
         if (server->service->properties &&
@@ -191,7 +190,6 @@ static long org_varlink_service_GetInterface(VarlinkServer *server,
 _public_ long varlink_server_new(VarlinkServer **serverp,
                                  const char *address,
                                  int listen_fd,
-                                 const char *name,
                                  VarlinkObject *properties,
                                  const char **interfacestrings,
                                  unsigned long n_interfaces) {
@@ -211,9 +209,6 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
 
         server->listen_fd = listen_fd;
 
-        if (!varlink_interface_name_valid(name))
-                return -VARLINK_ERROR_INVALID_INTERFACE;
-
         avl_tree_new(&server->connections, connection_compare, (AVLFreeFunc)server_connection_free);
 
         server->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
@@ -221,7 +216,7 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
         if (epoll_add(server->epoll_fd, server->listen_fd, EPOLLIN, server) < 0)
                 return -VARLINK_ERROR_PANIC;
 
-        r = varlink_service_new(&server->service, name, properties);
+        r = varlink_service_new(&server->service, properties);
         if (r < 0)
                 return r;
 
