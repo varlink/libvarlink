@@ -14,7 +14,7 @@ static const struct option options[] = {
         {}
 };
 
-static long call(Cli *cli, int argc, char **argv) {
+static long call_run(Cli *cli, int argc, char **argv) {
         _cleanup_(freep) char *address = NULL;
         const char *qualified_method;
         _cleanup_(freep) char *interface = NULL;
@@ -166,6 +166,6 @@ static long call_complete(Cli *cli, int argc, char **argv, const char *current) 
 const CliCommand command_call = {
         .name = "call",
         .info = "Call a method",
-        .run = call,
+        .run = call_run,
         .complete = call_complete
 };

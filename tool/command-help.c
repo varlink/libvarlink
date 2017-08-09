@@ -130,7 +130,7 @@ static long help_interface(Cli *cli, const char *name) {
         return 0;
 }
 
-static long help(Cli *cli, int argc, char **argv) {
+static long help_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -209,5 +209,5 @@ static long help(Cli *cli, int argc, char **argv) {
 const CliCommand command_help = {
         .name = "help",
         .info = "Documentation for interfaces and types",
-        .run = help
+        .run = help_run
 };

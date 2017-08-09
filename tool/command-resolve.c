@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long resolve(Cli *cli, int argc, char **argv) {
+static long resolve_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help", no_argument, NULL, 'h' },
                 {}
@@ -54,5 +54,5 @@ static long resolve(Cli *cli, int argc, char **argv) {
 const CliCommand command_resolve = {
         .name = "resolve",
         .info = "Resolve an interface name to a varlink address",
-        .run = resolve
+        .run = resolve_run
 };

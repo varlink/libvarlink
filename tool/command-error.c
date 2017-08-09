@@ -11,7 +11,7 @@ static const struct option options[] = {
         {}
 };
 
-static long error(Cli *cli, int argc, char **argv) {
+static long error_run(Cli *cli, int argc, char **argv) {
         int c;
         const char *arg;
 
@@ -72,6 +72,6 @@ static long error_complete(Cli *cli, int argc, char **argv, const char *current)
 const CliCommand command_error = {
         .name = "error",
         .info = "Print the error codes and strings of libvarlink",
-        .run = error,
+        .run = error_run,
         .complete = error_complete
 };

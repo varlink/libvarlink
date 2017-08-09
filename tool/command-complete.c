@@ -7,7 +7,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long complete(Cli *cli, int argc, char **argv) {
+static long complete_run(Cli *cli, int argc, char **argv) {
         char *endptr;
         int argindex;
         const char *current = NULL;
@@ -49,5 +49,5 @@ static long complete(Cli *cli, int argc, char **argv) {
 const CliCommand command_complete = {
         .name = "complete",
         .info = "Provide suggestions for command line completion",
-        .run = complete
+        .run = complete_run
 };

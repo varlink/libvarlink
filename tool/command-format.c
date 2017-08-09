@@ -34,7 +34,7 @@ static long read_file(FILE *file, char **contentsp) {
         return 0;
 }
 
-static long format(Cli *cli, int argc, char **argv) {
+static long format_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help",   no_argument,       NULL, 'h' },
                 { "output", required_argument, NULL, 'o' },
@@ -137,5 +137,5 @@ static long format(Cli *cli, int argc, char **argv) {
 const CliCommand command_format = {
         .name = "format",
         .info = "Format a varlink service file",
-        .run = format
+        .run = format_run
 };
