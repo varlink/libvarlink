@@ -26,6 +26,13 @@ static const char *error_strings[] = {
         [CLI_ERROR_CALL_FAILED] = "CallFailed"
 };
 
+static const struct option cli_options[] = {
+        { "help",     no_argument,       NULL, 'h' },
+        { "resolver", required_argument, NULL, 'R' },
+        { "version",  no_argument,       NULL, 'V' },
+        {}
+};
+
 const char *cli_error_string(long error) {
         if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
                 return "<invalid>";
@@ -254,17 +261,19 @@ long cli_wait_reply(Cli *cli,
         return 0;
 }
 
-static long cli_parse_arguments(Cli *cli, const char **cmdp, CommandFunction *commandp) {
-        const char *cmd;
-        static const struct option options[] = {
-                { "help",    no_argument, NULL, 'h' },
-                { "resolver", required_argument, NULL, 'R' },
-                { "version", no_argument, NULL, 'V' },
-                {}
-        };
+static const CliCommand *cli_get_command(Cli *cli, const char *name) {
+        for (unsigned long i = 0; cli_commands[i]; i += 1) {
+                if (strcmp(name, cli_commands[i]->name) == 0)
+                        return cli_commands[i];
+        }
+
+        return NULL;
+}
+
+static long cli_parse_arguments(Cli *cli, int argc, char **argv, long *indexp) {
         int c;
 
-        while ((c = getopt_long(cli->argc, cli->argv, "+hR:V", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "+hR:V", cli_options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 return 'h';
@@ -276,42 +285,26 @@ static long cli_parse_arguments(Cli *cli, const char **cmdp, CommandFunction *co
                         case 'V':
                                 return 'V';
 
+                        case '?':
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
         }
 
-        if (!cli->argv[optind])
-                return -CLI_ERROR_MISSING_COMMAND;
-
-        cmd = cli->argv[optind];
-        *cmdp = cmd;
-
-        cli->argc -= optind;
-        cli->argv += optind;
+        *indexp = optind;
         optind = 0;
 
-        for (unsigned long i = 0; cli_commands[i]; i += 1) {
-                if (strcmp(cmd, cli_commands[i]->name) == 0) {
-                        *commandp = cli_commands[i]->function;
-
-                        return 0;
-                }
-        }
-
-        return -CLI_ERROR_COMMAND_NOT_FOUND;
+        return 0;
 }
 
-
 long cli_run(Cli *cli, int argc, char **argv) {
-        const char *cmd;
-        CommandFunction command;
+        const CliCommand *command;
+        long command_index = 0;
         long c;
 
-        cli->argv = argv;
-        cli->argc = argc;
-
-        c = cli_parse_arguments(cli, &cmd, &command);
+        c = cli_parse_arguments(cli, argc, argv, &command_index);
         switch (c) {
                 case 0:
                         break;
@@ -337,19 +330,22 @@ long cli_run(Cli *cli, int argc, char **argv) {
                         printf(VERSION "\n");
                         return EXIT_SUCCESS;
 
-                case -CLI_ERROR_MISSING_COMMAND:
-                        fprintf(stderr, "Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
-                        fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
-                        return CLI_ERROR_COMMAND_NOT_FOUND;
-
-                case -CLI_ERROR_COMMAND_NOT_FOUND:
-                        fprintf(stderr, "%s: '%s' is not a valid command.\n", program_invocation_short_name, cmd);
-                        fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
-                        return CLI_ERROR_COMMAND_NOT_FOUND;
-
                 default:
                         return cli_exit_error(CLI_ERROR_PANIC);
         }
 
-        return command(cli);
+        if (argv[command_index] == NULL) {
+                fprintf(stderr, "Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
+                fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
+                return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
+        }
+
+        command = cli_get_command(cli, argv[command_index]);
+        if (!command) {
+                fprintf(stderr, "%s: '%s' is not a valid command.\n", program_invocation_short_name, argv[command_index]);
+                fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
+                return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
+        }
+
+        return command->run(cli, argc - command_index, argv + command_index);
 }

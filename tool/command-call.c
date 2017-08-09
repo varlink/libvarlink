@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long call(Cli *cli) {
+static long call(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -26,7 +26,7 @@ static long call(Cli *cli) {
         int c;
         long r;
 
-        while ((c = getopt_long(cli->argc, cli->argv, "a:fh", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "a:fh", options, NULL)) >= 0) {
                 switch (c) {
                         case 'a':
                                 address = strdup(optarg);
@@ -47,7 +47,7 @@ static long call(Cli *cli) {
                 }
         }
 
-        qualified_method = cli->argv[optind];
+        qualified_method = argv[optind];
         if (!qualified_method) {
                 fprintf(stderr, "Error: expecting INTERFACE.METHOD [ARGUMENTS]\n");
                 return CLI_ERROR_MISSING_ARGUMENT;
@@ -73,7 +73,7 @@ static long call(Cli *cli) {
                 return CLI_ERROR_CANNOT_CONNECT;
         }
 
-        parameters_json = cli->argv[optind + 1];
+        parameters_json = argv[optind + 1];
         if (!parameters_json) {
                 parameters_json = "{}";
 
@@ -149,5 +149,5 @@ static long call(Cli *cli) {
 const CliCommand command_call = {
         .name = "call",
         .info = "Call a method",
-        .function = call
+        .run = call
 };

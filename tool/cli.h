@@ -19,8 +19,6 @@ enum {
 };
 
 typedef struct {
-        int argc;
-        char **argv;
         const char *resolver;
 
         VarlinkConnection *connection;

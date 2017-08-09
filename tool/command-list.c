@@ -104,7 +104,7 @@ static long print_methods(Cli *cli, const char *interface_name) {
         return 0;
 }
 
-static long list(Cli *cli) {
+static long list(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help",             no_argument, NULL, 'h' },
                 {}
@@ -113,7 +113,7 @@ static long list(Cli *cli) {
         const char *argument = NULL;
         int c;
 
-        while ((c = getopt_long(cli->argc, cli->argv, "h", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
@@ -132,14 +132,14 @@ static long list(Cli *cli) {
                 }
         }
 
-        type = cli->argv[optind];
+        type = argv[optind];
         if (!type) {
                 fprintf(stderr, "Error: expecting command\n");
 
                 return CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        argument = cli->argv[optind + 1];
+        argument = argv[optind + 1];
 
         if (strcmp(type, "interfaces") == 0)
                 return print_registry(cli, "interface");
@@ -154,5 +154,5 @@ static long list(Cli *cli) {
 const CliCommand command_list = {
         .name = "list",
         .info = "List interfaces, addresses",
-        .function = list
+        .run = list
 };

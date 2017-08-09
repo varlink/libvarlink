@@ -2,12 +2,12 @@
 
 #include "cli.h"
 
-typedef long (*CommandFunction)(Cli *cli);
+typedef long (*CommandRunFunction)(Cli *cli, int argc, char **argv);
 
 typedef struct {
         const char *name;
         const char *info;
-        CommandFunction function;
+        CommandRunFunction run;
 } CliCommand;
 
 extern const CliCommand *cli_commands[];

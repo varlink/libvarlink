@@ -6,7 +6,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long error(Cli *cli) {
+static long error(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help",    no_argument,       NULL, 'h' },
                 {}
@@ -14,7 +14,7 @@ static long error(Cli *cli) {
         int c;
         const char *arg;
 
-        while ((c = getopt_long(cli->argc, cli->argv, "h", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s error [NUMBER/STRING]\n", program_invocation_short_name);
@@ -29,7 +29,7 @@ static long error(Cli *cli) {
                 }
         }
 
-        arg = cli->argv[optind];
+        arg = argv[optind];
         if (arg) {
                 long n;
                 char *endptr;
@@ -61,5 +61,5 @@ static long error(Cli *cli) {
 const CliCommand command_error = {
         .name = "error",
         .info = "Print the error codes and strings of libvarlink",
-        .function = error
+        .run = error
 };

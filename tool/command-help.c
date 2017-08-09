@@ -130,7 +130,7 @@ static long help_interface(Cli *cli, const char *name) {
         return 0;
 }
 
-static long help(Cli *cli) {
+static long help(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
@@ -142,7 +142,7 @@ static long help(Cli *cli) {
         const char *interface = NULL;
         long r;
 
-        while ((c = getopt_long(cli->argc, cli->argv, "a:h", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "a:h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'a':
                                 address = strdup(optarg);
@@ -164,7 +164,7 @@ static long help(Cli *cli) {
                 }
         }
 
-        topic = cli->argv[optind];
+        topic = argv[optind];
         if (!topic) {
                 fprintf(stderr, "Usage: %s help [ INTERFACE | ADDRESS ]\n", program_invocation_short_name);
                 return EXIT_FAILURE;
@@ -209,5 +209,5 @@ static long help(Cli *cli) {
 const CliCommand command_help = {
         .name = "help",
         .info = "Documentation for interfaces and types",
-        .function = help
+        .run = help
 };
