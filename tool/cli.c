@@ -455,7 +455,7 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(freep) char *error = NULL;
-        const char *interfacestring = NULL;
+        const char *description = NULL;
         const char *dot;
         long r;
 
@@ -487,7 +487,7 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface_name);
-        r = cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
+        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, 0);
         if (r < 0)
                 return r;
 
@@ -498,10 +498,10 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
         if (error)
                 return -CLI_ERROR_REMOTE_ERROR;
 
-        if (varlink_object_get_string(out, "interfacestring", &interfacestring) < 0)
+        if (varlink_object_get_string(out, "description", &description) < 0)
                 return -CLI_ERROR_CALL_FAILED;
 
-        r = varlink_interface_new(&interface, interfacestring, NULL);
+        r = varlink_interface_new(&interface, description, NULL);
         if (r < 0)
                 return -CLI_ERROR_PANIC;
 
