@@ -35,6 +35,16 @@ static const struct option cli_options[] = {
         {}
 };
 
+typedef struct {
+        bool help;
+        bool version;
+        const char *resolver;
+
+        const char *command;
+        int remaining_argc;
+        char **remaining_argv;
+} CliArguments;
+
 const char *cli_error_string(long error) {
         if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
                 return "<invalid>";
@@ -272,84 +282,84 @@ static const CliCommand *cli_get_command(Cli *cli, const char *name) {
         return NULL;
 }
 
-static long cli_parse_arguments(Cli *cli, int argc, char **argv, long *indexp) {
+static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) {
         int c;
 
         while ((c = getopt_long(argc, argv, "+hR:V", cli_options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
-                                return 'h';
-
-                        case 'R':
-                                cli->resolver = optarg;
+                                arguments->help = true;
                                 break;
-
+                        case 'R':
+                                arguments->resolver = optarg;
+                                break;
                         case 'V':
-                                return 'V';
-
+                                arguments->version = true;
+                                break;
                         case '?':
                                 return -CLI_ERROR_INVALID_ARGUMENT;
-
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
         }
 
-        *indexp = optind;
-        optind = 0;
+        arguments->command = argv[optind];
+
+        arguments->remaining_argc = argc - optind;
+        arguments->remaining_argv = argv + optind;
 
         return 0;
 }
 
 long cli_run(Cli *cli, int argc, char **argv) {
+        CliArguments arguments = { 0 };
         const CliCommand *command;
-        long command_index = 0;
-        long c;
+        long r;
 
-        c = cli_parse_arguments(cli, argc, argv, &command_index);
-        switch (c) {
-                case 0:
-                        break;
+        r = cli_parse_arguments(argc, argv, &arguments);
+        if (r < 0)
+                return cli_exit_error(-r);
 
-                case 'h':
-                        printf("Usage: %s COMMAND [OPTIONS]...\n", program_invocation_short_name);
-                        printf("\n");
-                        printf("  -h, --help             display this help text and exit\n");
-                        printf("  -R, --resolver=ADDRESS address of the resolver\n");
-                        printf("  -V, --version          output version information and exit\n");
-                        printf("\n");
-                        printf("Commands:\n");
-                        for (unsigned long i = 0; cli_commands[i]; i += 1)
-                                printf("  %-16.16s %s\n", cli_commands[i]->name, cli_commands[i]->info);
-                        printf("\n");
-                        printf("Errors:\n");
-                        for (long i = 1 ; i < CLI_ERROR_MAX; i += 1)
-                                printf(" %3li %s\n", i, cli_error_string(i));
-                        printf("\n");
-                        return EXIT_SUCCESS;
+        if (arguments.resolver)
+                cli->resolver = arguments.resolver;
 
-                case 'V':
-                        printf(VERSION "\n");
-                        return EXIT_SUCCESS;
-
-                default:
-                        return cli_exit_error(CLI_ERROR_PANIC);
+        if (arguments.help) {
+                printf("Usage: %s COMMAND [OPTIONS]...\n", program_invocation_short_name);
+                printf("\n");
+                printf("  -h, --help             display this help text and exit\n");
+                printf("  -R, --resolver=ADDRESS address of the resolver\n");
+                printf("  -V, --version          output version information and exit\n");
+                printf("\n");
+                printf("Commands:\n");
+                for (unsigned long i = 0; cli_commands[i]; i += 1)
+                        printf("  %-16.16s %s\n", cli_commands[i]->name, cli_commands[i]->info);
+                printf("\n");
+                printf("Errors:\n");
+                for (long i = 1 ; i < CLI_ERROR_MAX; i += 1)
+                        printf(" %3li %s\n", i, cli_error_string(i));
+                printf("\n");
+                return EXIT_SUCCESS;
         }
 
-        if (argv[command_index] == NULL) {
+        if (arguments.version) {
+                printf(VERSION "\n");
+                return EXIT_SUCCESS;
+        }
+
+        if (arguments.command == NULL) {
                 fprintf(stderr, "Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
                 fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
                 return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
         }
 
-        command = cli_get_command(cli, argv[command_index]);
+        command = cli_get_command(cli, arguments.command);
         if (!command) {
-                fprintf(stderr, "%s: '%s' is not a valid command.\n", program_invocation_short_name, argv[command_index]);
+                fprintf(stderr, "%s: '%s' is not a valid command.\n", program_invocation_short_name, arguments.command);
                 fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
                 return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
         }
 
-        return command->run(cli, argc - command_index, argv + command_index);
+        return command->run(cli, arguments.remaining_argc, arguments.remaining_argv);
 }
 
 void cli_print_completion(const char *current, const char *format, ...) {
@@ -367,26 +377,29 @@ void cli_print_completion(const char *current, const char *format, ...) {
 }
 
 long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
-        long command_index = 0;
-        int c;
+        CliArguments arguments = { 0 };
+        int r;
 
-        c = cli_parse_arguments(cli, argc, argv, &command_index);
-        if (c < 0) {
-                if (c == CLI_ERROR_INVALID_ARGUMENT)
+        r = cli_parse_arguments(argc, argv, &arguments);
+        if (r < 0) {
+                if (r == CLI_ERROR_INVALID_ARGUMENT)
                         return 0;
 
                 return -CLI_ERROR_PANIC;
         }
 
-        if (argv[command_index]) {
+        if (arguments.resolver)
+                cli->resolver = arguments.resolver;
+
+        if (arguments.command) {
                 const CliCommand *command;
 
-                command = cli_get_command(cli, argv[command_index]);
+                command = cli_get_command(cli, arguments.command);
                 if (command) {
                         if (!command->complete)
                                 return 0;
 
-                        return command->complete(cli, argc - command_index, argv + command_index, current);
+                        return command->complete(cli, arguments.remaining_argc, arguments.remaining_argv, current);
                 }
         }
 
