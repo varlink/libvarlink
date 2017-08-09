@@ -90,7 +90,7 @@ static long help_interface(Cli *cli, const char *name) {
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
-        r = cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
+        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, 0);
         if (r < 0)
                 return r;
 
@@ -104,7 +104,7 @@ static long help_interface(Cli *cli, const char *name) {
                 return 0;
         }
 
-        if (varlink_object_get_string(reply, "interfacestring", &interfacestring) < 0)
+        if (varlink_object_get_string(reply, "description", &interfacestring) < 0)
                 return -CLI_ERROR_CALL_FAILED;
 
         r = varlink_interface_new(&interface, interfacestring, NULL);

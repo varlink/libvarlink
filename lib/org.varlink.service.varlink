@@ -5,12 +5,14 @@ interface org.varlink.service
 # Returns information about a service. It contains the service name and the
 # names of all available interfaces.
 method GetInfo() -> (
+  name: string,
+  version: string,
   interfaces: string[],
   properties: object
 )
 
 # Get the description of an interface that is implemented by this service.
-method GetInterface(interface: string) -> (interfacestring: string)
+method GetInterfaceDescription(interface: string) -> (description: string)
 
 # The requested interface was not found.
 error InterfaceNotFound (interface: string)

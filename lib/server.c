@@ -157,11 +157,11 @@ static long org_varlink_service_GetInfo(VarlinkServer *server,
         return varlink_call_reply(call, info, 0);
 }
 
-static long org_varlink_service_GetInterface(VarlinkServer *server,
-                                             VarlinkCall *call,
-                                             VarlinkObject *parameters,
-                                             uint64_t flags,
-                                             void *userdata) {
+static long org_varlink_service_GetInterfaceDescription(VarlinkServer *server,
+                                                        VarlinkCall *call,
+                                                        VarlinkObject *parameters,
+                                                        uint64_t flags,
+                                                        void *userdata) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         const char *name;
         VarlinkInterface *interface;
@@ -182,7 +182,7 @@ static long org_varlink_service_GetInterface(VarlinkServer *server,
                 return r;
 
         varlink_object_new(&out);
-        varlink_object_set_string(out, "interfacestring", string);
+        varlink_object_set_string(out, "description", string);
 
         return varlink_call_reply(call, out, 0);
 }
@@ -227,8 +227,8 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
                 return -VARLINK_ERROR_PANIC;
 
         r = varlink_server_set_method_callback(server,
-                                               "org.varlink.service.GetInterface",
-                                               org_varlink_service_GetInterface, NULL);
+                                               "org.varlink.service.GetInterfaceDescription",
+                                               org_varlink_service_GetInterfaceDescription, NULL);
         if (r < 0)
                 return -VARLINK_ERROR_PANIC;
 
