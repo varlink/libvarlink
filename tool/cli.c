@@ -312,6 +312,8 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
         arguments->remaining_argc = argc - optind;
         arguments->remaining_argv = argv + optind;
 
+        optind = 0;
+
         return 0;
 }
 
