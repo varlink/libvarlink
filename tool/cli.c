@@ -285,7 +285,9 @@ static const CliCommand *cli_get_command(Cli *cli, const char *name) {
 static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) {
         int c;
 
-        while ((c = getopt_long(argc, argv, "+hR:V", cli_options, NULL)) >= 0) {
+        opterr = 0;
+
+        while ((c = getopt_long(argc, argv, "+:hR:V", cli_options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
@@ -298,6 +300,8 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
                                 break;
                         case '?':
                                 return -CLI_ERROR_INVALID_ARGUMENT;
+                        case ':':
+                                return -CLI_ERROR_MISSING_ARGUMENT;
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
