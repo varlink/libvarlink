@@ -6,11 +6,12 @@
 #include <getopt.h>
 #include <string.h>
 
+static const struct option options[] = {
+        { "help",    no_argument,       NULL, 'h' },
+        {}
+};
+
 static long error(Cli *cli, int argc, char **argv) {
-        static const struct option options[] = {
-                { "help",    no_argument,       NULL, 'h' },
-                {}
-        };
         int c;
         const char *arg;
 
@@ -58,8 +59,19 @@ static long error(Cli *cli, int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
+static long error_complete(Cli *cli, int argc, char **argv, const char *current) {
+        if (current[0] == '-')
+                return cli_complete_options(cli, options, current);
+
+        for (long i = 1 ; i < VARLINK_ERROR_MAX; i += 1)
+                cli_print_completion(current, "%s", varlink_error_string(i));
+
+        return 0;
+}
+
 const CliCommand command_error = {
         .name = "error",
         .info = "Print the error codes and strings of libvarlink",
-        .run = error
+        .run = error,
+        .complete = error_complete
 };

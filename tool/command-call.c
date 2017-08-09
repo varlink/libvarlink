@@ -8,12 +8,13 @@
 #include <getopt.h>
 #include <string.h>
 
+static const struct option options[] = {
+        { "address", required_argument, NULL, 'a' },
+        { "help",    no_argument,       NULL, 'h' },
+        {}
+};
+
 static long call(Cli *cli, int argc, char **argv) {
-        static const struct option options[] = {
-                { "address", required_argument, NULL, 'a' },
-                { "help",    no_argument,       NULL, 'h' },
-                {}
-        };
         _cleanup_(freep) char *address = NULL;
         const char *qualified_method;
         _cleanup_(freep) char *interface = NULL;
@@ -146,8 +147,25 @@ static long call(Cli *cli, int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
+static long call_complete(Cli *cli, int argc, char **argv, const char *current) {
+        if (current[0] == '-')
+                return cli_complete_options(cli, options, current);
+
+        switch (argc) {
+                case 1:
+                        return cli_complete_qualified_methods(cli, current);
+
+                case 2:
+                        cli_print_completion(current, "'{}'");
+                        break;
+        }
+
+        return 0;
+}
+
 const CliCommand command_call = {
         .name = "call",
         .info = "Call a method",
-        .run = call
+        .run = call,
+        .complete = call_complete
 };

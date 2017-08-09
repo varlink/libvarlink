@@ -1,12 +1,13 @@
 #include "cli.h"
 
 #include "command.h"
+#include "interface.h"
 #include "util.h"
 
 #include <assert.h>
 #include <errno.h>
-#include <getopt.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
@@ -23,7 +24,8 @@ static const char *error_strings[] = {
         [CLI_ERROR_TIMEOUT] = "Timeout",
         [CLI_ERROR_CANCELED] = "Canceled",
         [CLI_ERROR_REMOTE_ERROR] = "RemoteError",
-        [CLI_ERROR_CALL_FAILED] = "CallFailed"
+        [CLI_ERROR_CALL_FAILED] = "CallFailed",
+        [CLI_ERROR_INVALID_MESSAGE] = "InvalidMessage",
 };
 
 static const struct option cli_options[] = {
@@ -348,4 +350,169 @@ long cli_run(Cli *cli, int argc, char **argv) {
         }
 
         return command->run(cli, argc - command_index, argv + command_index);
+}
+
+void cli_print_completion(const char *current, const char *format, ...) {
+        va_list args;
+        _cleanup_(freep) char *word = NULL;
+
+        va_start(args, format);
+        vasprintf(&word, format, args);
+        va_end(args);
+
+        if (strncmp(word, current, strlen(current)) != 0)
+                return;
+
+        printf("%s\n", word);
+}
+
+long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
+        long command_index = 0;
+        int c;
+
+        c = cli_parse_arguments(cli, argc, argv, &command_index);
+        if (c < 0) {
+                if (c == CLI_ERROR_INVALID_ARGUMENT)
+                        return 0;
+
+                return -CLI_ERROR_PANIC;
+        }
+
+        if (argv[command_index]) {
+                const CliCommand *command;
+
+                command = cli_get_command(cli, argv[command_index]);
+                if (command) {
+                        if (!command->complete)
+                                return 0;
+
+                        return command->complete(cli, argc - command_index, argv + command_index, current);
+                }
+        }
+
+        if (current[0] == '-') {
+                if (current[strlen(current) - 1] == '=')
+                        return 0;
+
+                for (const struct option *option = cli_options; option->name; option += 1)
+                        cli_print_completion(current, "--%s%s", option->name, option->has_arg ? "=" : "");
+
+        } else {
+                for (unsigned long i = 0; cli_commands[i]; i += 1)
+                        cli_print_completion(current, "%s", cli_commands[i]->name);
+        }
+
+        return 0;
+}
+
+long cli_complete_options(Cli *cli, const struct option *options, const char *current) {
+        for (const struct option *option = options; option->name; option += 1)
+                cli_print_completion(current, "--%s%s", option->name, option->has_arg ? "=" : "");
+
+        return true;
+}
+
+long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
+        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
+        _cleanup_(freep) char *error = NULL;
+        VarlinkArray *interfaces;
+        long n_interfaces;
+        long r;
+
+        r = cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
+        if (r < 0)
+                return -r;
+
+        r = cli_wait_reply(cli, &out, &error, NULL);
+        if (r < 0)
+                return -r;
+
+        if (error)
+                return CLI_ERROR_CALL_FAILED;
+
+        r = varlink_object_get_array(out, "interfaces", &interfaces);
+        if (r < 0)
+                return CLI_ERROR_INVALID_MESSAGE;
+
+        n_interfaces = varlink_array_get_n_elements(interfaces);
+        for (long i = 0; i < n_interfaces; i += 1) {
+                VarlinkObject *entry;
+                const char *interface;
+
+                varlink_array_get_object(interfaces, i, &entry);
+                varlink_object_get_string(entry, "interface", &interface);
+
+                cli_print_completion(current, "%s%s", interface, end_with_dot ? "." : "");
+        }
+
+        return 0;
+}
+
+long cli_complete_qualified_methods(Cli *cli, const char *current) {
+        _cleanup_(freep) char *interface_name = NULL;
+        _cleanup_(freep) char *address = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
+        _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
+        _cleanup_(freep) char *error = NULL;
+        const char *interfacestring = NULL;
+        const char *dot;
+        long r;
+
+        r = cli_connect(cli, cli->resolver);
+        if (r < 0)
+                return -r;
+
+        dot = strrchr(current, '.');
+        if (dot == NULL)
+                return cli_complete_interfaces(cli, current, true);
+
+        interface_name = strndup(current, dot - current);
+
+        r = cli_resolve(cli, interface_name, &address);
+        switch (r) {
+                case 0:
+                        break;
+
+                case -CLI_ERROR_CANNOT_RESOLVE:
+                        return cli_complete_interfaces(cli, current, true);
+
+                default:
+                        return -r;
+        }
+
+        r = cli_connect(cli, address);
+        if (r < 0)
+                return -r;
+
+        varlink_object_new(&parameters);
+        varlink_object_set_string(parameters, "interface", interface_name);
+        r = cli_call(cli, "org.varlink.service.GetInterface", parameters, 0);
+        if (r < 0)
+                return r;
+
+        r = cli_wait_reply(cli, &out, &error, NULL);
+        if (r < 0)
+                return r;
+
+        if (error)
+                return -CLI_ERROR_REMOTE_ERROR;
+
+        if (varlink_object_get_string(out, "interfacestring", &interfacestring) < 0)
+                return -CLI_ERROR_CALL_FAILED;
+
+        r = varlink_interface_new(&interface, interfacestring, NULL);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
+        for (unsigned long i = 0; i < interface->n_members; i += 1) {
+                const VarlinkInterfaceMember *member = &interface->members[i];
+
+                if (member->type != VARLINK_MEMBER_METHOD)
+                        continue;
+
+                cli_print_completion(current, "%s.%s", interface_name, member->name);
+        }
+
+        return 0;
 }

@@ -236,10 +236,10 @@ varlink_SOURCES = \
 	tool/command.c \
 	tool/command.h \
 	tool/command-call.c \
+	tool/command-complete.c \
 	tool/command-error.c \
 	tool/command-format.c \
 	tool/command-help.c \
-	tool/command-list.c \
 	tool/command-resolve.c \
 	tool/main.c \
 	tool/terminal-colors.c \

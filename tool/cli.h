@@ -1,5 +1,6 @@
 #pragma once
 
+#include <getopt.h>
 #include <varlink.h>
 
 enum {
@@ -15,6 +16,7 @@ enum {
         CLI_ERROR_CANCELED,
         CLI_ERROR_CALL_FAILED,
         CLI_ERROR_REMOTE_ERROR,
+        CLI_ERROR_INVALID_MESSAGE,
         CLI_ERROR_MAX
 };
 
@@ -38,3 +40,11 @@ long cli_disconnect(Cli *cli);
 long cli_call(Cli *cli, const char *qualified_method, VarlinkObject *parameters, long flags);
 long cli_wait_reply(Cli *cli, VarlinkObject **replyp, char **errorp, long *flagsp);
 long cli_run(Cli *cli, int argc, char **argv);
+long cli_complete(Cli *cli, int argc, char **argv, const char *current);
+
+long cli_complete_options(Cli *cli, const struct option *options, const char *current);
+long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot);
+long cli_complete_qualified_methods(Cli *cli, const char *current);
+
+__attribute__ ((format (printf, 2, 3)))
+void cli_print_completion(const char *current, const char *format, ...);
