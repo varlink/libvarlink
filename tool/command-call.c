@@ -14,53 +14,85 @@ static const struct option options[] = {
         {}
 };
 
+typedef struct {
+        bool help;
+        const char *address;
+
+        const char *method;
+        const char *parameters;
+} CallArguments;
+
+static long call_parse_arguments(int argc, char **argv, CallArguments *arguments) {
+        int c;
+
+        while ((c = getopt_long(argc, argv, ":a:fh", options, NULL)) >= 0) {
+                switch (c) {
+                        case 'a':
+                                arguments->address = optarg;
+                                break;
+                        case 'h':
+                                arguments->help = true;
+                                break;
+                        case '?':
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+                        case ':':
+                                return -CLI_ERROR_MISSING_ARGUMENT;
+                        default:
+                                return -CLI_ERROR_PANIC;
+                }
+        }
+
+        if (optind >= argc)
+                return -CLI_ERROR_MISSING_ARGUMENT;
+
+        arguments->method = argv[optind];
+        arguments->parameters = argv[optind + 1];
+
+        return 0;
+}
+
 static long call_run(Cli *cli, int argc, char **argv) {
+        CallArguments arguments = { 0 };
         _cleanup_(freep) char *address = NULL;
-        const char *qualified_method;
         _cleanup_(freep) char *interface = NULL;
         _cleanup_(freep) char *method = NULL;
-        const char *parameters_json;
         _cleanup_(freep) char *buffer = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
         _cleanup_(freep) char *reply_json = NULL;
-        int c;
         long r;
 
-        while ((c = getopt_long(argc, argv, "a:fh", options, NULL)) >= 0) {
-                switch (c) {
-                        case 'a':
-                                address = strdup(optarg);
-                                break;
-
-                        case 'h':
-                                printf("Usage: %s call INTERFACE.METHOD [ARGUMENTS]\n",
-                                       program_invocation_short_name);
-                                printf("\n");
-                                printf("Call METHOD on INTERFACE. ARGUMENTS must be valid JSON.\n");
-                                printf("\n");
-                                printf("  -a, --address=ADDRESS  connect to ADDRESS instead of resolving the interface\n");
-                                printf("  -h, --help             display this help text and exit\n");
-                                return EXIT_SUCCESS;
-
-                        default:
-                                return cli_exit_error(CLI_ERROR_PANIC);
-                }
+        r = call_parse_arguments(argc, argv, &arguments);
+        switch (r) {
+                case 0:
+                        break;
+                case -CLI_ERROR_MISSING_ARGUMENT:
+                        fprintf(stderr, "Error: expecting INTERFACE.METHOD [ARGUMENTS]\n");
+                        return CLI_ERROR_MISSING_ARGUMENT;
+                default:
+                        return CLI_ERROR_PANIC;
         }
 
-        qualified_method = argv[optind];
-        if (!qualified_method) {
-                fprintf(stderr, "Error: expecting INTERFACE.METHOD [ARGUMENTS]\n");
-                return CLI_ERROR_MISSING_ARGUMENT;
+        if (arguments.help) {
+                printf("Usage: %s call INTERFACE.METHOD [ARGUMENTS]\n",
+                       program_invocation_short_name);
+                printf("\n");
+                printf("Call METHOD on INTERFACE. ARGUMENTS must be valid JSON.\n");
+                printf("\n");
+                printf("  -a, --address=ADDRESS  connect to ADDRESS instead of resolving the interface\n");
+                printf("  -h, --help             display this help text and exit\n");
+                return EXIT_SUCCESS;
         }
 
-        r = varlink_interface_parse_qualified_name(qualified_method, &interface, &method);
+        r = varlink_interface_parse_qualified_name(arguments.method, &interface, &method);
         if (r < 0) {
                 fprintf(stderr, "Error: invalid interface or method name. Must be INTERFACE.METHOD.\n");
                 return CLI_ERROR_INVALID_ARGUMENT;
         }
 
-        if (!address) {
+        if (arguments.address) {
+                address = strdup(arguments.address);
+        } else {
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
                         fprintf(stderr, "Error resolving interface: %s\n", interface);
@@ -74,11 +106,10 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return CLI_ERROR_CANNOT_CONNECT;
         }
 
-        parameters_json = argv[optind + 1];
-        if (!parameters_json) {
-                parameters_json = "{}";
+        if (!arguments.parameters) {
+                arguments.parameters = "{}";
 
-        } else if (strcmp(parameters_json, "-") == 0) {
+        } else if (strcmp(arguments.parameters, "-") == 0) {
                 unsigned long buffer_size = 0;
                 unsigned long size = 0;
 
@@ -97,16 +128,16 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
                 buffer[size] = '\0';
 
-                parameters_json = buffer;
+                arguments.parameters = buffer;
         }
 
-        r = varlink_object_new_from_json(&parameters, parameters_json);
+        r = varlink_object_new_from_json(&parameters, arguments.parameters);
         if (r < 0) {
                 fprintf(stderr, "Unable to parse input parameters (must be valid JSON)\n");
                 return CLI_ERROR_INVALID_JSON;
         }
 
-        r = cli_call(cli, qualified_method, parameters, VARLINK_CALL_MORE);
+        r = cli_call(cli, arguments.method, parameters, VARLINK_CALL_MORE);
         if (r < 0)
                 return cli_exit_error(-r);
 
@@ -148,17 +179,27 @@ static long call_run(Cli *cli, int argc, char **argv) {
 }
 
 static long call_complete(Cli *cli, int argc, char **argv, const char *current) {
+        CallArguments arguments = { 0 };
+        long r;
+
+        r = call_parse_arguments(argc, argv, &arguments);
+        switch (r) {
+                case 0:
+                case -CLI_ERROR_INVALID_ARGUMENT:
+                case -CLI_ERROR_MISSING_ARGUMENT:
+                        break;
+                default:
+                        return -r;
+        }
+
         if (current[0] == '-')
                 return cli_complete_options(cli, options, current);
 
-        switch (argc) {
-                case 1:
-                        return cli_complete_qualified_methods(cli, current);
+        if (!arguments.method)
+                return cli_complete_qualified_methods(cli, current);
 
-                case 2:
-                        cli_print_completion(current, "'{}'");
-                        break;
-        }
+        if (!arguments.parameters)
+                cli_print_completion(current, "'{}'");
 
         return 0;
 }
