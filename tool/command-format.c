@@ -4,6 +4,7 @@
 #include "util.h"
 
 #include <errno.h>
+#include <dirent.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,8 +135,55 @@ static long format_run(Cli *cli, int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
+static long format_complete(Cli *cli, int argc, char **argv, const char *current) {
+        _cleanup_(freep) char *prefix = NULL;
+        DIR *dir;
+        char *p;
+
+        p = strrchr(current, '/');
+        if (p) {
+                prefix = strndup(current, p - current);
+                dir = opendir(prefix);
+        } else
+                dir = opendir(".");
+        if (!dir)
+                return 0;
+
+        for (struct dirent *d = readdir(dir); d; d = readdir(dir)) {
+                if (d->d_name[0] == '.')
+                        continue;
+
+                if (d->d_type == DT_DIR) {
+                        if (prefix)
+                                cli_print_completion(current, "%s/%s/", prefix, d->d_name);
+                        else
+                                cli_print_completion(current, "%s/", d->d_name);
+                        continue;
+                }
+
+                if (d->d_type == DT_REG || d->d_type == DT_LNK) {
+                        long l = strlen(d->d_name);
+
+                        if (l < 9)
+                                continue;
+
+                        if (strcmp(d->d_name + l - 8, ".varlink") == 0) {
+                                if (prefix)
+                                        cli_print_completion(current, "%s/%s", prefix, d->d_name);
+                                else
+                                        cli_print_completion(current, "%s", d->d_name);
+                        }
+                }
+        }
+
+        closedir(dir);
+
+        return 0;
+}
+
 const CliCommand command_format = {
         .name = "format",
         .info = "Format a varlink service file",
-        .run = format_run
+        .run = format_run,
+        .complete = format_complete
 };

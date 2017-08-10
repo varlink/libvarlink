@@ -1,7 +1,7 @@
 _varlink_module()
 {
         COMPREPLY=($(varlink complete ${COMP_CWORD} -- ${COMP_WORDS[*]}))
-        [[ $COMPREPLY = *[=.] ]] && compopt -o nospace
+        [[ $COMPREPLY = *[=./] ]] && compopt -o nospace
         return 0
 }
 
