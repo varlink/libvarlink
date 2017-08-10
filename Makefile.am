@@ -81,10 +81,7 @@ libvarlink_a_SOURCES = \
 	lib/socket.h \
 	lib/socket-tcp.c \
 	lib/socket-unix.c \
-	lib/server.c \
-	lib/server.h \
 	lib/service.c \
-	lib/service.h \
 	lib/util.c \
 	lib/util.h \
 	lib/value.c \

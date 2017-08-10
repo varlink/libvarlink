@@ -44,9 +44,9 @@ typedef struct VarlinkObject VarlinkObject;
 typedef struct VarlinkArray VarlinkArray;
 
 /*
- * Servers export one or more interfaces for clients to talks to.
+ * A varlink service exports a set of interfaces on a varlink address.
  */
-typedef struct VarlinkServer VarlinkServer;
+typedef struct VarlinkService VarlinkService;
 
 typedef struct VarlinkCall VarlinkCall;
 
@@ -58,15 +58,13 @@ typedef struct VarlinkCall VarlinkCall;
 typedef struct VarlinkConnection VarlinkConnection;
 
 /*
- * The server installs a method callback for every method described in its
- * interfaces. The callback is executed when a client calls the respective
- * method.
+ * Called when a client requests a method call.
  */
-typedef long (*VarlinkMethodServerCallback)(VarlinkServer *server,
-                                            VarlinkCall *call,
-                                            VarlinkObject *parameters,
-                                            uint64_t flags,
-                                            void *userdata);
+typedef long (*VarlinkMethodCallback)(VarlinkService *service,
+                                      VarlinkCall *call,
+                                      VarlinkObject *parameters,
+                                      uint64_t flags,
+                                      void *userdata);
 
 typedef void (*VarlinkConnectionClosedFunc)(VarlinkConnection *connection,
                                             void *userdata);
@@ -166,45 +164,45 @@ long varlink_array_append_array(VarlinkArray *array, VarlinkArray *element);
 long varlink_array_append_object(VarlinkArray *array, VarlinkObject *object);
 
 /*
- * Create a new server with the given name and version that provides a
- * varlink service at the given address.
+ * Create a new varlink service with the given name and version and
+ * listen for requests on the given address.
  *
  * If listen_fd is not -1, it must be an fd that was created for the
  * same address with varlink_listen().
  *
  * Returns 0 or a a negative varlink error.
  */
-long varlink_server_new(VarlinkServer **serverp,
-                        const char *name,
-                        const char *version,
-                        const char *address,
-                        int listen_fd);
+long varlink_service_new(VarlinkService **servicep,
+                         const char *name,
+                         const char *version,
+                         const char *address,
+                         int listen_fd);
 
 /*
- * Destroys a VarlinkServer, close all its connections and free all its
+ * Destroys a VarlinkService, close all its connections and free all its
  * ressources.
  *
  * Returns NULL
  */
-VarlinkServer *varlink_server_free(VarlinkServer *server);
+VarlinkService *varlink_service_free(VarlinkService *service);
 
 /*
- * varlink_server_free() to be used with the cleanup attribute.
+ * varlink_service_free() to be used with the cleanup attribute.
  */
-void varlink_server_freep(VarlinkServer **serverp);
+void varlink_service_freep(VarlinkService **servicep);
 
 /*
- * Add an interface to the server and register callbacks for its
+ * Add an interface to the service and register callbacks for its
  * methods.
  *
  * Callbacks have to be given as three arguments each: the method name
- * (without the interface prefix), a VarlinkMethodServerCallback, and a
+ * (without the interface prefix), a VarlinkMethodCallback, and a
  * userdata.
  */
 __attribute__((sentinel))
-long varlink_server_add_interface(VarlinkServer *server,
-                                  const char *interface_description,
-                                  ...);
+long varlink_service_add_interface(VarlinkService *service,
+                                   const char *interface_description,
+                                   ...);
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
@@ -212,7 +210,7 @@ long varlink_server_add_interface(VarlinkServer *server,
  *
  * Returns the file descriptor or a negative errno.
  */
-int varlink_server_get_fd(VarlinkServer *server);
+int varlink_service_get_fd(VarlinkService *service);
 
 /*
  * Create a listen file descriptor for a varlink address and return it.
@@ -223,13 +221,13 @@ int varlink_server_get_fd(VarlinkServer *server);
 int varlink_listen(const char *address, char **pathp);
 
 /*
- * Process pending events in the VarlinkServer. It needs to be called whenever
+ * Process pending events in the VarlinkService. It needs to be called whenever
  * the file descriptor becomes readable. Method calls are dispatched according
  * to their installed callbacks.
  *
  * Returns 0 or a negative errno.
  */
-long varlink_server_process_events(VarlinkServer *server);
+long varlink_service_process_events(VarlinkService *service);
 
 VarlinkCall *varlink_call_ref(VarlinkCall *call);
 VarlinkCall *varlink_call_unref(VarlinkCall *call);

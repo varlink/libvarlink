@@ -1,5 +1,5 @@
 #include "interface.h"
-#include "server.h"
+#include "service.h"
 #include "util.h"
 #include "varlink.h"
 
@@ -88,7 +88,7 @@ static void test_object(void) {
 }
 
 static void test_interface_type_add(void) {
-        VarlinkServer *server;
+        VarlinkService *service;
         const char *interfacestring;
         VarlinkInterface *interface;
         VarlinkType *type;
@@ -97,40 +97,38 @@ static void test_interface_type_add(void) {
                           "type One (one: string)\n"
                           "type Two (two: string)\n"
                           "type OneTwo (one: One, two: Two)\n";
-        assert(varlink_server_new(&server, "Test Server", "0.1", "unix:@org.example.foo", -1) == 0);
-        assert(varlink_server_add_interface(server, interfacestring, NULL) == 0);
+        assert(varlink_service_new(&service, "Test Service", "0.1", "unix:@org.example.foo", -1) == 0);
+        assert(varlink_service_add_interface(service, interfacestring, NULL) == 0);
 
-        assert(varlink_server_get_interface_by_name(server,
-                                                    &interface,
-                                                    "foo.bar") >= 0);
+        interface = varlink_service_get_interface_by_name(service, "foo.bar");
+        assert(interface);
 
         type = varlink_interface_get_type(interface, "OneTwo");
         assert(type && strcmp(varlink_type_get_typestring(type), "(one: One, two: Two)") == 0);
 
-        assert(varlink_server_free(server) == NULL);
+        assert(varlink_service_free(service) == NULL);
 }
 
 static void test_interface_type_lookup(void) {
-        VarlinkServer *server;
+        VarlinkService *service;
         const char *interfacestring;
         VarlinkInterface *interface;
         VarlinkType *type;
 
         interfacestring = "interface foo.bar\n"
                           "type FooBar (foo: int, bar: string)\n";
-        assert(varlink_server_new(&server, "Test Server", "0.1", "unix:@org.example.foo", -1) == 0);
-        assert(varlink_server_add_interface(server, interfacestring, NULL) == 0);
+        assert(varlink_service_new(&service, "Test Service", "0.1", "unix:@org.example.foo", -1) == 0);
+        assert(varlink_service_add_interface(service, interfacestring, NULL) == 0);
 
-        assert(varlink_server_get_interface_by_name(server,
-                                                    &interface,
-                                                    "foo.bar") >= 0);
+        interface = varlink_service_get_interface_by_name(service, "foo.bar");
+        assert(interface);
 
         assert(varlink_interface_get_type(interface, "FooBar") != NULL);
 
         assert(varlink_type_new(&type, "(foo: FooBar)") == 0);
         assert(varlink_type_unref(type) == NULL);
 
-        assert(varlink_server_free(server) == NULL);
+        assert(varlink_service_free(service) == NULL);
 }
 
 static void test_type_get_typestring(void) {

@@ -14,12 +14,12 @@ enum {
 };
 
 typedef struct {
-        VarlinkServer *server;
+        VarlinkService *service;
         VarlinkConnection *connection;
         int epoll_fd;
 } Test;
 
-static long org_varlink_example_Echo(VarlinkServer *server,
+static long org_varlink_example_Echo(VarlinkService *service,
                                      VarlinkCall *call,
                                      VarlinkObject *parameters,
                                      uint64_t flags,
@@ -38,7 +38,7 @@ static long org_varlink_example_Echo(VarlinkServer *server,
         return 0;
 }
 
-static long org_varlink_example_Later(VarlinkServer *server,
+static long org_varlink_example_Later(VarlinkService *service,
                                       VarlinkCall *call,
                                       VarlinkObject *parameters,
                                       uint64_t flags,
@@ -65,8 +65,8 @@ static long test_process_events(Test *test) {
                 return -TEST_ERROR_TIMEOUT;
 
         for (long i = 0; i < n; i += 1) {
-                if (events[i].data.ptr == test->server)
-                        assert(varlink_server_process_events(test->server) == 0);
+                if (events[i].data.ptr == test->service)
+                        assert(varlink_service_process_events(test->service) == 0);
                 else if (events[i].data.ptr == test->connection)
                         assert(varlink_connection_process_events(test->connection, events[i].events) == 0);
                 else
@@ -86,20 +86,20 @@ int main(void) {
         VarlinkCall *later_call = NULL;
         long r;
 
-        assert(varlink_server_new(&test.server, "Test Server", "0.1", "unix:test.socket", -1) == 0);
-        assert(varlink_server_add_interface(test.server, interface,
-                                            "Echo", org_varlink_example_Echo, NULL,
-                                            "Later", org_varlink_example_Later, &later_call,
-                                            NULL) == 0);
+        assert(varlink_service_new(&test.service, "Test Service", "0.1", "unix:test.socket", -1) == 0);
+        assert(varlink_service_add_interface(test.service, interface,
+                                             "Echo", org_varlink_example_Echo, NULL,
+                                             "Later", org_varlink_example_Later, &later_call,
+                                             NULL) == 0);
 
         assert(varlink_connection_new(&test.connection, "unix:test.socket") == 0);
 
         test.epoll_fd = epoll_create1(EPOLL_CLOEXEC);
         assert(test.epoll_fd > 0);
         assert(epoll_add(test.epoll_fd,
-                         varlink_server_get_fd(test.server),
+                         varlink_service_get_fd(test.service),
                          EPOLLIN,
-                         test.server) == 0);
+                         test.service) == 0);
         assert(epoll_add(test.epoll_fd,
                          varlink_connection_get_fd(test.connection),
                          varlink_connection_get_events(test.connection),
@@ -163,7 +163,7 @@ int main(void) {
         }
 
         assert(varlink_connection_close(test.connection) == NULL);
-        assert(varlink_server_free(test.server) == NULL);
+        assert(varlink_service_free(test.service) == NULL);
         close(test.epoll_fd);
 
         return EXIT_SUCCESS;

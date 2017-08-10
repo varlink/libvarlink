@@ -74,8 +74,8 @@ struct VarlinkMethod {
         VarlinkType *type_in;
         VarlinkType *type_out;
 
-        VarlinkMethodServerCallback server_callback;
-        void *server_callback_userdata;
+        VarlinkMethodCallback callback;
+        void *callback_userdata;
 };
 
 long varlink_type_new(VarlinkType **typep, const char *typestring);
