@@ -467,6 +467,46 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         return 0;
 }
 
+long cli_complete_addresses(Cli *cli, const char *current, const char *prefix) {
+        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
+        _cleanup_(freep) char *error = NULL;
+        VarlinkArray *interfaces;
+        long n_interfaces;
+        long r;
+
+        r = cli_connect(cli, cli->resolver);
+        if (r < 0)
+                return -r;
+
+        r = cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
+        if (r < 0)
+                return -r;
+
+        r = cli_wait_reply(cli, &out, &error, NULL);
+        if (r < 0)
+                return -r;
+
+        if (error)
+                return CLI_ERROR_CALL_FAILED;
+
+        r = varlink_object_get_array(out, "interfaces", &interfaces);
+        if (r < 0)
+                return CLI_ERROR_INVALID_MESSAGE;
+
+        n_interfaces = varlink_array_get_n_elements(interfaces);
+        for (long i = 0; i < n_interfaces; i += 1) {
+                VarlinkObject *entry;
+                const char *address;
+
+                varlink_array_get_object(interfaces, i, &entry);
+                varlink_object_get_string(entry, "address", &address);
+
+                cli_print_completion(current, "%s%s", prefix ?: "", address);
+        }
+
+        return 0;
+}
+
 long cli_complete_qualified_methods(Cli *cli, const char *current) {
         _cleanup_(freep) char *interface_name = NULL;
         _cleanup_(freep) char *address = NULL;
