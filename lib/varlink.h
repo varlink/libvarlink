@@ -166,17 +166,19 @@ long varlink_array_append_array(VarlinkArray *array, VarlinkArray *element);
 long varlink_array_append_object(VarlinkArray *array, VarlinkObject *object);
 
 /*
- * Create a new server with the given name, the human readbale description,
- * a list of key/value properties, from an array of interface strings.
+ * Create a new server with the given name and version that provides a
+ * varlink service at the given address.
  *
- * Returns 0 or a negative errno.
+ * If listen_fd is not -1, it must be an fd that was created for the
+ * same address with varlink_listen().
+ *
+ * Returns 0 or a a negative varlink error.
  */
 long varlink_server_new(VarlinkServer **serverp,
+                        const char *name,
+                        const char *version,
                         const char *address,
-                        int listen_fd,
-                        VarlinkObject *properties,
-                        const char **interfacestrings,
-                        unsigned long n_interfaces);
+                        int listen_fd);
 
 /*
  * Destroys a VarlinkServer, close all its connections and free all its
@@ -190,6 +192,11 @@ VarlinkServer *varlink_server_free(VarlinkServer *server);
  * varlink_server_free() to be used with the cleanup attribute.
  */
 void varlink_server_freep(VarlinkServer **serverp);
+
+/*
+ * Add an interface to the server.
+ */
+long varlink_server_add_interface(VarlinkServer *server, const char *interface_description);
 
 /*
  * Install a callback for the specified method, to be called whenever a client

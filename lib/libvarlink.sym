@@ -34,6 +34,7 @@ global:
         varlink_connection_receive_reply;
         varlink_connection_set_close_callback;
         varlink_listen;
+        varlink_server_add_interface;
         varlink_server_free;
         varlink_server_freep;
         varlink_server_get_fd;

@@ -147,12 +147,9 @@ static long org_varlink_service_GetInfo(VarlinkServer *server,
         if (r < 0)
                 return r;
 
-        if (varlink_object_set_array(info, "interfaces", interfaces))
-                return -VARLINK_ERROR_PANIC;
-
-        if (server->service->properties &&
-            varlink_object_set_object(info, "properties", server->service->properties) < 0)
-                return -VARLINK_ERROR_PANIC;
+        varlink_object_set_string(info, "name", server->service->name);
+        varlink_object_set_string(info, "version", server->service->version);
+        varlink_object_set_array(info, "interfaces", interfaces);
 
         return varlink_call_reply(call, info, 0);
 }
@@ -188,11 +185,10 @@ static long org_varlink_service_GetInterfaceDescription(VarlinkServer *server,
 }
 
 _public_ long varlink_server_new(VarlinkServer **serverp,
+                                 const char *name,
+                                 const char *version,
                                  const char *address,
-                                 int listen_fd,
-                                 VarlinkObject *properties,
-                                 const char **interfacestrings,
-                                 unsigned long n_interfaces) {
+                                 int listen_fd) {
         _cleanup_(varlink_server_freep) VarlinkServer *server = NULL;
         long r;
 
@@ -216,7 +212,7 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
         if (epoll_add(server->epoll_fd, server->listen_fd, EPOLLIN, server) < 0)
                 return -VARLINK_ERROR_PANIC;
 
-        r = varlink_service_new(&server->service, properties);
+        r = varlink_service_new(&server->service, name, version);
         if (r < 0)
                 return r;
 
@@ -231,18 +227,6 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
                                                org_varlink_service_GetInterfaceDescription, NULL);
         if (r < 0)
                 return -VARLINK_ERROR_PANIC;
-
-        for (unsigned long i = 0; i < n_interfaces; i += 1) {
-                VarlinkInterface *interface;
-
-                r = varlink_interface_new(&interface, interfacestrings[i], NULL);
-                if (r < 0)
-                        return r;
-
-                r = varlink_service_add_interface(server->service, interface);
-                if (r < 0)
-                        return r;
-        }
 
         *serverp = server;
         server = NULL;
@@ -277,6 +261,17 @@ _public_ VarlinkServer *varlink_server_free(VarlinkServer *server) {
 _public_ void varlink_server_freep(VarlinkServer **serverp) {
         if (*serverp)
                 varlink_server_free(*serverp);
+}
+
+_public_ long varlink_server_add_interface(VarlinkServer *server, const char *interface_description) {
+        VarlinkInterface *interface;
+        long r;
+
+        r = varlink_interface_new(&interface, interface_description, NULL);
+        if (r < 0)
+                return r;
+
+        return varlink_service_add_interface(server->service, interface);
 }
 
 _public_ int varlink_server_get_fd(VarlinkServer *server) {
