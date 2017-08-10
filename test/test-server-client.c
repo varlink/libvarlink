@@ -87,13 +87,10 @@ int main(void) {
         long r;
 
         assert(varlink_server_new(&test.server, "Test Server", "0.1", "unix:test.socket", -1) == 0);
-        assert(varlink_server_add_interface(test.server, interface) == 0);
-        assert(varlink_server_set_method_callback(test.server,
-                                                  "org.varlink.example.Echo",
-                                                  org_varlink_example_Echo, NULL) == 0);
-        assert(varlink_server_set_method_callback(test.server,
-                                                  "org.varlink.example.Later",
-                                                  org_varlink_example_Later, &later_call) == 0);
+        assert(varlink_server_add_interface(test.server, interface,
+                                            "Echo", org_varlink_example_Echo, NULL,
+                                            "Later", org_varlink_example_Later, &later_call,
+                                            NULL) == 0);
 
         assert(varlink_connection_new(&test.connection, "unix:test.socket") == 0);
 

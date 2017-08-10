@@ -194,20 +194,17 @@ VarlinkServer *varlink_server_free(VarlinkServer *server);
 void varlink_server_freep(VarlinkServer **serverp);
 
 /*
- * Add an interface to the server.
- */
-long varlink_server_add_interface(VarlinkServer *server, const char *interface_description);
-
-/*
- * Install a callback for the specified method, to be called whenever a client
- * send a method call.
+ * Add an interface to the server and register callbacks for its
+ * methods.
  *
- * Returns 0 or a negative errno.
+ * Callbacks have to be given as three arguments each: the method name
+ * (without the interface prefix), a VarlinkMethodServerCallback, and a
+ * userdata.
  */
-long varlink_server_set_method_callback(VarlinkServer *server,
-                                        const char *qualified_method,
-                                        VarlinkMethodServerCallback callback,
-                                        void *callback_userdata);
+__attribute__((sentinel))
+long varlink_server_add_interface(VarlinkServer *server,
+                                  const char *interface_description,
+                                  ...);
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes

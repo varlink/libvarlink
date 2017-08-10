@@ -40,7 +40,6 @@ global:
         varlink_server_get_fd;
         varlink_server_new;
         varlink_server_process_events;
-        varlink_server_set_method_callback;
         varlink_object_get_array;
         varlink_object_get_bool;
         varlink_object_get_field_names;

@@ -12,6 +12,8 @@
 #include <string.h>
 #include <sys/epoll.h>
 
+#include "org.varlink.service.varlink.inc.c"
+
 typedef struct ServerConnection ServerConnection;
 
 struct VarlinkServer {
@@ -216,17 +218,12 @@ _public_ long varlink_server_new(VarlinkServer **serverp,
         if (r < 0)
                 return r;
 
-        r = varlink_server_set_method_callback(server,
-                                               "org.varlink.service.GetInfo",
-                                               org_varlink_service_GetInfo, NULL);
+        r = varlink_server_add_interface(server, org_varlink_service_varlink,
+                                         "GetInfo", org_varlink_service_GetInfo, NULL,
+                                         "GetInterfaceDescription", org_varlink_service_GetInterfaceDescription, NULL,
+                                         NULL);
         if (r < 0)
-                return -VARLINK_ERROR_PANIC;
-
-        r = varlink_server_set_method_callback(server,
-                                               "org.varlink.service.GetInterfaceDescription",
-                                               org_varlink_service_GetInterfaceDescription, NULL);
-        if (r < 0)
-                return -VARLINK_ERROR_PANIC;
+                return r;
 
         *serverp = server;
         server = NULL;
@@ -263,15 +260,42 @@ _public_ void varlink_server_freep(VarlinkServer **serverp) {
                 varlink_server_free(*serverp);
 }
 
-_public_ long varlink_server_add_interface(VarlinkServer *server, const char *interface_description) {
-        VarlinkInterface *interface;
+_public_ long varlink_server_add_interface(VarlinkServer *server,
+                                           const char *interface_description,
+                                           ...) {
+        _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
+        va_list args;
         long r;
 
         r = varlink_interface_new(&interface, interface_description, NULL);
         if (r < 0)
                 return r;
 
-        return varlink_service_add_interface(server->service, interface);
+        va_start(args, interface_description);
+        for (;;) {
+                const char *name;
+                VarlinkMethod *method;
+
+                name = va_arg(args, const char *);
+                if (!name)
+                        break;
+
+                method = varlink_interface_get_method(interface, name);
+                if (!method)
+                        return -VARLINK_ERROR_METHOD_NOT_FOUND;
+
+                method->server_callback = va_arg(args, VarlinkMethodServerCallback);
+                method->server_callback_userdata = va_arg(args, void *);
+        }
+        va_end(args);
+
+        r = varlink_service_add_interface(server->service, interface);
+        if (r < 0)
+                return r;
+
+        interface = NULL;
+
+        return 0;
 }
 
 _public_ int varlink_server_get_fd(VarlinkServer *server) {
@@ -435,34 +459,6 @@ long varlink_server_get_interface_by_name(VarlinkServer *server,
                 return -VARLINK_ERROR_INTERFACE_NOT_FOUND;
 
         *interfacep = interface;
-
-        return 0;
-}
-
-_public_ long varlink_server_set_method_callback(VarlinkServer *server,
-                                                 const char *qualified_method,
-                                                 VarlinkMethodServerCallback callback,
-                                                 void *callback_userdata) {
-        _cleanup_(freep) char *interface_name = NULL;
-        _cleanup_(freep) char *method_name = NULL;
-        VarlinkInterface *interface;
-        VarlinkMethod *method;
-        long r;
-
-        r = varlink_interface_parse_qualified_name(qualified_method, &interface_name, &method_name);
-        if (r < 0)
-                return r;
-
-        interface = varlink_service_get_interface_by_name(server->service, interface_name);
-        if (!interface)
-                return -VARLINK_ERROR_INTERFACE_NOT_FOUND;
-
-        method = varlink_interface_get_method(interface, method_name);
-        if (!method)
-                return r;
-
-        method->server_callback = callback;
-        method->server_callback_userdata = callback_userdata;
 
         return 0;
 }

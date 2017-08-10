@@ -11,8 +11,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "org.varlink.service.varlink.inc.c"
-
 VarlinkService *varlink_service_free(VarlinkService *service) {
         free(service->name);
         free(service->version);
@@ -36,23 +34,11 @@ static long interface_compare(const void *key, void *value) {
 
 long varlink_service_new(VarlinkService **servicep, const char *name, const char *version) {
         _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
-        _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-        long r;
 
         service = calloc(1, sizeof(VarlinkService));
         service->name = strdup(name);
         service->version = strdup(version);
         avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
-
-        r = varlink_interface_new(&interface, org_varlink_service_varlink, NULL);
-        if (r < 0)
-                return r;
-
-        r = varlink_service_add_interface(service, interface);
-        if (r < 0)
-                return r;
-
-        interface = NULL;
 
         *servicep = service;
         service = NULL;

@@ -98,7 +98,7 @@ static void test_interface_type_add(void) {
                           "type Two (two: string)\n"
                           "type OneTwo (one: One, two: Two)\n";
         assert(varlink_server_new(&server, "Test Server", "0.1", "unix:@org.example.foo", -1) == 0);
-        assert(varlink_server_add_interface(server, interfacestring) == 0);
+        assert(varlink_server_add_interface(server, interfacestring, NULL) == 0);
 
         assert(varlink_server_get_interface_by_name(server,
                                                     &interface,
@@ -119,7 +119,7 @@ static void test_interface_type_lookup(void) {
         interfacestring = "interface foo.bar\n"
                           "type FooBar (foo: int, bar: string)\n";
         assert(varlink_server_new(&server, "Test Server", "0.1", "unix:@org.example.foo", -1) == 0);
-        assert(varlink_server_add_interface(server, interfacestring) == 0);
+        assert(varlink_server_add_interface(server, interfacestring, NULL) == 0);
 
         assert(varlink_server_get_interface_by_name(server,
                                                     &interface,
