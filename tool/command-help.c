@@ -192,7 +192,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
 
         r = cli_connect(cli, address);
         if (r < 0) {
-                fprintf(stderr, "Error connecting to %s\n", interface);
+                fprintf(stderr, "Error connecting to %s\n", address);
                 return CLI_ERROR_CANNOT_CONNECT;
         }
 
