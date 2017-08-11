@@ -28,7 +28,10 @@ struct VarlinkService {
         int listen_fd;
         char *path_to_unlink;
         int epoll_fd;
+
         AVLTree *connections;
+        VarlinkMethodCallback method_callback;
+        void *method_callback_userdata;
 };
 
 struct VarlinkCall {
@@ -36,7 +39,11 @@ struct VarlinkCall {
 
         VarlinkService *service;
         ServiceConnection *connection;
-        VarlinkMethod *method;
+
+        char *interface_name;
+        char *method_name;
+        VarlinkObject *parameters;
+        uint64_t flags;
 
         VarlinkCallCanceled canceled_callback;
         void *canceled_callback_data;
@@ -50,15 +57,38 @@ struct ServiceConnection {
 
 static long varlink_call_new(VarlinkCall **callp,
                              VarlinkService *service,
-                             ServiceConnection *connection) {
-        VarlinkCall *call;
+                             ServiceConnection *connection,
+                             VarlinkObject *message) {
+        _cleanup_(varlink_call_unrefp) VarlinkCall *call = NULL;
+        const char *method;
+        VarlinkObject *parameters;
+        bool more;
+        long r;
 
         call = calloc(1, sizeof(VarlinkCall));
-        call->service = service;
         call->refcount = 1;
+        call->service = service;
         call->connection = connection;
 
+        r = varlink_object_get_string(message, "method", &method);
+        if (r < 0)
+                return -VARLINK_ERROR_INVALID_METHOD;
+
+        r = varlink_interface_parse_qualified_name(method, &call->interface_name, &call->method_name);
+        if (r < 0)
+                return -VARLINK_ERROR_INVALID_METHOD;
+
+        r = varlink_object_get_object(message, "parameters", &parameters);
+        if (parameters)
+                call->parameters = varlink_object_ref(parameters);
+        else
+                varlink_object_new(&call->parameters);
+
+        if (varlink_object_get_bool(message, "more", &more) == 0 && more)
+                call->flags |= VARLINK_CALL_MORE;
+
         *callp = call;
+        call = NULL;
 
         return 0;
 }
@@ -72,8 +102,14 @@ _public_ VarlinkCall *varlink_call_ref(VarlinkCall *call) {
 _public_ VarlinkCall *varlink_call_unref(VarlinkCall *call) {
         call->refcount -= 1;
 
-        if (call->refcount == 0)
+        if (call->refcount == 0) {
+                if (call->parameters)
+                        varlink_object_unref(call->parameters);
+
+                free(call->interface_name);
+                free(call->method_name);
                 free(call);
+        }
 
         return NULL;
 }
@@ -123,6 +159,9 @@ static void service_connection_freep(ServiceConnection **connectionp) {
 
 static long service_connection_close(VarlinkService *service,
                                      ServiceConnection *connection) {
+        if (connection->call)
+                varlink_call_unref(connection->call);
+
         if (connection->socket.fd >= 0)
                 epoll_ctl(service->epoll_fd, EPOLL_CTL_DEL, connection->socket.fd, NULL);
 
@@ -193,6 +232,33 @@ static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
         return varlink_call_reply(call, out, 0);
 }
 
+static long varlink_service_method_callback(VarlinkService *service,
+                                            VarlinkCall *call,
+                                            VarlinkObject *parameters,
+                                            uint64_t flags,
+                                            void *userdata) {
+        VarlinkInterface *interface;
+        VarlinkMethod *method;
+        long r;
+
+        interface = avl_tree_find(service->interfaces, call->interface_name);
+        if (!interface)
+                return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", NULL);
+
+        method = varlink_interface_get_method(interface, call->method_name);
+        if (!method)
+                return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", NULL);
+
+        if (!method->callback)
+                return varlink_call_reply_error(call, "org.varlink.service.MethodNotImplemented", NULL);
+
+        r = method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
+        if (r < 0)
+                return service_connection_close(service, call->connection);
+
+        return 0;
+}
+
 _public_ long varlink_service_new(VarlinkService **servicep,
                                   const char *name,
                                   const char *version,
@@ -201,14 +267,43 @@ _public_ long varlink_service_new(VarlinkService **servicep,
         _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
         long r;
 
-        service = calloc(1, sizeof(VarlinkService));
+        r = varlink_service_new_raw(&service, address, listen_fd, varlink_service_method_callback, NULL);
+        if (r < 0)
+                return r;
+
         service->name = strdup(name);
         service->version = strdup(version);
-        service->address = strdup(address);
+
+        avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
+
+        r = varlink_service_add_interface(service, org_varlink_service_varlink,
+                                          "GetInfo", org_varlink_service_GetInfo, NULL,
+                                          "GetInterfaceDescription", org_varlink_service_GetInterfaceDescription, NULL,
+                                          NULL);
+        if (r < 0)
+                return r;
+
+        *servicep = service;
+        service = NULL;
+
+        return 0;
+}
+
+_public_ long varlink_service_new_raw(VarlinkService **servicep,
+                                      const char *address,
+                                      int listen_fd,
+                                      VarlinkMethodCallback callback,
+                                      void *userdata) {
+        _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
+
+        service = calloc(1, sizeof(VarlinkService));
         service->listen_fd = -1;
         service->epoll_fd = -1;
 
-        avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
+        service->address = strdup(address);
+        service->method_callback = callback;
+        service->method_callback_userdata = userdata;
+
         avl_tree_new(&service->connections, connection_compare, (AVLFreeFunc)service_connection_free);
 
         if (listen_fd < 0) {
@@ -225,13 +320,6 @@ _public_ long varlink_service_new(VarlinkService **servicep,
 
         if (epoll_add(service->epoll_fd, service->listen_fd, EPOLLIN, service) < 0)
                 return -VARLINK_ERROR_PANIC;
-
-        r = varlink_service_add_interface(service, org_varlink_service_varlink,
-                                          "GetInfo", org_varlink_service_GetInfo, NULL,
-                                          "GetInterfaceDescription", org_varlink_service_GetInterfaceDescription, NULL,
-                                          NULL);
-        if (r < 0)
-                return r;
 
         *servicep = service;
         service = NULL;
@@ -276,6 +364,9 @@ _public_ long varlink_service_add_interface(VarlinkService *service,
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         va_list args;
         long r;
+
+        if (!service->interfaces)
+                return -VARLINK_ERROR_PANIC;
 
         r = varlink_interface_new(&interface, interface_description, NULL);
         if (r < 0)
@@ -336,52 +427,6 @@ static long varlink_service_accept(VarlinkService *service) {
         return 0;
 }
 
-static long varlink_service_handle_call(VarlinkService *service,
-                                        ServiceConnection *connection,
-                                        VarlinkObject *message) {
-        const char *qualified_method = NULL;
-        _cleanup_(freep) char *method_name = NULL;
-        _cleanup_(freep) char *interface_name = NULL;
-        VarlinkObject *parameters = NULL;
-        VarlinkInterface *interface;
-        bool more;
-        uint64_t flags = 0;
-        long r;
-
-        r = varlink_call_new(&connection->call, service, connection);
-        if (r < 0)
-                return r;
-
-        if (varlink_object_get_string(message, "method", &qualified_method) < 0 ||
-            varlink_interface_parse_qualified_name(qualified_method, &interface_name, &method_name) < 0)
-                return varlink_call_reply_invalid_parameter(connection->call, "method");
-
-        r = varlink_object_get_object(message, "parameters", &parameters);
-        if (r < 0)
-                return varlink_call_reply_invalid_parameter(connection->call, "parameters");
-
-        if (varlink_object_get_bool(message, "more", &more) == 0 && more)
-                flags |= VARLINK_CALL_MORE;
-
-        interface = avl_tree_find(service->interfaces, interface_name);
-        if (!interface)
-                return varlink_call_reply_error(connection->call, "org.varlink.service.InterfaceNotFound", NULL);
-
-        connection->call->method = varlink_interface_get_method(interface, method_name);
-        if (!connection->call->method)
-                return varlink_call_reply_error(connection->call, "org.varlink.service.MethodNotFound", NULL);
-
-        if (!connection->call->method->callback)
-                return varlink_call_reply_error(connection->call, "org.varlink.service.MethodNotImplemented", NULL);
-
-        r = connection->call->method->callback(service, connection->call, parameters, flags,
-                                               connection->call->method->callback_userdata);
-        if (r < 0)
-                return service_connection_close(service, connection);
-
-        return 0;
-}
-
 static long varlink_service_dispatch_connection(VarlinkService *service,
                                                 ServiceConnection *connection,
                                                 int events) {
@@ -391,7 +436,7 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
         if (r < 0)
                 return r;
 
-        for (;;) {
+        while (connection->call == NULL) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
 
                 r = varlink_socket_read(&connection->socket, &message);
@@ -401,7 +446,15 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                 if (!message)
                         break;
 
-                r = varlink_service_handle_call(service, connection, message);
+                r = varlink_call_new(&connection->call, service, connection, message);
+                if (r < 0)
+                        return r;
+
+                r = service->method_callback(service,
+                                             connection->call,
+                                             connection->call->parameters,
+                                             connection->call->flags,
+                                             service->method_callback_userdata);
                 if (r < 0)
                         return service_connection_close(service, connection);
         }

@@ -179,6 +179,17 @@ long varlink_service_new(VarlinkService **servicep,
                          int listen_fd);
 
 /*
+ * Create a new varlink service that handles all incoming requests with
+ * the supplied callback, i.e., varlink_service_add_interface() does not
+ * work on this object.
+ */
+long varlink_service_new_raw(VarlinkService **servicep,
+                             const char *address,
+                             int listen_fd,
+                             VarlinkMethodCallback callback,
+                             void *userdata);
+
+/*
  * Destroys a VarlinkService, close all its connections and free all its
  * ressources.
  *

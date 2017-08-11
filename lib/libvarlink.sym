@@ -58,6 +58,7 @@ global:
         varlink_service_freep;
         varlink_service_get_fd;
         varlink_service_new;
+        varlink_service_new_raw;
         varlink_service_process_events;
 local:
        *;
