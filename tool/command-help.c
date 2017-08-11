@@ -184,16 +184,16 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 if (!address) {
                         r = cli_resolve(cli, interface, &address);
                         if (r < 0) {
-                                fprintf(stderr, "Error resolving interface %s: %s\n", interface, strerror(-r));
-                                return EXIT_FAILURE;
+                                fprintf(stderr, "Error resolving interface %s\n", interface);
+                                return CLI_ERROR_CANNOT_RESOLVE;
                         }
                 }
         }
 
         r = cli_connect(cli, address);
         if (r < 0) {
-                fprintf(stderr, "Error connecting to %s: %s\n", interface, strerror(-r));
-                return EXIT_FAILURE;
+                fprintf(stderr, "Error connecting to %s\n", interface);
+                return CLI_ERROR_CANNOT_CONNECT;
         }
 
         if (interface) {

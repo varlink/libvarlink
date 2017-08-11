@@ -42,8 +42,8 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
 
         r = cli_resolve(cli, interface, &address);
         if (r < 0) {
-                fprintf(stderr, "Error resolving interface %s: %s\n", interface, strerror(-r));
-                return r;
+                fprintf(stderr, "Error resolving interface %s\n", interface);
+                return CLI_ERROR_CANNOT_RESOLVE;
         }
 
         printf("%s\n", address);
