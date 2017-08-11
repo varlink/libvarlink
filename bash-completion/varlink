@@ -1,6 +1,9 @@
 _varlink_module()
 {
-        COMPREPLY=($(varlink complete ${COMP_CWORD} -- ${COMP_WORDS[*]}))
+        local cur prev words cword
+        _init_completion -n := || return
+        COMPREPLY=( $(varlink complete ${cword} -- ${words[@]}) )
+        __ltrim_colon_completions "$cur"
         [[ $COMPREPLY = *[=./] ]] && compopt -o nospace
         return 0
 }

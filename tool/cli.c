@@ -467,7 +467,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         return 0;
 }
 
-long cli_complete_addresses(Cli *cli, const char *current, const char *prefix) {
+long cli_complete_addresses(Cli *cli, const char *current) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         VarlinkArray *interfaces;
@@ -501,7 +501,7 @@ long cli_complete_addresses(Cli *cli, const char *current, const char *prefix) {
                 varlink_array_get_object(interfaces, i, &entry);
                 varlink_object_get_string(entry, "address", &address);
 
-                cli_print_completion(current, "%s%s", prefix ?: "", address);
+                cli_print_completion(current, "%s", address);
         }
 
         return 0;

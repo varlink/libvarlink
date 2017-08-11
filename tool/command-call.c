@@ -193,7 +193,7 @@ static long call_complete(Cli *cli, int argc, char **argv, const char *current) 
         }
 
         if (strncmp(current, "--address=", strlen("--address=")) == 0)
-                return cli_complete_addresses(cli, current, "--address=");
+                return cli_complete_addresses(cli, current + strlen("--address="));
 
         if (current[0] == '-')
                 return cli_complete_options(cli, options, current);
