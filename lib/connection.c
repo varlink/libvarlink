@@ -31,19 +31,18 @@ struct VarlinkConnection {
 
 _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
         _cleanup_(varlink_connection_closep) VarlinkConnection *connection = NULL;
-        const char *parameter;
         long r;
 
         connection = calloc(1, sizeof(VarlinkConnection));
         connection->address = strdup(address);
         varlink_socket_init(&connection->socket);
 
-        switch (varlink_address_get_type(address, &parameter)) {
+        switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
-                        r = varlink_socket_connect_unix(&connection->socket, parameter);
+                        r = varlink_socket_connect_unix(&connection->socket, address);
                         break;
                 case VARLINK_ADDRESS_TCP:
-                        r = varlink_socket_connect_tcp(&connection->socket, parameter);
+                        r = varlink_socket_connect_tcp(&connection->socket, address);
                         break;
                 default:
                         return -VARLINK_ERROR_INVALID_ADDRESS;

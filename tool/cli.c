@@ -67,7 +67,7 @@ long cli_new(Cli **mp) {
 
         cli = calloc(1, sizeof(Cli));
 
-        cli->resolver = "unix:/run/org.varlink.resolver";
+        cli->resolver = "/run/org.varlink.resolver";
 
         cli->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
         if (cli->epoll_fd < 0)

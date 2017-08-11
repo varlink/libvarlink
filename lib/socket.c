@@ -154,22 +154,21 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {
 }
 
 _public_ int varlink_listen(const char *address, char **pathp) {
-        const char *parameter;
         const char *path = NULL;
         int fd;
         long r;
 
-        switch (varlink_address_get_type(address, &parameter)) {
+        switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
                         /* abstract namespace */
-                        if (parameter[0] != '@')
-                                path = parameter;
+                        if (address[0] != '@')
+                                path = address;
 
-                        r = varlink_socket_listen_unix(parameter, &fd);
+                        r = varlink_socket_listen_unix(address, &fd);
                         break;
 
                 case VARLINK_ADDRESS_TCP:
-                        r = varlink_socket_listen_tcp(parameter, &fd);
+                        r = varlink_socket_listen_tcp(address, &fd);
                         break;
 
                 default:

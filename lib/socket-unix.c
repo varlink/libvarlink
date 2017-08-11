@@ -108,9 +108,9 @@ long varlink_socket_accept_unix(int listen_fd, VarlinkSocket *socket, VarlinkObj
                 _cleanup_(freep) char  *s = NULL;
 
                 s = strndup(sa.sun_path + 1, sa_len - offsetof(struct sockaddr_un, sun_path) - 1);
-                asprintf(&address, "unix:@%s", s);
+                asprintf(&address, "@%s", s);
         } else
-                asprintf(&address, "unix:%s", sa.sun_path);
+                asprintf(&address, "%s", sa.sun_path);
 
         if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;

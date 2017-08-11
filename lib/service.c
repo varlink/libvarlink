@@ -320,7 +320,7 @@ static long varlink_service_accept(VarlinkService *service) {
         connection = calloc(1, sizeof(ServiceConnection));
         varlink_socket_init(&connection->socket);
 
-        switch (varlink_address_get_type(service->address, NULL)) {
+        switch (varlink_address_get_type(service->address)) {
                 case VARLINK_ADDRESS_UNIX:
                         r = varlink_socket_accept_unix(service->listen_fd,
                                                        &connection->socket,

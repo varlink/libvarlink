@@ -107,7 +107,7 @@ long varlink_socket_accept_tcp(int listen_fd, VarlinkSocket *socket, VarlinkObje
 
                         addr = be32toh(sa.in.sin_addr.s_addr);
                         asprintf(&address,
-                                 "tcp:%u.%u.%u.%u:%u",
+                                 "%u.%u.%u.%u:%u",
                                  addr >> 24, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff,
                                  be16toh(sa.in.sin_port));
 
@@ -120,7 +120,7 @@ long varlink_socket_accept_tcp(int listen_fd, VarlinkSocket *socket, VarlinkObje
 
                         inet_ntop(AF_INET6, &sa.in6.sin6_addr, addr, sizeof(addr));
                         asprintf(&address,
-                                 "tcp:[%s]:%u",
+                                 "[%s]:%u",
                                  addr,
                                  be16toh(sa.in6.sin6_port));
 
