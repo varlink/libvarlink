@@ -60,8 +60,6 @@ noinst_LIBRARIES += \
 	libvarlink.a
 
 libvarlink_a_SOURCES = \
-	lib/address.c \
-	lib/address.h \
 	lib/array.c \
 	lib/array.h \
 	lib/avltree.c \

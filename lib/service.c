@@ -1,6 +1,5 @@
 #include "service.h"
 
-#include "address.h"
 #include "interface.h"
 #include "object.h"
 #include "socket.h"
@@ -320,24 +319,12 @@ static long varlink_service_accept(VarlinkService *service) {
         connection = calloc(1, sizeof(ServiceConnection));
         varlink_socket_init(&connection->socket);
 
-        switch (varlink_address_get_type(service->address)) {
-                case VARLINK_ADDRESS_UNIX:
-                        r = varlink_socket_accept_unix(service->listen_fd,
-                                                       &connection->socket,
-                                                       &connection->credentials);
-                        break;
-                case VARLINK_ADDRESS_TCP:
-                        r = varlink_socket_accept_tcp(service->listen_fd,
-                                                      &connection->socket,
-                                                      &connection->credentials);
-                        break;
-                default:
-                        return -VARLINK_ERROR_PANIC;
-        }
-
-        /* CannotAccept */
+        r = varlink_socket_accept(&connection->socket,
+                                  service->address,
+                                  service->listen_fd,
+                                  &connection->credentials);
         if (r < 0)
-                return r;
+                return r; /* CannotAccept */
 
         r = epoll_add(service->epoll_fd, connection->socket.fd, EPOLLIN, connection);
         if (r < 0)

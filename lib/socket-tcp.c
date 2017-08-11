@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-
 long varlink_socket_connect_tcp(VarlinkSocket *vsocket, const char *address) {
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
@@ -82,7 +81,7 @@ long varlink_socket_listen_tcp(const char *address, int *fdp) {
         return 0;
 }
 
-long varlink_socket_accept_tcp(int listen_fd, VarlinkSocket *socket, VarlinkObject **credentialsp) {
+long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         union {

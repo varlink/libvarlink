@@ -1,6 +1,5 @@
 #include "socket.h"
 
-#include "address.h"
 #include "object.h"
 #include "util.h"
 
@@ -10,6 +9,25 @@
 #include <unistd.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
+
+enum {
+        VARLINK_ADDRESS_UNIX,
+        VARLINK_ADDRESS_TCP
+};
+
+static long varlink_address_get_type(const char *address) {
+        switch (address[0]) {
+                case '\0':
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+
+                case '/':
+                case '@':
+                        return VARLINK_ADDRESS_UNIX;
+
+                default:
+                        return VARLINK_ADDRESS_TCP;
+        }
+}
 
 void varlink_socket_init(VarlinkSocket *socket) {
         socket->fd = -1;
@@ -151,6 +169,35 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {
         socket->out_end += length + 1;
 
         return 0;
+}
+
+long varlink_socket_connect(VarlinkSocket *socket, const char *address) {
+        switch (varlink_address_get_type(address)) {
+                case VARLINK_ADDRESS_UNIX:
+                        return varlink_socket_connect_unix(socket, address);
+
+                case VARLINK_ADDRESS_TCP:
+                        return varlink_socket_connect_tcp(socket, address);
+
+                default:
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+        }
+}
+
+long varlink_socket_accept( VarlinkSocket *socket,
+                            const char *address,
+                            int listen_fd,
+                            VarlinkObject **credentialsp) {
+        switch (varlink_address_get_type(address)) {
+                case VARLINK_ADDRESS_UNIX:
+                        return varlink_socket_accept_unix(socket, listen_fd, credentialsp);
+
+                case VARLINK_ADDRESS_TCP:
+                        return  varlink_socket_accept_tcp(socket, listen_fd, credentialsp);
+
+                default:
+                        return -VARLINK_ERROR_PANIC;
+        }
 }
 
 _public_ int varlink_listen(const char *address, char **pathp) {

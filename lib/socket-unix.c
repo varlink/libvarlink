@@ -87,7 +87,7 @@ long varlink_socket_listen_unix(const char *path, int *fdp) {
         return 0;
 }
 
-long varlink_socket_accept_unix(int listen_fd, VarlinkSocket *socket, VarlinkObject **credentialsp) {
+long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         struct sockaddr_un sa;

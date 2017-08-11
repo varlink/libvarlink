@@ -27,10 +27,16 @@ int varlink_socket_get_events(VarlinkSocket *socket);
 long varlink_socket_read(VarlinkSocket *socket, VarlinkObject **messagep);
 long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message);
 
+long varlink_socket_connect(VarlinkSocket *socket, const char *address);
+long varlink_socket_accept(VarlinkSocket *socket,
+                           const char *address,
+                           int listen_fd,
+                           VarlinkObject **credentialsp);
+
 long varlink_socket_connect_unix(VarlinkSocket *socket, const char *path);
 long varlink_socket_listen_unix(const char *path, int *fdp);
-long varlink_socket_accept_unix(int listen_fd, VarlinkSocket *socket, VarlinkObject **credentialsp);
+long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp);
 
 long varlink_socket_connect_tcp(VarlinkSocket *socket, const char *address);
 long varlink_socket_listen_tcp(const char *address, int *fdp);
-long varlink_socket_accept_tcp(int listen_fd, VarlinkSocket *socket, VarlinkObject **credentialsp);
+long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp);

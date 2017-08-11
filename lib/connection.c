@@ -1,4 +1,3 @@
-#include "address.h"
 #include "object.h"
 #include "socket.h"
 #include "util.h"
@@ -37,20 +36,9 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
         connection->address = strdup(address);
         varlink_socket_init(&connection->socket);
 
-        switch (varlink_address_get_type(address)) {
-                case VARLINK_ADDRESS_UNIX:
-                        r = varlink_socket_connect_unix(&connection->socket, address);
-                        break;
-                case VARLINK_ADDRESS_TCP:
-                        r = varlink_socket_connect_tcp(&connection->socket, address);
-                        break;
-                default:
-                        return -VARLINK_ERROR_INVALID_ADDRESS;
-        }
-
-        /* CannotConnect or InvalidAddress */
+        r = varlink_socket_connect(&connection->socket, address);
         if (r < 0)
-                return r;
+                return r; /* CannotConnect or InvalidAddress */
 
         *connectionp = connection;
         connection = NULL;
