@@ -265,15 +265,11 @@ static void varlink_type_print(VarlinkType *type,
 
                                 varlink_type_print(field->type,
                                                    stream,
-                                                   indent,
+                                                   indent >= 0 ? indent + 1 : -1,
                                                    type_pre, type_post);
 
-                                if (i + 1 < type->n_fields) {
-                                        if (type->kind == VARLINK_TYPE_OBJECT)
-                                                fprintf(stream, ", ");
-                                        else
-                                                abort();
-                                }
+                                if (i + 1 < type->n_fields)
+                                        fprintf(stream, ", ");
                         }
 
                         if (indent >= 0) {
