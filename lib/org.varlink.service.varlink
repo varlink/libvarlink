@@ -2,13 +2,14 @@
 # describes the service and the interfaces it implements.
 interface org.varlink.service
 
-# Returns information about a service. It contains the service name and the
-# names of all available interfaces.
+# Get a list of all the interfaces a service provides and information
+# about the implementation.
 method GetInfo() -> (
-  name: string,
+  vendor: string,
+  product: string,
   version: string,
-  interfaces: string[],
-  properties: object
+  url: string,
+  interfaces: string[]
 )
 
 # Get the description of an interface that is implemented by this service.

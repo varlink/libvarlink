@@ -292,16 +292,21 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
                         case 'h':
                                 arguments->help = true;
                                 break;
+
                         case 'R':
                                 arguments->resolver = optarg;
                                 break;
+
                         case 'V':
                                 arguments->version = true;
                                 break;
+
                         case '?':
                                 return -CLI_ERROR_INVALID_ARGUMENT;
+
                         case ':':
                                 return -CLI_ERROR_MISSING_ARGUMENT;
+
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
@@ -438,7 +443,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         long n_interfaces;
         long r;
 
-        r = cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
+        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, 0);
         if (r < 0)
                 return -r;
 
@@ -478,7 +483,7 @@ long cli_complete_addresses(Cli *cli, const char *current) {
         if (r < 0)
                 return -r;
 
-        r = cli_call(cli, "org.varlink.resolver.GetInterfaces", NULL, 0);
+        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, 0);
         if (r < 0)
                 return -r;
 

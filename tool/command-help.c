@@ -11,9 +11,8 @@
 static long print_service(Cli *cli) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
-        const char *name;
+        const char *str;
         VarlinkArray *interfaces;
-        VarlinkObject *properties;
         unsigned long n_interfaces;
         long r;
 
@@ -31,38 +30,34 @@ static long print_service(Cli *cli) {
                 return 0;
         }
 
-        if (varlink_object_get_string(info, "name", &name) < 0 ||
-            varlink_object_get_array(info, "interfaces", &interfaces))
+        if (varlink_object_get_string(info, "vendor", &str) >= 0)
+                printf("%sVendor:%s %s\n",
+                       TERMINAL_BOLD,
+                       TERMINAL_NORMAL,
+                       str);
+
+        if (varlink_object_get_string(info, "product", &str) >= 0)
+                printf("%sProduct:%s %s\n",
+                       TERMINAL_BOLD,
+                       TERMINAL_NORMAL,
+                       str);
+
+        if (varlink_object_get_string(info, "version", &str) >= 0)
+                printf("%sVersion:%s %s\n",
+                       TERMINAL_BOLD,
+                       TERMINAL_NORMAL,
+                       str);
+
+        if (varlink_object_get_string(info, "url", &str) >= 0)
+                printf("%sURL:%s %s\n",
+                       TERMINAL_BOLD,
+                       TERMINAL_NORMAL,
+                       str);
+
+        printf("\n");
+
+        if (varlink_object_get_array(info, "interfaces", &interfaces) < 0)
                 return -CLI_ERROR_CALL_FAILED;
-
-        if (varlink_object_get_object(info, "properties", &properties) < 0)
-                properties = NULL;
-
-        printf("%sService: %s%s%s\n",
-               terminal_color(TERMINAL_BOLD),
-               terminal_color(TERMINAL_GRAY_BOLD),
-               name,
-               terminal_color(TERMINAL_NORMAL));
-
-        if (properties) {
-                _cleanup_(freep) char *properties_json = NULL;
-
-                printf("%sProperties: %s",
-                       terminal_color(TERMINAL_BOLD),
-                       terminal_color(TERMINAL_NORMAL));
-
-                r = varlink_object_to_pretty_json(properties,
-                                                  &properties_json,
-                                                  0,
-                                                  terminal_color(TERMINAL_CYAN),
-                                                  terminal_color(TERMINAL_NORMAL),
-                                                  terminal_color(TERMINAL_MAGENTA),
-                                                  terminal_color(TERMINAL_NORMAL));
-                if (r < 0)
-                        return -CLI_ERROR_PANIC;
-
-                printf("%s\n", properties_json);
-        }
 
         printf("%sInterfaces:%s\n",
                terminal_color(TERMINAL_BOLD),
@@ -170,7 +165,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return EXIT_FAILURE;
         }
 
-        if (strchr(topic, ':') != NULL) {
+        if (topic[0] == '/' || topic[0] == '@') {
                 if (address) {
                         fprintf(stderr, "Error: cannot use --address when the first argument is an\n");
                         fprintf(stderr, "       address instead of an interface.\n");
@@ -208,6 +203,6 @@ static long help_run(Cli *cli, int argc, char **argv) {
 
 const CliCommand command_help = {
         .name = "help",
-        .info = "Documentation for interfaces and types",
+        .info = "Print interface description or service information",
         .run = help_run
 };
