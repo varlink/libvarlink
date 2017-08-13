@@ -54,8 +54,6 @@ static long print_service(Cli *cli) {
                        TERMINAL_NORMAL,
                        str);
 
-        printf("\n");
-
         if (varlink_object_get_array(info, "interfaces", &interfaces) < 0)
                 return -CLI_ERROR_CALL_FAILED;
 
@@ -70,6 +68,8 @@ static long print_service(Cli *cli) {
                 varlink_array_get_string(interfaces, i, &interface);
                 printf("  %s\n", interface);
         }
+
+        printf("\n");
 
         return 0;
 }

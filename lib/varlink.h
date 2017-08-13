@@ -173,8 +173,10 @@ long varlink_array_append_object(VarlinkArray *array, VarlinkObject *object);
  * Returns 0 or a a negative varlink error.
  */
 long varlink_service_new(VarlinkService **servicep,
-                         const char *name,
+                         const char *vendor,
+                         const char *product,
                          const char *version,
+                         const char *url,
                          const char *address,
                          int listen_fd);
 

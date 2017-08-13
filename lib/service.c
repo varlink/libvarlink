@@ -20,8 +20,10 @@
 typedef struct ServiceConnection ServiceConnection;
 
 struct VarlinkService {
-        char *name;
+        char *vendor;
+        char *product;
         char *version;
+        char *url;
         char *address;
         AVLTree *interfaces;
 
@@ -195,8 +197,15 @@ static long org_varlink_service_GetInfo(VarlinkService *service,
         if (r < 0)
                 return r;
 
-        varlink_object_set_string(info, "name", service->name);
-        varlink_object_set_string(info, "version", service->version);
+        if (service->vendor)
+                varlink_object_set_string(info, "vendor", service->vendor);
+        if (service->product)
+                varlink_object_set_string(info, "product", service->product);
+        if (service->version)
+                varlink_object_set_string(info, "version", service->version);
+        if (service->url)
+                varlink_object_set_string(info, "url", service->url);
+
         varlink_object_set_array(info, "interfaces", interfaces);
 
         return varlink_call_reply(call, info, 0);
@@ -260,8 +269,10 @@ static long varlink_service_method_callback(VarlinkService *service,
 }
 
 _public_ long varlink_service_new(VarlinkService **servicep,
-                                  const char *name,
+                                  const char *vendor,
+                                  const char *product,
                                   const char *version,
+                                  const char *url,
                                   const char *address,
                                   int listen_fd) {
         _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
@@ -271,8 +282,14 @@ _public_ long varlink_service_new(VarlinkService **servicep,
         if (r < 0)
                 return r;
 
-        service->name = strdup(name);
-        service->version = strdup(version);
+        if (vendor)
+                service->vendor = strdup(vendor);
+        if (product)
+                service->product = strdup(product);
+        if (version)
+                service->version = strdup(version);
+        if (url)
+                service->url = strdup(url);
 
         avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
 
@@ -345,8 +362,11 @@ _public_ VarlinkService *varlink_service_free(VarlinkService *service) {
         if (service->interfaces)
                 avl_tree_free(service->interfaces);
 
-        free(service->name);
+        free(service->vendor);
+        free(service->product);
         free(service->version);
+        free(service->url);
+
         free(service->address);
         free(service);
 
