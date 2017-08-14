@@ -9,14 +9,12 @@
 #include <string.h>
 
 static const struct option options[] = {
-        { "address", required_argument, NULL, 'a' },
         { "help",    no_argument,       NULL, 'h' },
         {}
 };
 
 typedef struct {
         bool help;
-        const char *address;
 
         const char *method;
         const char *parameters;
@@ -27,9 +25,6 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
 
         while ((c = getopt_long(argc, argv, ":a:fh", options, NULL)) >= 0) {
                 switch (c) {
-                        case 'a':
-                                arguments->address = optarg;
-                                break;
                         case 'h':
                                 arguments->help = true;
                                 break;
@@ -54,8 +49,7 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
 static long call_run(Cli *cli, int argc, char **argv) {
         CallArguments arguments = { 0 };
         _cleanup_(freep) char *address = NULL;
-        _cleanup_(freep) char *interface = NULL;
-        _cleanup_(freep) char *method = NULL;
+        const char *method = NULL;
         _cleanup_(freep) char *buffer = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
@@ -74,25 +68,25 @@ static long call_run(Cli *cli, int argc, char **argv) {
         }
 
         if (arguments.help) {
-                printf("Usage: %s call INTERFACE.METHOD [ARGUMENTS]\n",
+                printf("Usage: %s call [ADDRESS/]INTERFACE.METHOD [ARGUMENTS]\n",
                        program_invocation_short_name);
                 printf("\n");
-                printf("Call METHOD on INTERFACE. ARGUMENTS must be valid JSON.\n");
+                printf("Call METHOD on INTERFACE at ADDRESS. ARGUMENTS must be valid JSON.\n");
                 printf("\n");
-                printf("  -a, --address=ADDRESS  connect to ADDRESS instead of resolving the interface\n");
                 printf("  -h, --help             display this help text and exit\n");
                 return EXIT_SUCCESS;
         }
 
-        r = varlink_interface_parse_qualified_name(arguments.method, &interface, &method);
-        if (r < 0) {
-                fprintf(stderr, "Error: invalid interface or method name. Must be INTERFACE.METHOD.\n");
-                return CLI_ERROR_INVALID_ARGUMENT;
-        }
+        cli_split_address(arguments.method, &address, &method);
+        if (!address) {
+                _cleanup_(freep) char *interface = NULL;
 
-        if (arguments.address) {
-                address = strdup(arguments.address);
-        } else {
+                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+                if (r < 0) {
+                        fprintf(stderr, "Error: invalid method identifier [ADDRESS/]INTERFACE.METHOD.\n");
+                        return CLI_ERROR_INVALID_ARGUMENT;
+                }
+
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
                         fprintf(stderr, "Error resolving interface: %s\n", interface);
@@ -102,7 +96,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
         r = cli_connect(cli, address);
         if (r < 0) {
-                fprintf(stderr, "Error connecting to: %s\n", interface);
+                fprintf(stderr, "Error connecting to: %s\n", address);
                 return CLI_ERROR_CANNOT_CONNECT;
         }
 
@@ -137,7 +131,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return CLI_ERROR_INVALID_JSON;
         }
 
-        r = cli_call(cli, arguments.method, parameters, VARLINK_CALL_MORE);
+        r = cli_call(cli, method, parameters, VARLINK_CALL_MORE);
         if (r < 0)
                 return cli_exit_error(-r);
 

@@ -8,72 +8,6 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(Cli *cli) {
-        _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
-        _cleanup_(freep) char *error = NULL;
-        const char *str;
-        VarlinkArray *interfaces;
-        unsigned long n_interfaces;
-        long r;
-
-        r = cli_call(cli, "org.varlink.service.GetInfo", NULL, 0);
-        if (r < 0)
-                return r;
-
-        r = cli_wait_reply(cli, &info, &error, NULL);
-        if (r < 0)
-                return r;
-
-        if (error) {
-                printf("Error: %s\n", error);
-
-                return 0;
-        }
-
-        if (varlink_object_get_string(info, "vendor", &str) >= 0)
-                printf("%sVendor:%s %s\n",
-                       TERMINAL_BOLD,
-                       TERMINAL_NORMAL,
-                       str);
-
-        if (varlink_object_get_string(info, "product", &str) >= 0)
-                printf("%sProduct:%s %s\n",
-                       TERMINAL_BOLD,
-                       TERMINAL_NORMAL,
-                       str);
-
-        if (varlink_object_get_string(info, "version", &str) >= 0)
-                printf("%sVersion:%s %s\n",
-                       TERMINAL_BOLD,
-                       TERMINAL_NORMAL,
-                       str);
-
-        if (varlink_object_get_string(info, "url", &str) >= 0)
-                printf("%sURL:%s %s\n",
-                       TERMINAL_BOLD,
-                       TERMINAL_NORMAL,
-                       str);
-
-        if (varlink_object_get_array(info, "interfaces", &interfaces) < 0)
-                return -CLI_ERROR_CALL_FAILED;
-
-        printf("%sInterfaces:%s\n",
-               terminal_color(TERMINAL_BOLD),
-               terminal_color(TERMINAL_NORMAL));
-
-        n_interfaces = varlink_array_get_n_elements(interfaces);
-        for (unsigned long i = 0; i < n_interfaces; i += 1) {
-                const char *interface = NULL;
-
-                varlink_array_get_string(interfaces, i, &interface);
-                printf("  %s\n", interface);
-        }
-
-        printf("\n");
-
-        return 0;
-}
-
 static long help_interface(Cli *cli, const char *name) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
@@ -127,28 +61,21 @@ static long help_interface(Cli *cli, const char *name) {
 
 static long help_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
-                { "address", required_argument, NULL, 'a' },
                 { "help",    no_argument,       NULL, 'h' },
                 {}
         };
-        int c;
-        const char *topic = NULL;
         _cleanup_(freep) char *address = NULL;
         const char *interface = NULL;
+        int c;
         long r;
 
         while ((c = getopt_long(argc, argv, "a:h", options, NULL)) >= 0) {
                 switch (c) {
-                        case 'a':
-                                address = strdup(optarg);
-                                break;
-
                         case 'h':
-                                printf("Usage: %s help [ INTERFACE | ADDRESS ]\n", program_invocation_short_name);
+                                printf("Usage: %s help [ADDRESS/]INTERFACE\n", program_invocation_short_name);
                                 printf("\n");
-                                printf("Prints information about INTERFACE or the service at ADDRESS.\n");
+                                printf("Prints information about INTERFACE.\n");
                                 printf("\n");
-                                printf("  -a, --address=ADDRESS  connect to ADDRESS instead of resolving INTERFACE\n");
                                 printf("  -h, --help             display this help text and exit\n");
                                 return EXIT_SUCCESS;
 
@@ -159,29 +86,18 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        topic = argv[optind];
-        if (!topic) {
-                fprintf(stderr, "Usage: %s help [ INTERFACE | ADDRESS ]\n", program_invocation_short_name);
+        if (!argv[optind]) {
+                fprintf(stderr, "Usage: %s help [ADDRESS/]INTERFACE\n", program_invocation_short_name);
                 return EXIT_FAILURE;
         }
 
-        if (topic[0] == '/' || topic[0] == '@') {
-                if (address) {
-                        fprintf(stderr, "Error: cannot use --address when the first argument is an\n");
-                        fprintf(stderr, "       address instead of an interface.\n");
-                        return EXIT_FAILURE;
-                }
+        cli_split_address(argv[optind], &address, &interface);
 
-                address = strdup(topic);
-        } else {
-                interface = topic;
-
-                if (!address) {
-                        r = cli_resolve(cli, interface, &address);
-                        if (r < 0) {
-                                fprintf(stderr, "Error resolving interface %s\n", interface);
-                                return CLI_ERROR_CANNOT_RESOLVE;
-                        }
+        if (!address) {
+                r = cli_resolve(cli, interface, &address);
+                if (r < 0) {
+                        fprintf(stderr, "Error resolving interface %s\n", interface);
+                        return CLI_ERROR_CANNOT_RESOLVE;
                 }
         }
 
@@ -191,12 +107,9 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return CLI_ERROR_CANNOT_CONNECT;
         }
 
-        if (interface) {
-                r = help_interface(cli, interface);
-                if (r < 0)
-                        return EXIT_FAILURE;
-        } else
-                print_service(cli);
+        r = help_interface(cli, interface);
+        if (r < 0)
+                return EXIT_FAILURE;
 
         return EXIT_SUCCESS;
 }

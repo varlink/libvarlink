@@ -580,3 +580,22 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
 
         return 0;
 }
+
+long cli_split_address(const char *identifier,
+                       char **addressp,
+                       const char **methodp) {
+        const char *p;
+
+        p = strrchr(identifier, '/');
+        if (!p) {
+                *addressp = NULL;
+                *methodp = identifier;
+                return 0;
+        }
+
+        *addressp = p - identifier > 0 ? strndup(identifier, p - identifier) : NULL;
+        *methodp = p + 1;
+
+        return 0;
+}
+

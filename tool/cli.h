@@ -49,3 +49,5 @@ long cli_complete_qualified_methods(Cli *cli, const char *current);
 
 __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
+
+long cli_split_address(const char *identifier, char **addressp, const char **methodp);
