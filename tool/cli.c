@@ -443,6 +443,12 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         long n_interfaces;
         long r;
 
+        if (!cli->connection) {
+                r = cli_connect(cli, cli->resolver);
+                if (r < 0)
+                        return -r;
+        }
+
         r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, 0);
         if (r < 0)
                 return -r;

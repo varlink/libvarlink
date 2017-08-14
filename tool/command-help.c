@@ -114,8 +114,13 @@ static long help_run(Cli *cli, int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
+static long help_complete(Cli *cli, int argc, char **argv, const char *current) {
+        return cli_complete_interfaces(cli, current, false);
+}
+
 const CliCommand command_help = {
         .name = "help",
         .info = "Print interface description or service information",
-        .run = help_run
+        .run = help_run,
+        .complete = help_complete
 };
