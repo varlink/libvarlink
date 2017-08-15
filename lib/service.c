@@ -245,7 +245,6 @@ static long varlink_service_method_callback(VarlinkService *service,
                                             void *userdata) {
         VarlinkInterface *interface;
         VarlinkMethod *method;
-        long r;
 
         interface = avl_tree_find(service->interfaces, call->interface_name);
         if (!interface)
@@ -258,11 +257,7 @@ static long varlink_service_method_callback(VarlinkService *service,
         if (!method->callback)
                 return varlink_call_reply_error(call, "org.varlink.service.MethodNotImplemented", NULL);
 
-        r = method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
-        if (r < 0)
-                return service_connection_close(service, call->connection);
-
-        return 0;
+        return method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
 }
 
 _public_ long varlink_service_new(VarlinkService **servicep,
