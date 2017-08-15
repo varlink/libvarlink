@@ -8,6 +8,9 @@
 extern "C" {
 #endif
 
+/*
+ * Error codes retured by the library functions as negative values.
+ */
 enum {
         VARLINK_ERROR_PANIC = 1,
         VARLINK_ERROR_INVALID_INTERFACE,
@@ -32,33 +35,45 @@ enum {
         VARLINK_ERROR_MAX
 };
 
+/*
+ * Keywords/flags of a method call.
+ */
 enum {
         VARLINK_CALL_MORE = 1
 };
 
+/*
+ * Keywords/flags of a method reply.
+ */
 enum {
         VARLINK_REPLY_CONTINUES = 1
 };
 
+/*
+ * Objects and arrays represent basic data types corresponding with JSON
+ * objects and arrays.
+ */
 typedef struct VarlinkObject VarlinkObject;
 typedef struct VarlinkArray VarlinkArray;
 
 /*
- * A varlink service exports a set of interfaces on a varlink address.
+ * A varlink service exports a set of interfaces and listens on a varlink
+ * address for incoming calls.
  */
 typedef struct VarlinkService VarlinkService;
 
+/*
+ * An incoming method call.
+ */
 typedef struct VarlinkCall VarlinkCall;
 
 /*
- * Connections represent a communication channel between a VarlinkServer
- * and a VarlinkClient. A method call takes place over a connection, the
- * connection is busy until the method reply is received.
+ * A connection from a client to a service.
  */
 typedef struct VarlinkConnection VarlinkConnection;
 
 /*
- * Called when a client requests a method call.
+ * Called when a client calls a method of a service.
  */
 typedef long (*VarlinkMethodCallback)(VarlinkService *service,
                                       VarlinkCall *call,
@@ -66,34 +81,72 @@ typedef long (*VarlinkMethodCallback)(VarlinkService *service,
                                       uint64_t flags,
                                       void *userdata);
 
+/*
+ * Called when a connection is closed.
+ */
 typedef void (*VarlinkConnectionClosedFunc)(VarlinkConnection *connection,
                                             void *userdata);
 
+/*
+ * Called when a client cancels a call.
+ */
 typedef void (*VarlinkCallCanceled)(VarlinkCall *call,
                                     void *userdata);
 
+/*
+ * Called when a client receives a reply to its call.
+ */
 typedef void (*VarlinkReplyFunc)(VarlinkConnection *connection,
                                  const char *error,
                                  VarlinkObject *parameters,
                                  uint64_t flags,
                                  void *userdata);
-
+/*
+ * Create a new empty object.
+ */
 long varlink_object_new(VarlinkObject **objectp);
+
+/*
+ * Createa new object by reading its data from a JSON string.
+ */
 long varlink_object_new_from_json(VarlinkObject **objectp, const char *json);
-VarlinkObject *varlink_object_ref(VarlinkObject *object);
-VarlinkObject *varlink_object_unref(VarlinkObject *object);
+
+/*
+ * Decrement the reference count of an array. Dropping the last
+ * reference frees all ressources.
+ *
+ * Returns NULL;
+ */
+VarlinkArray *varlink_array_unref(VarlinkArray *array);
+
+/*
+ * varlink_object_unref() to be used with the cleanup attribute.
+ */
 void varlink_object_unrefp(VarlinkObject **objectp);
 
 /*
- * Write the data of a VarlinkVariant formatted in JSON to a newly allocated
- * string. Escape sequences can be injected to e.g. colorize console output.
+ * Increment the reference count of an array.
  *
- * Returns the length of the allocated string or a negative errno.
+ * Returns the same VarlinkArray.
+ */
+VarlinkObject *varlink_object_ref(VarlinkObject *object);
+
+/*
+ * Write the data of an object formatted as JSON to a newly allocated
+ * string.
+ *
+ * Returns the length of the allocated string or a negative VARLINK_ERROR.
  */
 long varlink_object_to_json(VarlinkObject *object, char **stringp);
 
+/*
+ * Retrieve an array of strings with the filed names of the object.
+ */
 unsigned long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp);
 
+/*
+ * Get values from an object.
+ */
 long varlink_object_get_bool(VarlinkObject *object, const char *field, bool *bp);
 long varlink_object_get_int(VarlinkObject *object, const char *field, int64_t *ip);
 long varlink_object_get_float(VarlinkObject *object, const char *field, double *fp);
@@ -101,6 +154,9 @@ long varlink_object_get_string(VarlinkObject *object, const char *field, const c
 long varlink_object_get_array(VarlinkObject *object, const char *field, VarlinkArray **arrayp);
 long varlink_object_get_object(VarlinkObject *object, const char *field, VarlinkObject **nestedp);
 
+/*
+ * Set values of an object.
+ */
 long varlink_object_set_bool(VarlinkObject *object, const char *field, bool b);
 long varlink_object_set_int(VarlinkObject *object, const char *field, int64_t i);
 long varlink_object_set_float(VarlinkObject *object, const char *field, double f);
@@ -109,19 +165,19 @@ long varlink_object_set_array(VarlinkObject *object, const char *field, VarlinkA
 long varlink_object_set_object(VarlinkObject *object, const char *field, VarlinkObject *nested);
 
 /*
- * Creates a new VarlinkArray. The type in typestring must be an array type.
+ * Create a new array.
  */
 long varlink_array_new(VarlinkArray **arrayp);
 
 /*
- * Increment the reference count of a VarlinkArray.
+ * Increment the reference count of an array.
  *
  * Returns the same VarlinkArray.
  */
 VarlinkArray *varlink_array_ref(VarlinkArray *array);
 
 /*
- * Decrement the reference count of a VarlinkArray. Dropping the last
+ * Decrement the reference count of an array. Dropping the last
  * reference frees all ressources.
  *
  * Returns NULL;
@@ -139,13 +195,9 @@ void varlink_array_unrefp(VarlinkArray **arrayp);
 unsigned long varlink_array_get_n_elements(VarlinkArray *array);
 
 /*
- * Extract the basic value of the array element at index.
+ * Extract a value of the array element at index.
  *
- * Return 0 or a negative errno.
- *
- * Possible errors:
- *   EINVAL: the variant is not an array or the given index is out of bounds
- *   EBADMSG: the variant's underlying data is corrupt
+ * Returns 0 or a negative VARLINK_ERROR.
  */
 long varlink_array_get_bool(VarlinkArray *array, unsigned long index, bool *bp);
 long varlink_array_get_int(VarlinkArray *array, unsigned long index, int64_t *ip);
@@ -157,10 +209,7 @@ long varlink_array_get_object(VarlinkArray *array, unsigned long index, VarlinkO
 /*
  * Appends a value to the end of an array.
  *
- * Return 0 or a negative errno.
- *
- * Possible errors:
- *   EINVAL: the variant is not an array or the element has the wrong type
+ * Return 0 or a negative VARLINK_ERROR.
  */
 long varlink_array_append_bool(VarlinkArray *array, bool b);
 long varlink_array_append_int(VarlinkArray *array, int64_t i);
@@ -227,7 +276,7 @@ long varlink_service_add_interface(VarlinkService *service,
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
  * readable whenever there is pending data, like a method call from a client.
  *
- * Returns the file descriptor or a negative errno.
+ * Returns the file descriptor or a negative VARLINK_ERROR.
  */
 int varlink_service_get_fd(VarlinkService *service);
 
@@ -244,7 +293,7 @@ int varlink_listen(const char *address, char **pathp);
  * the file descriptor becomes readable. Method calls are dispatched according
  * to their installed callbacks.
  *
- * Returns 0 or a negative errno.
+ * Returns 0 or a negative VARLINK_ERROR.
  */
 long varlink_service_process_events(VarlinkService *service);
 
@@ -294,7 +343,7 @@ int varlink_connection_get_events(VarlinkConnection *connection);
  * Call the specified method with the given argument. The reply will execute
  * the given callback.
  *
- * Returns 0 or a negative errno.
+ * Returns 0 or a negative VARLINK_ERROR.
  */
 long varlink_connection_call(VarlinkConnection *connection,
                              const char *qualified_method,
