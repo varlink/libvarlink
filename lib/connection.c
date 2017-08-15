@@ -13,14 +13,7 @@
 #include <sys/queue.h>
 #include <unistd.h>
 
-typedef struct ClosedCallback ClosedCallback;
 typedef struct ReplyCallback ReplyCallback;
-
-struct ClosedCallback {
-        VarlinkConnectionClosedFunc func;
-        void *userdata;
-        ClosedCallback *next;
-};
 
 struct ReplyCallback {
         uint64_t call_flags;
@@ -37,7 +30,8 @@ struct VarlinkConnection {
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
 
-        ClosedCallback *closed_callbacks;
+        VarlinkConnectionClosedFunc closed_callback;
+        void *closed_userdata;
 };
 
 _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
@@ -145,22 +139,10 @@ _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
 }
 
 _public_ long varlink_connection_close(VarlinkConnection *connection) {
-        ClosedCallback *callback;
-
         varlink_socket_deinit(&connection->socket);
 
-        callback = connection->closed_callbacks;
-        while (callback) {
-                ClosedCallback *previous;
-
-                callback->func(connection, callback->userdata);
-
-                previous = callback;
-                callback = callback->next;
-                free(previous);
-        }
-
-        connection->closed_callbacks = NULL;
+        while (connection->closed_callback)
+                connection->closed_callback(connection, connection->closed_userdata);
 
         return 0;
 }
@@ -209,12 +191,6 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
 _public_ void varlink_connection_set_close_callback(VarlinkConnection *connection,
                                                     VarlinkConnectionClosedFunc closed,
                                                     void *userdata) {
-        ClosedCallback *callback;
-
-        callback = calloc(1, sizeof(ClosedCallback));
-        callback->func = closed;
-        callback->userdata = userdata;
-
-        callback->next = connection->closed_callbacks;
-        connection->closed_callbacks = callback;
+        connection->closed_callback = closed;
+        connection->closed_userdata = userdata;
 }
