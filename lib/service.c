@@ -161,9 +161,6 @@ static void service_connection_freep(ServiceConnection **connectionp) {
 
 static long service_connection_close(VarlinkService *service,
                                      ServiceConnection *connection) {
-        if (connection->call)
-                varlink_call_unref(connection->call);
-
         if (connection->socket.fd >= 0)
                 epoll_ctl(service->epoll_fd, EPOLL_CTL_DEL, connection->socket.fd, NULL);
 
