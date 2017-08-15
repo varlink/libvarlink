@@ -167,10 +167,8 @@ long cli_call(Cli *cli,
               VarlinkObject *parameters,
               char **errorp,
               VarlinkObject **outp) {
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(freep) char *address = NULL;
-        const char *method;
-        struct Reply reply = { 0 };
+        const char *method = NULL;
         long r;
 
         r  = cli_split_address(method_identifier, &address, &method);
@@ -188,6 +186,19 @@ long cli_call(Cli *cli,
                 if (r < 0)
                         return -CLI_ERROR_CANNOT_RESOLVE;
         }
+
+        return cli_call_on_address(cli, address, method, parameters, errorp, outp);
+}
+
+long cli_call_on_address(Cli *cli,
+                         const char *address,
+                         const char *method,
+                         VarlinkObject *parameters,
+                         char **errorp,
+                         VarlinkObject **outp) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        struct Reply reply = { 0 };
+        long r;
 
         r = varlink_connection_new(&connection, address);
         if (r < 0)

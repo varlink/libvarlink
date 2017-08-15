@@ -9,7 +9,6 @@
 #include <string.h>
 
 static long help_interface(Cli *cli, const char *address, const char *name) {
-        _cleanup_(freep) char *method = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
@@ -18,12 +17,10 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
         _cleanup_(freep) char *string = NULL;
         long r;
 
-        asprintf(&method, "%s/org.varlink.service.GetInterfaceDescription", address);
-
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
 
-        r = cli_call(cli, method, parameters, &error, &out);
+        r = cli_call_on_address(cli, address, "org.varlink.service.GetInterfaceDescription", parameters, &error, &out);
         if (r < 0)
                 return r;
 

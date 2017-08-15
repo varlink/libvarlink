@@ -8,16 +8,13 @@
 
 static long print_service(Cli *cli, const char *address) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
-        _cleanup_(freep) char *method = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *str;
         VarlinkArray *interfaces;
         unsigned long n_interfaces;
         long r;
 
-        asprintf(&method, "%s/org.varlink.service.GetInfo", address);
-
-        r = cli_call(cli, method, NULL, &error, &info);
+        r = cli_call_on_address(cli, address, "org.varlink.service.GetInfo", NULL, &error, &info);
         if (r < 0)
                 return r;
 
