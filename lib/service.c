@@ -453,6 +453,13 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
         if (r < 0)
                 return r;
 
+        /*
+         * If we're in a call and the other side has lost interest,
+         * close the connection.
+         */
+        if (connection->socket.hup && connection->call)
+                return service_connection_close(service, connection);
+
         while (connection->call == NULL) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
 
