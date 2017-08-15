@@ -252,6 +252,8 @@ VarlinkCall *varlink_call_ref(VarlinkCall *call);
 VarlinkCall *varlink_call_unref(VarlinkCall *call);
 void varlink_call_unrefp(VarlinkCall **callp);
 
+const char *varlink_call_get_method(VarlinkCall *call);
+
 /*
  * Sets a function which is called when the client cancels a call (i.e.,
  * closes the connection).

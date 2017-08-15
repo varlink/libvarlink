@@ -42,8 +42,7 @@ struct VarlinkCall {
         VarlinkService *service;
         ServiceConnection *connection;
 
-        char *interface_name;
-        char *method_name;
+        char *method;
         VarlinkObject *parameters;
         uint64_t flags;
 
@@ -76,9 +75,7 @@ static long varlink_call_new(VarlinkCall **callp,
         if (r < 0)
                 return -VARLINK_ERROR_INVALID_METHOD;
 
-        r = varlink_interface_parse_qualified_name(method, &call->interface_name, &call->method_name);
-        if (r < 0)
-                return -VARLINK_ERROR_INVALID_METHOD;
+        call->method = strdup(method);
 
         r = varlink_object_get_object(message, "parameters", &parameters);
         if (parameters)
@@ -108,8 +105,7 @@ _public_ VarlinkCall *varlink_call_unref(VarlinkCall *call) {
                 if (call->parameters)
                         varlink_object_unref(call->parameters);
 
-                free(call->interface_name);
-                free(call->method_name);
+                free(call->method);
                 free(call);
         }
 
@@ -119,6 +115,10 @@ _public_ VarlinkCall *varlink_call_unref(VarlinkCall *call) {
 _public_ void varlink_call_unrefp(VarlinkCall **callp) {
         if (*callp)
                 varlink_call_unref(*callp);
+}
+
+_public_ const char *varlink_call_get_method(VarlinkCall *call) {
+        return call->method;
 }
 
 static long interface_compare(const void *key, void *value) {
@@ -243,14 +243,21 @@ static long varlink_service_method_callback(VarlinkService *service,
                                             VarlinkObject *parameters,
                                             uint64_t flags,
                                             void *userdata) {
+        _cleanup_(freep) char *interface_name;
+        _cleanup_(freep) char *method_name;
         VarlinkInterface *interface;
         VarlinkMethod *method;
+        long r;
 
-        interface = avl_tree_find(service->interfaces, call->interface_name);
+        r = varlink_interface_parse_qualified_name(call->method, &interface_name, &method_name);
+        if (r < 0)
+                return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", NULL);
+
+        interface = avl_tree_find(service->interfaces, interface_name);
         if (!interface)
                 return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", NULL);
 
-        method = varlink_interface_get_method(interface, call->method_name);
+        method = varlink_interface_get_method(interface, method_name);
         if (!method)
                 return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", NULL);
 
