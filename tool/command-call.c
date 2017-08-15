@@ -198,7 +198,7 @@ static long call_complete(Cli *cli, int argc, char **argv, const char *current) 
                 return cli_complete_options(cli, options, current);
 
         if (!arguments.method)
-                return cli_complete_qualified_methods(cli, current);
+                return cli_complete_methods(cli, current);
 
         if (!arguments.parameters)
                 cli_print_completion(current, "'{}'");

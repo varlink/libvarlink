@@ -518,39 +518,41 @@ long cli_complete_addresses(Cli *cli, const char *current) {
         return 0;
 }
 
-long cli_complete_qualified_methods(Cli *cli, const char *current) {
-        _cleanup_(freep) char *interface_name = NULL;
+long cli_complete_methods(Cli *cli, const char *current) {
         _cleanup_(freep) char *address = NULL;
+        _cleanup_(freep) char *interface_name = NULL;
+        const char *method = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *description = NULL;
-        const char *dot;
         long r;
 
-        dot = strrchr(current, '.');
-        if (dot == NULL)
+        r = cli_split_address(current, &address, &method);
+        if (r < 0)
+                return -r;
+
+        r = varlink_interface_parse_qualified_name(method, &interface_name, NULL);
+        if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 
-        interface_name = strndup(current, dot - current);
-
-        r = cli_resolve(cli, interface_name, &address);
-        switch (r) {
-                case 0:
-                        break;
-
-                case -CLI_ERROR_CANNOT_RESOLVE:
-                        return cli_complete_interfaces(cli, current, true);
-
-                default:
-                        return -r;
+        if (!address) {
+                r = cli_resolve(cli, interface_name, &address);
+                switch (r) {
+                        case 0:
+                                break;
+                        case -CLI_ERROR_CANNOT_RESOLVE:
+                                return cli_complete_interfaces(cli, current, true);
+                        default:
+                                return -r;
+                }
         }
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface_name);
 
-        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, &error, &out);
+        r = cli_call_on_address(cli, address, "org.varlink.service.GetInterfaceDescription", parameters, &error, &out);
         if (r < 0)
                 return r;
 
