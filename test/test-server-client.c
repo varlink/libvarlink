@@ -76,6 +76,35 @@ static long test_process_events(Test *test) {
         return 0;
 }
 
+typedef struct {
+        const char **words;
+        unsigned long n_received;
+} EchoCall;
+
+static void echo_callback(VarlinkConnection *connection,
+                          const char *error,
+                          VarlinkObject *parameters,
+                          uint64_t flags,
+                          void *userdata) {
+        EchoCall *call = userdata;
+        const char *result;
+
+        assert(varlink_object_get_string(parameters, "word", &result) == 0);
+        assert(strcmp(result, call->words[call->n_received]) == 0);
+
+        call->n_received += 1;
+}
+
+static void later_callback(VarlinkConnection *connection,
+                           const char *error,
+                           VarlinkObject *parameters,
+                           uint64_t flags,
+                           void *userdata) {
+        VarlinkObject **out = userdata;
+
+        *out = varlink_object_ref(parameters);
+}
+
 int main(void) {
         const char *interface = "interface org.varlink.example\n"
                                 "method Echo(word: string) -> (word: string)\n"
@@ -106,43 +135,33 @@ int main(void) {
                          test.connection) == 0);
 
         {
-                unsigned long n_received = 0;
+                EchoCall call = {
+                        .words = words,
+                        .n_received = 0
+                };
 
                 for (unsigned long i = 0; i < ARRAY_SIZE(words); i += 1) {
                         VarlinkObject *parameters;
 
                         assert(varlink_object_new(&parameters) == 0);
                         assert(varlink_object_set_string(parameters, "word", words[i]) == 0);
-                        assert(varlink_connection_call(test.connection, "org.varlink.example.Echo", parameters, 0) == 0);
+                        assert(varlink_connection_call(test.connection, "org.varlink.example.Echo", parameters, 0,
+                                                       echo_callback, &call) == 0);
                         assert(varlink_object_unref(parameters) == NULL);
                 }
 
-                for (long i = 0; n_received < ARRAY_SIZE(words) && i < 10; i += 1) {
+                for (long i = 0; call.n_received < ARRAY_SIZE(words) && i < 10; i += 1) {
                         r = test_process_events(&test);
                         assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-
-                        for (;;) {
-                                VarlinkObject *out;
-                                const char *result;
-
-                                assert(varlink_connection_receive_reply(test.connection, &out, NULL, NULL) == 0);
-                                if (!out)
-                                        break;
-
-                                assert(varlink_object_get_string(out, "word", &result) == 0);
-                                assert(strcmp(result, words[n_received]) == 0);
-                                assert(varlink_object_unref(out) == NULL);
-
-                                n_received += 1;
-                        }
                 }
-                assert(n_received == ARRAY_SIZE(words));
+                assert(call.n_received == ARRAY_SIZE(words));
         }
 
         {
                 VarlinkObject *out = NULL;
 
-                assert(varlink_connection_call(test.connection, "org.varlink.example.Later", NULL, 0) == 0);
+                assert(varlink_connection_call(test.connection, "org.varlink.example.Later", NULL, 0,
+                                               later_callback, &out) == 0);
                 for (long i = 0; later_call == NULL && i < 10; i += 1) {
                         r = test_process_events(&test);
                         assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
@@ -156,13 +175,12 @@ int main(void) {
                 for (long i = 0; out == NULL && i < 10; i += 1) {
                         r = test_process_events(&test);
                         assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-                        assert(varlink_connection_receive_reply(test.connection, &out, NULL, NULL) == 0);
                 }
                 assert(out != NULL);
                 assert(varlink_object_unref(out) == NULL);
         }
 
-        assert(varlink_connection_close(test.connection) == NULL);
+        assert(varlink_connection_free(test.connection) == NULL);
         assert(varlink_service_free(test.service) == NULL);
         close(test.epoll_fd);
 

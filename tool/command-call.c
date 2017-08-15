@@ -1,4 +1,5 @@
 #include "command.h"
+#include "error.h"
 #include "interface.h"
 #include "object.h"
 #include "terminal-colors.h"
@@ -46,14 +47,51 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         return 0;
 }
 
+static void reply_callback(VarlinkConnection *connection,
+                           const char *error,
+                           VarlinkObject *parameters,
+                           uint64_t flags,
+                           void *userdata) {
+        unsigned long *errorp = userdata;
+        _cleanup_(freep) char *json = NULL;
+        long r;
+
+        if (error) {
+                fprintf(stderr, "Error: %s\n", error);
+                *errorp = CLI_ERROR_REMOTE_ERROR;
+                varlink_connection_close(connection);
+                return;
+        }
+
+        r = varlink_object_to_pretty_json(parameters,
+                                          &json,
+                                          0,
+                                          terminal_color(TERMINAL_CYAN),
+                                          terminal_color(TERMINAL_NORMAL),
+                                          terminal_color(TERMINAL_MAGENTA),
+                                          terminal_color(TERMINAL_NORMAL));
+        if (r < 0) {
+                fprintf(stderr, "Error: InvalidJson\n");
+                *errorp = CLI_ERROR_INVALID_JSON;
+                varlink_connection_close(connection);
+                return;
+        }
+
+        printf("%s\n", json);
+
+        if (!(flags & VARLINK_REPLY_CONTINUES))
+                varlink_connection_close(connection);
+}
+
 static long call_run(Cli *cli, int argc, char **argv) {
         CallArguments arguments = { 0 };
         _cleanup_(freep) char *address = NULL;
         const char *method = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(freep) char *buffer = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
-        _cleanup_(freep) char *reply_json = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
+        long error = 0;
         long r;
 
         r = call_parse_arguments(argc, argv, &arguments);
@@ -75,29 +113,6 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 printf("\n");
                 printf("  -h, --help             display this help text and exit\n");
                 return EXIT_SUCCESS;
-        }
-
-        cli_split_address(arguments.method, &address, &method);
-        if (!address) {
-                _cleanup_(freep) char *interface = NULL;
-
-                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
-                if (r < 0) {
-                        fprintf(stderr, "Error: invalid method identifier [ADDRESS/]INTERFACE.METHOD.\n");
-                        return CLI_ERROR_INVALID_ARGUMENT;
-                }
-
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0) {
-                        fprintf(stderr, "Error resolving interface: %s\n", interface);
-                        return CLI_ERROR_CANNOT_RESOLVE;
-                }
-        }
-
-        r = cli_connect(cli, address);
-        if (r < 0) {
-                fprintf(stderr, "Error connecting to: %s\n", address);
-                return CLI_ERROR_CANNOT_CONNECT;
         }
 
         if (!arguments.parameters) {
@@ -131,43 +146,33 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return CLI_ERROR_INVALID_JSON;
         }
 
-        r = cli_call(cli, method, parameters, VARLINK_CALL_MORE);
+        r  = cli_split_address(arguments.method, &address, &method);
         if (r < 0)
                 return cli_exit_error(-r);
 
-        for (;;) {
-                _cleanup_(freep) char *error = NULL;
-                long flags;
+        if (!address) {
+                _cleanup_(freep) char *interface = NULL;
 
-                r = cli_wait_reply(cli, &reply, &error, &flags);
+                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+                if (r < 0)
+                        return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
+
+                r = cli_resolve(cli, interface, &address);
                 if (r < 0)
                         return cli_exit_error(-r);
-
-                if (error)
-                        fprintf(stderr, "Error: %s\n", error);
-
-                if (reply) {
-                        r = varlink_object_to_pretty_json(reply,
-                                                          &reply_json,
-                                                          0,
-                                                          terminal_color(TERMINAL_CYAN),
-                                                          terminal_color(TERMINAL_NORMAL),
-                                                          terminal_color(TERMINAL_MAGENTA),
-                                                          terminal_color(TERMINAL_NORMAL));
-                        if (r < 0) {
-                                fprintf(stderr, "Error decoding reply\n");
-                                return CLI_ERROR_INVALID_JSON;
-                        }
-
-                        printf("%s\n", reply_json);
-                }
-
-                if (error)
-                        return CLI_ERROR_REMOTE_ERROR;
-
-                if (!(flags & VARLINK_REPLY_CONTINUES))
-                        break;
         }
+
+        r = varlink_connection_new(&connection, address);
+        if (r < 0)
+                return cli_exit_error(CLI_ERROR_PANIC);
+
+        r = varlink_connection_call(connection, method, parameters, VARLINK_CALL_MORE, reply_callback, &error);
+        if (r < 0)
+                return cli_exit_error(CLI_ERROR_PANIC);
+
+        r = cli_process_all_events(cli, connection);
+        if (r < 0)
+                return cli_exit_error(-r);
 
         return EXIT_SUCCESS;
 }

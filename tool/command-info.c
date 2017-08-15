@@ -6,26 +6,25 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(Cli *cli) {
+static long print_service(Cli *cli, const char *address) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
+        _cleanup_(freep) char *method = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *str;
         VarlinkArray *interfaces;
         unsigned long n_interfaces;
         long r;
 
-        r = cli_call(cli, "org.varlink.service.GetInfo", NULL, 0);
-        if (r < 0)
-                return r;
+        asprintf(&method, "%s/org.varlink.service.GetInfo", address);
 
-        r = cli_wait_reply(cli, &info, &error, NULL);
+        r = cli_call(cli, method, NULL, &error, &info);
         if (r < 0)
                 return r;
 
         if (error) {
-                printf("Error: %s\n", error);
+                fprintf(stderr, "Error: %s\n", error);
 
-                return 0;
+                return -CLI_ERROR_REMOTE_ERROR;
         }
 
         if (varlink_object_get_string(info, "vendor", &str) >= 0)
@@ -104,13 +103,7 @@ static long info_run(Cli *cli, int argc, char **argv) {
                 return EXIT_FAILURE;
         }
 
-        r = cli_connect(cli, address);
-        if (r < 0) {
-                fprintf(stderr, "Error connecting to %s\n", address);
-                return CLI_ERROR_CANNOT_CONNECT;
-        }
-
-        r = print_service(cli);
+        r = print_service(cli, address);
         if (r < 0)
                 return EXIT_FAILURE;
 

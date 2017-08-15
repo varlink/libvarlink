@@ -49,6 +49,9 @@ void varlink_socket_deinit(VarlinkSocket *socket) {
 
         free(socket->in);
         free(socket->out);
+
+        memset(socket, 0, sizeof(VarlinkSocket));
+        socket->fd = -1;
 }
 
 static void move_rest(uint8_t **bufferp, unsigned long *startp, unsigned long *endp) {
@@ -116,6 +119,9 @@ long varlink_socket_dispatch(VarlinkSocket *socket, int events) {
 
 int varlink_socket_get_events(VarlinkSocket *socket) {
         int events = 0;
+
+        if (socket->fd < 0)
+                return 0;
 
         if (socket->in_end < CONNECTION_BUFFER_SIZE && !socket->hup)
                 events |= EPOLLIN;

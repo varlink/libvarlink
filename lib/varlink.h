@@ -72,6 +72,12 @@ typedef void (*VarlinkConnectionClosedFunc)(VarlinkConnection *connection,
 typedef void (*VarlinkCallCanceled)(VarlinkCall *call,
                                     void *userdata);
 
+typedef void (*VarlinkReplyFunc)(VarlinkConnection *connection,
+                                 const char *error,
+                                 VarlinkObject *parameters,
+                                 uint64_t flags,
+                                 void *userdata);
+
 long varlink_object_new(VarlinkObject **objectp);
 long varlink_object_new_from_json(VarlinkObject **objectp, const char *json);
 VarlinkObject *varlink_object_ref(VarlinkObject *object);
@@ -271,6 +277,9 @@ long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *paramet
 
 long varlink_connection_new(VarlinkConnection **connectionp, const char *address);
 
+VarlinkConnection *varlink_connection_free(VarlinkConnection *connection);
+void varlink_connection_freep(VarlinkConnection **connectionp);
+
 void varlink_connection_set_close_callback(VarlinkConnection *connection,
                                            VarlinkConnectionClosedFunc closed,
                                            void *userdata);
@@ -278,11 +287,6 @@ void varlink_connection_set_close_callback(VarlinkConnection *connection,
 int varlink_connection_get_fd(VarlinkConnection *connection);
 long varlink_connection_process_events(VarlinkConnection *connection, int events);
 int varlink_connection_get_events(VarlinkConnection *connection);
-
-long varlink_connection_receive_reply(VarlinkConnection *connection,
-                                      VarlinkObject **parametersp,
-                                      char **errorp,
-                                      long *flagsp);
 
 /*
  * Call the specified method with the given argument. The reply will execute
@@ -293,14 +297,16 @@ long varlink_connection_receive_reply(VarlinkConnection *connection,
 long varlink_connection_call(VarlinkConnection *connection,
                              const char *qualified_method,
                              VarlinkObject *parameters,
-                             uint64_t flags);
+                             uint64_t flags,
+                             VarlinkReplyFunc callback,
+                             void *userdata);
 
 /*
- * Closes @connection and frees it.
+ * Closes @connection.
  */
-VarlinkConnection *varlink_connection_close(VarlinkConnection *connection);
+long varlink_connection_close(VarlinkConnection *connection);
 
-void varlink_connection_closep(VarlinkConnection **connectionp);
+bool varlink_connection_is_closed(VarlinkConnection *connection);
 
 #ifdef __cplusplus
 }

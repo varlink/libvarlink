@@ -23,7 +23,6 @@ enum {
 typedef struct {
         const char *resolver;
 
-        VarlinkConnection *connection;
         int epoll_fd;
         int signal_fd;
 } Cli;
@@ -34,11 +33,9 @@ long cli_exit_error(long error);
 long cli_new(Cli **clip);
 Cli *cli_free(Cli *cli);
 void cli_freep(Cli **clip);
-long cli_connect(Cli *cli, const char *address);
 long cli_resolve(Cli *cli, const char *interface, char **addressp);
-long cli_disconnect(Cli *cli);
-long cli_call(Cli *cli, const char *qualified_method, VarlinkObject *parameters, long flags);
-long cli_wait_reply(Cli *cli, VarlinkObject **replyp, char **errorp, long *flagsp);
+long cli_call(Cli *cli, const char *method, VarlinkObject *parameters, char **errorp, VarlinkObject **outp);
+long cli_process_all_events(Cli *cli, VarlinkConnection *connection);
 long cli_run(Cli *cli, int argc, char **argv);
 long cli_complete(Cli *cli, int argc, char **argv, const char *current);
 

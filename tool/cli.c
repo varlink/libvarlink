@@ -93,9 +93,6 @@ long cli_new(Cli **mp) {
 }
 
 Cli *cli_free(Cli *cli) {
-        if (cli->connection)
-                cli_disconnect(cli);
-
         if (cli->epoll_fd > 0)
                 close(cli->epoll_fd);
 
@@ -112,26 +109,11 @@ void cli_freep(Cli **mp) {
                 cli_free(*mp);
 }
 
-long cli_connect(Cli *cli, const char *address) {
-        long r;
-
-        r = varlink_connection_new(&cli->connection, address);
-        if (r < 0)
-                return -CLI_ERROR_PANIC;
-
-        if (epoll_add(cli->epoll_fd,
-                      varlink_connection_get_fd(cli->connection),
-                      varlink_connection_get_events(cli->connection),
-                      cli->connection) < 0)
-                return -CLI_ERROR_PANIC;
-
-        return 0;
-}
-
 long cli_resolve(Cli *cli, const char *interface, char **addressp) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
+        _cleanup_(freep) char *json = NULL;
         const char *address;
         long r;
 
@@ -141,27 +123,15 @@ long cli_resolve(Cli *cli, const char *interface, char **addressp) {
                 return 0;
         }
 
-        r = cli_connect(cli, cli->resolver);
-        if (r < 0)
-                return r;
-
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface);
 
-        r = cli_call(cli, "org.varlink.resolver.Resolve", parameters, 0);
-        if (r < 0)
-                return r;
-
-        r = cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_call(cli, "org.varlink.resolver.Resolve", parameters, &error, &out);
         if (r < 0)
                 return r;
 
         if (error)
                 return -CLI_ERROR_CANNOT_RESOLVE;
-
-        r = cli_disconnect(cli);
-        if (r < 0)
-                return r;
 
         r = varlink_object_get_string(out, "address", &address);
         if (r < 0)
@@ -172,48 +142,92 @@ long cli_resolve(Cli *cli, const char *interface, char **addressp) {
         return 0;
 }
 
-long cli_disconnect(Cli *cli) {
-        assert(cli->connection);
+struct Reply {
+        char *error;
+        VarlinkObject *parameters;
+};
 
-        epoll_del(cli->epoll_fd, varlink_connection_get_fd(cli->connection));
+static void reply_callback(VarlinkConnection *connection,
+                           const char *error,
+                           VarlinkObject *parameters,
+                           uint64_t flags,
+                           void *userdata) {
+        struct Reply *reply = userdata;
 
-        cli->connection = varlink_connection_close(cli->connection);
-        return 0;
+        if (error)
+                reply->error = strdup(error);
+
+        reply->parameters = varlink_object_ref(parameters);
+
+        varlink_connection_close(connection);
 }
 
 long cli_call(Cli *cli,
-              const char *qualified_method,
+              const char *method_identifier,
               VarlinkObject *parameters,
-              long flags) {
+              char **errorp,
+              VarlinkObject **outp) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        _cleanup_(freep) char *address = NULL;
+        const char *method;
+        struct Reply reply = { 0 };
         long r;
 
-        r = varlink_connection_call(cli->connection, qualified_method, parameters, flags);
-        switch (r) {
-                default:
-                        return CLI_ERROR_PANIC;
+        r  = cli_split_address(method_identifier, &address, &method);
+        if (r < 0)
+                return r;
+
+        if (!address) {
+                _cleanup_(freep) char *interface = NULL;
+
+                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+                if (r < 0)
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+
+                r = cli_resolve(cli, interface, &address);
+                if (r < 0)
+                        return -CLI_ERROR_CANNOT_RESOLVE;
         }
 
-        return -CLI_ERROR_PANIC;
+        r = varlink_connection_new(&connection, address);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
+        r = varlink_connection_call(connection, method, parameters, 0, reply_callback, &reply);
+        if (r < 0)
+                return r;
+
+        r = cli_process_all_events(cli, connection);
+        if (r < 0)
+                return r;
+
+        if (errorp)
+                *errorp = reply.error;
+        else
+                free(reply.error);
+
+        if (outp)
+                *outp = reply.parameters;
+        else
+                varlink_object_unref(reply.parameters);
+
+        return 0;
 }
 
-long cli_wait_reply(Cli *cli,
-                    VarlinkObject **parametersp,
-                    char **errorp,
-                    long *flagsp) {
+long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(freep) char *error = NULL;
         long r;
 
+        r = epoll_add(cli->epoll_fd,
+                      varlink_connection_get_fd(connection),
+                      varlink_connection_get_events(connection),
+                      connection);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
         for (;;) {
                 struct epoll_event ev;
-
-                r = epoll_mod(cli->epoll_fd,
-                              varlink_connection_get_fd(cli->connection),
-                              varlink_connection_get_events(cli->connection),
-                              cli->connection);
-                if (r < 0)
-                        return -CLI_ERROR_PANIC;
-
 
                 r = epoll_wait(cli->epoll_fd, &ev, 1, -1);
                 if (r < 0) {
@@ -245,29 +259,22 @@ long cli_wait_reply(Cli *cli,
                                 default:
                                         return -CLI_ERROR_PANIC;
                         }
-                } else if (ev.data.ptr == cli->connection) {
-                        r = varlink_connection_process_events(cli->connection, ev.events);
+                } else if (ev.data.ptr == connection) {
+                        r = varlink_connection_process_events(connection, ev.events);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
-                        r = varlink_connection_receive_reply(cli->connection, &parameters, &error, flagsp);
+                        if (varlink_connection_is_closed(connection))
+                                break;
+
+                        r = epoll_mod(cli->epoll_fd,
+                                      varlink_connection_get_fd(connection),
+                                      varlink_connection_get_events(connection),
+                                      connection);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
-
-                        if (!parameters)
-                                continue;
                 } else
                         return -CLI_ERROR_PANIC;
-
-                break;
-        }
-
-        *parametersp = parameters;
-        parameters = NULL;
-
-        if (errorp) {
-                *errorp = error;
-                error = NULL;
         }
 
         return 0;
@@ -443,17 +450,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         long n_interfaces;
         long r;
 
-        if (!cli->connection) {
-                r = cli_connect(cli, cli->resolver);
-                if (r < 0)
-                        return -r;
-        }
-
-        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, 0);
-        if (r < 0)
-                return -r;
-
-        r = cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, &error, &out);
         if (r < 0)
                 return -r;
 
@@ -485,15 +482,7 @@ long cli_complete_addresses(Cli *cli, const char *current) {
         long n_interfaces;
         long r;
 
-        r = cli_connect(cli, cli->resolver);
-        if (r < 0)
-                return -r;
-
-        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, 0);
-        if (r < 0)
-                return -r;
-
-        r = cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_call(cli, "org.varlink.resolver.GetInfo", NULL, &error, &out);
         if (r < 0)
                 return -r;
 
@@ -529,10 +518,6 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
         const char *dot;
         long r;
 
-        r = cli_connect(cli, cli->resolver);
-        if (r < 0)
-                return -r;
-
         dot = strrchr(current, '.');
         if (dot == NULL)
                 return cli_complete_interfaces(cli, current, true);
@@ -551,17 +536,10 @@ long cli_complete_qualified_methods(Cli *cli, const char *current) {
                         return -r;
         }
 
-        r = cli_connect(cli, address);
-        if (r < 0)
-                return -r;
-
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", interface_name);
-        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, 0);
-        if (r < 0)
-                return r;
 
-        r = cli_wait_reply(cli, &out, &error, NULL);
+        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, &error, &out);
         if (r < 0)
                 return r;
 

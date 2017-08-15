@@ -8,22 +8,22 @@
 #include <getopt.h>
 #include <string.h>
 
-static long help_interface(Cli *cli, const char *name) {
+static long help_interface(Cli *cli, const char *address, const char *name) {
+        _cleanup_(freep) char *method = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         const char *interfacestring = NULL;
         _cleanup_(freep) char *string = NULL;
         long r;
 
+        asprintf(&method, "%s/org.varlink.service.GetInterfaceDescription", address);
+
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
-        r = cli_call(cli, "org.varlink.service.GetInterfaceDescription", parameters, 0);
-        if (r < 0)
-                return r;
 
-        r = cli_wait_reply(cli, &reply, &error, NULL);
+        r = cli_call(cli, method, parameters, &error, &out);
         if (r < 0)
                 return r;
 
@@ -33,7 +33,7 @@ static long help_interface(Cli *cli, const char *name) {
                 return 0;
         }
 
-        if (varlink_object_get_string(reply, "description", &interfacestring) < 0)
+        if (varlink_object_get_string(out, "description", &interfacestring) < 0)
                 return -CLI_ERROR_CALL_FAILED;
 
         r = varlink_interface_new(&interface, interfacestring, NULL);
@@ -101,13 +101,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        r = cli_connect(cli, address);
-        if (r < 0) {
-                fprintf(stderr, "Error connecting to %s\n", address);
-                return CLI_ERROR_CANNOT_CONNECT;
-        }
-
-        r = help_interface(cli, interface);
+        r = help_interface(cli, address, interface);
         if (r < 0)
                 return EXIT_FAILURE;
 

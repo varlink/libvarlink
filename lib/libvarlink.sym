@@ -26,12 +26,13 @@ global:
         varlink_call_unrefp;
         varlink_connection_call;
         varlink_connection_close;
-        varlink_connection_closep;
+        varlink_connection_free;
+        varlink_connection_freep;
         varlink_connection_get_events;
         varlink_connection_get_fd;
+        varlink_connection_is_closed;
         varlink_connection_new;
         varlink_connection_process_events;
-        varlink_connection_receive_reply;
         varlink_connection_set_close_callback;
         varlink_listen;
         varlink_object_get_array;
