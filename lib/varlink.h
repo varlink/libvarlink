@@ -319,16 +319,37 @@ long varlink_call_set_canceled_callback(VarlinkCall *call,
 long varlink_call_reply(VarlinkCall *call,
                         VarlinkObject *parameters,
                         uint64_t flags);
-
+/*
+ * Reply to a method call with the specified error, and optional
+ * parameters describing the error. Errors and their parameters need
+ * to be specified in the service defintion.
+ */
 long varlink_call_reply_error(VarlinkCall *call,
                               const char *error,
                               VarlinkObject *parameters);
 
+/*
+ * Reply to a method call with a org.varlink.service.InvalidParameter error.
+ * The error contains the field name with the invalid parameter.
+ *
+ */
 long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *parameter);
 
+/*
+ * Create a new connection.
+ */
 long varlink_connection_new(VarlinkConnection **connectionp, const char *address);
 
+/*
+ * Close a connection and free all its ressources.
+ *
+ * Returns NULL
+ */
 VarlinkConnection *varlink_connection_free(VarlinkConnection *connection);
+
+/*
+ * varlink_connection_free() to be used with the cleanup attribute.
+ */
 void varlink_connection_freep(VarlinkConnection **connectionp);
 
 void varlink_connection_set_close_callback(VarlinkConnection *connection,
