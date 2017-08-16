@@ -117,7 +117,7 @@ long varlink_object_new_from_json(VarlinkObject **objectp, const char *json);
  *
  * Returns NULL;
  */
-VarlinkArray *varlink_array_unref(VarlinkArray *array);
+VarlinkObject *varlink_object_unref(VarlinkObject *object);
 
 /*
  * varlink_object_unref() to be used with the cleanup attribute.
