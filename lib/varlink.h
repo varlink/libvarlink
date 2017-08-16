@@ -274,7 +274,8 @@ long varlink_service_add_interface(VarlinkService *service,
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
- * readable whenever there is pending data, like a method call from a client.
+ * readable whenever there is a connection which gets ready to receice or send
+ * data.
  *
  * Returns the file descriptor or a negative VARLINK_ERROR.
  */
@@ -289,9 +290,9 @@ int varlink_service_get_fd(VarlinkService *service);
 int varlink_listen(const char *address, char **pathp);
 
 /*
- * Process pending events in the VarlinkService. It needs to be called whenever
- * the file descriptor becomes readable. Method calls are dispatched according
- * to their installed callbacks.
+ * Process pending events; It needs to be called whenever the file descriptor
+ * becomes readable. Messages are sent and received, method calls are dispatched
+ * according to their registered callbacks.
  *
  * Returns 0 or a negative VARLINK_ERROR.
  */
@@ -356,8 +357,24 @@ void varlink_connection_set_close_callback(VarlinkConnection *connection,
                                            VarlinkConnectionClosedFunc closed,
                                            void *userdata);
 
+/*
+ * Get the file descriptor to integrate with poll() into a mainloop; it becomes
+ * readable whenever there is a connection which gets ready to receice or send
+ * data.
+ *
+ * Returns the file descriptor or a negative VARLINK_ERROR.
+ */
 int varlink_connection_get_fd(VarlinkConnection *connection);
+
+/*
+ * Process pending events; It needs to be called whenever the file descriptor
+ * becomes readable. Messages are sent and received, method calls are dispatched
+ * according to their registered callbacks.
+ *
+ * Returns 0 or a negative VARLINK_ERROR.
+ */
 long varlink_connection_process_events(VarlinkConnection *connection, int events);
+
 int varlink_connection_get_events(VarlinkConnection *connection);
 
 /*
