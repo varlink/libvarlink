@@ -357,7 +357,7 @@ long varlink_object_set_empty_object(VarlinkObject *object, const char *field_na
         return 0;
 }
 
-static void variant_write_json(FILE *stream,
+static void object_write_json(FILE *stream,
                                long indent,
                                bool first) {
         if (!first) {
@@ -393,7 +393,7 @@ long varlink_object_write_json(VarlinkObject *object,
         for (unsigned long i = 0; i < n_fields; i += 1) {
                 Field *field;
 
-                variant_write_json(stream, indent >= 0 ? indent + 1 : -1, i == 0);
+                object_write_json(stream, indent >= 0 ? indent + 1 : -1, i == 0);
                 fprintf(stream, "\"%s%s%s\":%s", key_pre, field_names[i], key_post, indent >= 0 ? " ": "");
 
                 field = avl_tree_find(object->fields, field_names[i]);
@@ -411,7 +411,7 @@ long varlink_object_write_json(VarlinkObject *object,
         if (indent >= 0)
                 fprintf(stream, "\n");
 
-        variant_write_json(stream, indent, true);
+        object_write_json(stream, indent, true);
         fprintf(stream, "}");
 
         return 0;

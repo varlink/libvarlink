@@ -190,14 +190,14 @@ test_array_LDADD = \
 	libvarlink.a
 
 # ------------------------------------------------------------------------------
-# test-variant-types
+# test-interface-types
 
-check_PROGRAMS += test-variant-type
+check_PROGRAMS += test-interface-type
 
-test_variant_type_SOURCES = \
-	lib/test-variant-type.c
+test_interface_type_SOURCES = \
+	lib/test-interface-type.c
 
-test_variant_type_LDADD = \
+test_interface_type_LDADD = \
 	libvarlink.a
 
 # ------------------------------------------------------------------------------
