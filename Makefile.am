@@ -80,6 +80,7 @@ libvarlink_a_SOURCES = \
 	lib/socket-tcp.c \
 	lib/socket-unix.c \
 	lib/service.c \
+	lib/service.h \
 	lib/util.c \
 	lib/util.h \
 	lib/value.c \
@@ -150,7 +151,7 @@ CLEANFILES += \
 check_PROGRAMS += test-interface
 
 test_interface_SOURCES = \
-	test/test-interface.c
+	lib/test-interface.c
 
 test_interface_LDADD = \
 	libvarlink.a
@@ -161,7 +162,7 @@ test_interface_LDADD = \
 check_PROGRAMS += test-server-client
 
 test_server_client_SOURCES = \
-	test/test-server-client.c
+	lib/test-server-client.c
 
 test_server_client_LDADD = \
 	libvarlink.a
@@ -172,7 +173,7 @@ test_server_client_LDADD = \
 check_PROGRAMS += test-object
 
 test_object_SOURCES = \
-	test/test-object.c
+	lib/test-object.c
 
 test_object_LDADD = \
 	libvarlink.a
@@ -183,7 +184,7 @@ test_object_LDADD = \
 check_PROGRAMS += test-array
 
 test_array_SOURCES = \
-	test/test-array.c
+	lib/test-array.c
 
 test_array_LDADD = \
 	libvarlink.a
@@ -194,7 +195,7 @@ test_array_LDADD = \
 check_PROGRAMS += test-variant-type
 
 test_variant_type_SOURCES = \
-	test/test-variant-type.c
+	lib/test-variant-type.c
 
 test_variant_type_LDADD = \
 	libvarlink.a
@@ -205,7 +206,7 @@ test_variant_type_LDADD = \
 check_PROGRAMS += test-error
 
 test_error_SOURCES = \
-	test/test-error.c
+	lib/test-error.c
 
 test_error_LDADD = \
 	libvarlink.a
@@ -215,7 +216,7 @@ test_error_LDADD = \
 check_PROGRAMS += test-avl
 
 test_avl_SOURCES = \
-	test/test-avl.c
+	lib/test-avl.c
 
 test_avl_LDADD = \
 	libvarlink.a
