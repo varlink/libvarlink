@@ -74,13 +74,13 @@ static void test_json(void) {
 
         /* some values */
         assert(varlink_object_new_from_json(&s, "{"
-                                                "  \"bool\": true,"
-                                                "  \"int\": 42,"
-                                                "  \"float\": 42.2,"
-                                                "  \"string\": \"foo\","
-                                                "  \"array\": [],"
-                                                "  \"object\": {}"
-                                                "}") == 0);
+                                            "  \"bool\": true,"
+                                            "  \"int\": 42,"
+                                            "  \"float\": 42.2,"
+                                            "  \"string\": \"foo\","
+                                            "  \"array\": [],"
+                                            "  \"object\": {}"
+                                            "}") == 0);
         assert(varlink_object_get_field_names(s, NULL) == 6);
         assert(varlink_object_get_bool(s, "bool", &b) == 0);
         assert(b == true);

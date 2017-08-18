@@ -107,8 +107,8 @@ static void later_callback(VarlinkConnection *connection,
 
 int main(void) {
         const char *interface = "interface org.varlink.example\n"
-                                "method Echo(word: string) -> (word: string)\n"
-                                "method Later() -> ()";
+                                        "method Echo(word: string) -> (word: string)\n"
+                                        "method Later() -> ()";
         const char *words[] = { "one", "two", "three", "four", "five" };
 
         Test test = { 0 };
