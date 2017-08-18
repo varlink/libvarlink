@@ -134,13 +134,13 @@ BUILT_SOURCES += \
 	lib/org.varlink.service.varlink.inc.c
 
 TESTS += \
-	test/test-symbols.sh
+	lib/test-symbols.sh
 
 EXTRA_DIST += \
 	lib/libvarlink.sym \
 	lib/org.varlink.service.varlink \
 	lib/libvarlink.pc.in \
-	test/test-symbols.sh
+	lib/test-symbols.sh
 
 CLEANFILES += \
 	lib/libvarlink.pc
