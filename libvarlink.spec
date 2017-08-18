@@ -6,8 +6,8 @@ Version:        1
 Release:        %{build_timestamp}%{?dist}
 Summary:        Varlink C Library
 License:        ASL2.0
-URL:            https://github.com/varlink/libvarlink
-Source0:        https://github.com/varlink/libvarlink/archive/v%{version}.tar.gz
+URL:            https://github.com/varlink/%{name}
+Source0:        https://github.com/varlink/%{name}/archive/%{name}-%{version}.tar.gz
 BuildRequires:  autoconf automake pkgconfig
 
 %description
