@@ -32,6 +32,7 @@ typedef enum {
 typedef struct VarlinkTypeField {
         char *name;
         VarlinkType *type;
+        char *description;
 } VarlinkTypeField;
 
 struct VarlinkType {

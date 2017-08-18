@@ -122,7 +122,7 @@ static void scanner_advance(Scanner *scanner) {
                                 if (scanner->json)
                                         return;
 
-                                if (scanner->pline == scanner->p && !scanner->last_comment_start)
+                                if (!scanner->last_comment_start)
                                         scanner->last_comment_start = scanner->p;
 
                                 scanner->p = strchrnul(scanner->p, '\n');
@@ -158,6 +158,10 @@ char *scanner_get_last_docstring(Scanner *scanner) {
                 p += 1;
 
                 fwrite(start, 1, p - start, stream);
+
+                /* Skip all leading whitespace in the next line */
+                while (*p == ' ' || *p == '\t')
+                        p += 1;
         }
 
         fclose(stream);

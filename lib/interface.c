@@ -102,6 +102,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                                         return false;
 
                                 field = calloc(1, sizeof(VarlinkTypeField));
+                                field->description = scanner_get_last_docstring(scanner);
 
                                 if (!scanner_read_identifier(scanner, is_field_char, &field->name) ||
                                     !scanner_expect_char(scanner, ':') ||
@@ -166,6 +167,7 @@ static VarlinkTypeField *varlink_type_field_free(VarlinkTypeField *field) {
         if (field->type)
                 varlink_type_unref(field->type);
 
+        free(field->description);
         free(field);
 
         return NULL;
@@ -221,9 +223,43 @@ void varlink_type_unrefp(VarlinkType **typep) {
                 varlink_type_unref(*typep);
 }
 
+static void write_docstring(FILE *stream,
+                            long indent,
+                            const char *comment_pre, const char *comment_post,
+                            const char *description) {
+        const char *start = description;
+
+        for (;;) {
+                const char *end = strchr(start, '\n');
+
+                if (end) {
+                        if (end > start + 1) {
+                                for (long l = 0; l < indent; l += 1)
+                                        fprintf(stream, "  ");
+
+                                fprintf(stream, "%s# %.*s%s\n", comment_pre, (int)(end - start), start, comment_post);
+                        } else {
+                                fprintf(stream, "#\n");
+                        }
+                } else {
+                        if (*start) {
+                                for (long l = 0; l < indent; l += 1)
+                                        fprintf(stream, "  ");
+
+                                fprintf(stream, "%s# %s%s\n", comment_pre, start, comment_post);
+                        }
+
+                        break;
+                }
+
+                start = end + 1;
+        }
+}
+
 static void varlink_type_print(VarlinkType *type,
                                FILE *stream,
                                long indent,
+                               const char *comment_pre, const char *comment_post,
                                const char *type_pre, const char *type_post) {
         if (!type_pre)
                 type_pre = "";
@@ -248,28 +284,48 @@ static void varlink_type_print(VarlinkType *type,
                         fprintf(stream, "%sstring%s", type_pre, type_post);
                         break;
 
-                case VARLINK_TYPE_OBJECT:
+                case VARLINK_TYPE_OBJECT: {
+                        bool docstring = false;
+
                         fprintf(stream, "(");
 
                         for (unsigned long i = 0; i < type->n_fields; i += 1) {
                                 VarlinkTypeField *field = type->fields[i];
 
-                                if (indent >= 0) {
+                                if (indent >= 0)
                                         fprintf(stream, "\n");
 
+                                if (field->description) {
+                                        if (i > 0 && !docstring)
+                                                fprintf(stream, "\n");
+
+                                        write_docstring(stream,
+                                                        indent + 1,
+                                                        comment_pre, comment_post,
+                                                        field->description);
+
+                                        docstring = true;
+                                } else
+                                        docstring = false;
+
+                                if (indent >= 0)
                                         for (long l = 0; l < indent + 1; l += 1)
                                                 fprintf(stream, "  ");
-                                }
 
                                 fprintf(stream, "%s: ", field->name);
 
                                 varlink_type_print(field->type,
                                                    stream,
                                                    indent >= 0 ? indent + 1 : -1,
+                                                   comment_pre, comment_post,
                                                    type_pre, type_post);
 
-                                if (i + 1 < type->n_fields)
+                                if (i + 1 < type->n_fields) {
                                         fprintf(stream, ", ");
+
+                                        if (field->description)
+                                                fprintf(stream, "\n");
+                                }
                         }
 
                         if (indent >= 0) {
@@ -281,11 +337,13 @@ static void varlink_type_print(VarlinkType *type,
 
                         fprintf(stream, ")");
                         break;
+                }
 
                 case VARLINK_TYPE_ARRAY:
                         varlink_type_print(type->element_type,
                                            stream,
                                            indent,
+                                           comment_pre, comment_post,
                                            type_pre, type_post);
                         fprintf(stream, "[");
 
@@ -317,7 +375,7 @@ const char *varlink_type_get_typestring(VarlinkType *type) {
                 return type->typestring;
 
         stream = open_memstream(&type->typestring, &size);
-        varlink_type_print(type, stream, -1, NULL, NULL);
+        varlink_type_print(type, stream, -1, NULL, NULL, NULL, NULL);
 
         fclose(stream);
 
@@ -327,6 +385,7 @@ const char *varlink_type_get_typestring(VarlinkType *type) {
 static long varlink_type_write_typestring(VarlinkType *type,
                                           FILE *stream,
                                           long indent, long width,
+                                          const char *comment_pre, const char *comment_post,
                                           const char *type_pre, const char *type_post) {
         const char *typestring;
 
@@ -344,11 +403,13 @@ static long varlink_type_write_typestring(VarlinkType *type,
                 varlink_type_print(type,
                                    stream,
                                    indent,
+                                   comment_pre, comment_post,
                                    type_pre, type_post);
         else
                 varlink_type_print(type,
                                    stream,
                                    -1,
+                                   comment_pre, comment_post,
                                    type_pre, type_post);
 
         return 0;
@@ -674,39 +735,6 @@ VarlinkMethod *varlink_interface_get_method(VarlinkInterface *interface, const c
         return member->method;
 }
 
-static void write_docstring(FILE *stream,
-                            long indent,
-                            const char *comment_pre, const char *comment_post,
-                            const char *description) {
-        const char *start = description;
-
-        for (;;) {
-                const char *end = strchr(start, '\n');
-
-                if (end) {
-                        if (end > start + 1) {
-                                for (long l = 0; l < indent; l += 1)
-                                        fprintf(stream, "  ");
-
-                                fprintf(stream, "%s# %.*s%s\n", comment_pre, (int)(end - start), start, comment_post);
-                        } else {
-                                fprintf(stream, "#\n");
-                        }
-                } else {
-                        if (*start) {
-                                for (long l = 0; l < indent; l += 1)
-                                        fprintf(stream, "  ");
-
-                                fprintf(stream, "%s# %s%s\n", comment_pre, start, comment_post);
-                        }
-
-                        break;
-                }
-
-                start = end + 1;
-        }
-}
-
 long varlink_interface_write_interfacestring(VarlinkInterface *interface,
                                              char **stringp,
                                              long indent, long width,
@@ -793,6 +821,7 @@ long varlink_interface_write_interfacestring(VarlinkInterface *interface,
                                 r = varlink_type_write_typestring(member->alias,
                                                                   stream,
                                                                   indent, remaining,
+                                                                  comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
                                         return r;
@@ -810,6 +839,7 @@ long varlink_interface_write_interfacestring(VarlinkInterface *interface,
                                 r = varlink_type_write_typestring(member->method->type_in,
                                                                   stream,
                                                                   indent, remaining,
+                                                                  comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
                                         return r;
@@ -825,6 +855,7 @@ long varlink_interface_write_interfacestring(VarlinkInterface *interface,
                                 r = varlink_type_write_typestring(member->method->type_out,
                                                                   stream,
                                                                   indent, remaining,
+                                                                  comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
                                         return r;
@@ -845,6 +876,7 @@ long varlink_interface_write_interfacestring(VarlinkInterface *interface,
                                         r = varlink_type_write_typestring(member->error,
                                                                           stream,
                                                                           indent, remaining,
+                                                                          comment_pre, comment_post,
                                                                           type_pre, type_post);
                                         if (r < 0)
                                                 return r;
