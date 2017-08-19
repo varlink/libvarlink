@@ -63,7 +63,7 @@ static long varlink_call_new(VarlinkCall **callp,
         _cleanup_(varlink_call_unrefp) VarlinkCall *call = NULL;
         const char *method;
         VarlinkObject *parameters;
-        bool more;
+        bool more, oneway;
         long r;
 
         call = calloc(1, sizeof(VarlinkCall));
@@ -85,6 +85,9 @@ static long varlink_call_new(VarlinkCall **callp,
 
         if (varlink_object_get_bool(message, "more", &more) == 0 && more)
                 call->flags |= VARLINK_CALL_MORE;
+
+        if (varlink_object_get_bool(message, "oneway", &oneway) == 0 && oneway)
+                call->flags |= VARLINK_CALL_ONEWAY;
 
         *callp = call;
         call = NULL;
@@ -543,6 +546,14 @@ _public_ long varlink_call_reply(VarlinkCall *call,
 
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
+
+        if (call->flags & VARLINK_CALL_ONEWAY && flags & VARLINK_REPLY_CONTINUES)
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        if (call->flags & VARLINK_CALL_ONEWAY) {
+                call->connection->call = varlink_call_unref(call);
+                return 0;
+        }
 
         r = varlink_object_new(&message);
         if (r < 0)

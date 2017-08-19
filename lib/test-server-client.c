@@ -154,7 +154,32 @@ int main(void) {
                         r = test_process_events(&test);
                         assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
                 }
+
                 assert(call.n_received == ARRAY_SIZE(words));
+        }
+
+        {
+                EchoCall call = {
+                        .words = words,
+                        .n_received = 0
+                };
+
+                for (unsigned long i = 0; i < ARRAY_SIZE(words); i += 1) {
+                        VarlinkObject *parameters;
+
+                        assert(varlink_object_new(&parameters) == 0);
+                        assert(varlink_object_set_string(parameters, "word", words[i]) == 0);
+                        assert(varlink_connection_call(test.connection, "org.varlink.example.Echo", parameters, VARLINK_CALL_ONEWAY,
+                                                       echo_callback, &call) == 0);
+                        assert(varlink_object_unref(parameters) == NULL);
+                }
+
+                for (long i = 0; call.n_received < ARRAY_SIZE(words) && i < 10; i += 1) {
+                        r = test_process_events(&test);
+                        assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
+                }
+
+                assert(call.n_received == 0);
         }
 
         {
@@ -176,6 +201,7 @@ int main(void) {
                         r = test_process_events(&test);
                         assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
                 }
+
                 assert(out != NULL);
                 assert(varlink_object_unref(out) == NULL);
         }

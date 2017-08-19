@@ -40,7 +40,8 @@ enum {
  * Keywords/flags of a method call.
  */
 enum {
-        VARLINK_CALL_MORE = 1
+        VARLINK_CALL_MORE = 1,
+        VARLINK_CALL_ONEWAY = 2
 };
 
 /*

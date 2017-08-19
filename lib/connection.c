@@ -167,23 +167,29 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         if (connection->socket.fd < 0)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
+        if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
+                return -VARLINK_ERROR_INVALID_CALL;
+
         if (varlink_object_new(&call) < 0 ||
             varlink_object_set_string(call, "method", qualified_method) < 0)
                 return -VARLINK_ERROR_PANIC;
 
-        callback = calloc(1, sizeof(ReplyCallback));
-        callback->call_flags = flags;
-        callback->func = func;
-        callback->userdata = userdata;
-        STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
+        if (flags & VARLINK_CALL_MORE)
+                varlink_object_set_bool(call, "more", true);
+
+        if (!(flags & VARLINK_CALL_ONEWAY)) {
+                callback = calloc(1, sizeof(ReplyCallback));
+                callback->call_flags = flags;
+                callback->func = func;
+                callback->userdata = userdata;
+                STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
+        } else
+                varlink_object_set_bool(call, "oneway", true);
 
         if (parameters)
                 varlink_object_set_object(call, "parameters", parameters);
         else
                 varlink_object_set_empty_object(call, "parameters");
-
-        if (flags & VARLINK_CALL_MORE)
-                varlink_object_set_bool(call, "more", true);
 
         return varlink_socket_write(&connection->socket, call);
 }
