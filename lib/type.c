@@ -264,39 +264,6 @@ void varlink_type_unrefp(VarlinkType **typep) {
                 varlink_type_unref(*typep);
 }
 
-static void write_docstring(FILE *stream,
-                            long indent,
-                            const char *comment_pre, const char *comment_post,
-                            const char *description) {
-        const char *start = description;
-
-        for (;;) {
-                const char *end = strchr(start, '\n');
-
-                if (end) {
-                        if (end > start + 1) {
-                                for (long l = 0; l < indent; l += 1)
-                                        fprintf(stream, "  ");
-
-                                fprintf(stream, "%s# %.*s%s\n", comment_pre, (int)(end - start), start, comment_post);
-                        } else {
-                                fprintf(stream, "#\n");
-                        }
-                } else {
-                        if (*start) {
-                                for (long l = 0; l < indent; l += 1)
-                                        fprintf(stream, "  ");
-
-                                fprintf(stream, "%s# %s%s\n", comment_pre, start, comment_post);
-                        }
-
-                        break;
-                }
-
-                start = end + 1;
-        }
-}
-
 static void varlink_type_print(VarlinkType *type,
                                FILE *stream,
                                long indent,
@@ -341,10 +308,23 @@ static void varlink_type_print(VarlinkType *type,
                                                 if (i > 0 && !docstring)
                                                         fprintf(stream, "\n");
 
-                                                write_docstring(stream,
-                                                                indent + 1,
-                                                                comment_pre, comment_post,
-                                                                field->description);
+                                                for (const char *start = field->description; *start;) {
+                                                        const char *end = strchrnul(start, '\n');
+                                                        int len = end - start;
+
+                                                        for (long l = 0; l < indent + 1; l += 1)
+                                                                fprintf(stream, "  ");
+
+                                                        fprintf(stream, "%s#", comment_pre);
+                                                        if (len > 0)
+                                                                fprintf(stream, " %.*s", len, start);
+                                                        fprintf(stream, "%s\n", comment_post);
+
+                                                        if (*end != '\n')
+                                                                break;
+
+                                                        start = end + 1;
+                                                }
 
                                                 docstring = true;
                                         } else
