@@ -28,7 +28,7 @@ lib/*.pc
 
 /test-interface
 /test-server-client
-/test-interface-type
+/test-type
 /test-array
 /test-object
 /test-error

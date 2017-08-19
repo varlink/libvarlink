@@ -81,6 +81,8 @@ libvarlink_a_SOURCES = \
 	lib/socket-unix.c \
 	lib/service.c \
 	lib/service.h \
+	lib/type.h \
+	lib/type.c \
 	lib/util.c \
 	lib/util.h \
 	lib/value.c \
@@ -190,14 +192,14 @@ test_array_LDADD = \
 	libvarlink.a
 
 # ------------------------------------------------------------------------------
-# test-interface-types
+# test-type
 
-check_PROGRAMS += test-interface-type
+check_PROGRAMS += test-type
 
-test_interface_type_SOURCES = \
-	lib/test-interface-type.c
+test_type_SOURCES = \
+	lib/test-type.c
 
-test_interface_type_LDADD = \
+test_type_LDADD = \
 	libvarlink.a
 
 # ------------------------------------------------------------------------------

@@ -3,6 +3,7 @@
 #include "avltree.h"
 #include "error.h"
 #include "scanner.h"
+#include "type.h"
 #include "varlink.h"
 
 typedef struct VarlinkInterface VarlinkInterface;
@@ -10,46 +11,12 @@ typedef struct VarlinkInterfaceMember VarlinkInterfaceMember;
 typedef struct VarlinkTypeAlias VarlinkTypeAlias;
 typedef struct VarlinkMethod VarlinkMethod;
 typedef struct VarlinkError VarlinkError;
-typedef struct VarlinkType VarlinkType;
-
-typedef enum {
-        VARLINK_TYPE_BOOL = 0,
-        VARLINK_TYPE_INT,
-        VARLINK_TYPE_FLOAT,
-        VARLINK_TYPE_STRING,
-        VARLINK_TYPE_ARRAY,
-        VARLINK_TYPE_ENUM,
-        VARLINK_TYPE_OBJECT,
-        VARLINK_TYPE_FOREIGN_OBJECT,
-        VARLINK_TYPE_ALIAS
-} VarlinkTypeKind;
 
 typedef enum {
         VARLINK_MEMBER_ALIAS,
         VARLINK_MEMBER_METHOD,
         VARLINK_MEMBER_ERROR
 } VarlinkMemberType;
-
-typedef struct VarlinkTypeField {
-        char *name;
-        VarlinkType *type;
-        char *description;
-} VarlinkTypeField;
-
-struct VarlinkType {
-        unsigned long refcount;
-        char *typestring;
-        VarlinkTypeKind kind;
-
-        VarlinkTypeField **fields;
-        unsigned long n_fields;
-        AVLTree *fields_sorted;
-
-        VarlinkType *element_type;
-        unsigned long fixed_n_elements;
-
-        char *alias;
-};
 
 struct VarlinkInterface {
         char *name;
@@ -79,19 +46,6 @@ struct VarlinkMethod {
         VarlinkMethodCallback callback;
         void *callback_userdata;
 };
-
-long varlink_type_new(VarlinkType **typep, const char *typestring);
-bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner);
-VarlinkType *varlink_type_ref(VarlinkType *type);
-VarlinkType *varlink_type_unref(VarlinkType *type);
-void varlink_type_unrefp(VarlinkType **typep);
-
-long varlink_type_allocate(VarlinkType **typep,
-                           VarlinkTypeKind kind);
-void varlink_type_field_freep(VarlinkTypeField **fieldp);
-
-const char *varlink_type_get_typestring(VarlinkType *type);
-VarlinkType *varlink_type_field_get_type(VarlinkType *type, const char *name);
 
 long varlink_interface_new(VarlinkInterface **interfacep,
                            const char *interfacestring,
