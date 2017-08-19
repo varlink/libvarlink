@@ -13,7 +13,7 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-        const char *interfacestring = NULL;
+        const char *description = NULL;
         _cleanup_(freep) char *string = NULL;
         long r;
 
@@ -30,24 +30,24 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
                 return 0;
         }
 
-        if (varlink_object_get_string(out, "description", &interfacestring) < 0)
+        if (varlink_object_get_string(out, "description", &description) < 0)
                 return -CLI_ERROR_CALL_FAILED;
 
-        r = varlink_interface_new(&interface, interfacestring, NULL);
+        r = varlink_interface_new(&interface, description, NULL);
         if (r < 0)
                 return -CLI_ERROR_PANIC;
 
-        r  = varlink_interface_write_interfacestring(interface,
-                                                     &string,
-                                                     0, 72 - 2,
-                                                     terminal_color(TERMINAL_BLUE),
-                                                     terminal_color(TERMINAL_NORMAL),
-                                                     terminal_color(TERMINAL_MAGENTA),
-                                                     terminal_color(TERMINAL_NORMAL),
-                                                     terminal_color(TERMINAL_GREEN),
-                                                     terminal_color(TERMINAL_NORMAL),
-                                                     terminal_color(TERMINAL_CYAN),
-                                                     terminal_color(TERMINAL_NORMAL));
+        r  = varlink_interface_write_description(interface,
+                                                 &string,
+                                                 0, 72 - 2,
+                                                 terminal_color(TERMINAL_BLUE),
+                                                 terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_MAGENTA),
+                                                 terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_GREEN),
+                                                 terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_CYAN),
+                                                 terminal_color(TERMINAL_NORMAL));
         if (r < 0)
                 return r;
 

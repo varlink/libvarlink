@@ -102,16 +102,16 @@ static void test_enum(void) {
 
 static void test_interface_type_add(void) {
         VarlinkService *service;
-        const char *interfacestring;
+        const char *description;
         VarlinkInterface *interface;
         VarlinkType *type;
 
-        interfacestring = "interface foo.bar\n"
-                          "type One (one: string)\n"
-                          "type Two (two: string)\n"
-                          "type OneTwo (one: One, two: Two)\n";
+        description = "interface foo.bar\n"
+                      "type One (one: string)\n"
+                      "type Two (two: string)\n"
+                      "type OneTwo (one: One, two: Two)\n";
         assert(varlink_service_new(&service, "Varlink", "Test Service", "0.1", "http://", "@org.example.foo", -1) == 0);
-        assert(varlink_service_add_interface(service, interfacestring, NULL) == 0);
+        assert(varlink_service_add_interface(service, description, NULL) == 0);
 
         interface = varlink_service_get_interface_by_name(service, "foo.bar");
         assert(interface);
@@ -124,14 +124,14 @@ static void test_interface_type_add(void) {
 
 static void test_interface_type_lookup(void) {
         VarlinkService *service;
-        const char *interfacestring;
+        const char *description;
         VarlinkInterface *interface;
         VarlinkType *type;
 
-        interfacestring = "interface foo.bar\n"
-                          "type FooBar (foo: int, bar: string)\n";
+        description = "interface foo.bar\n"
+                      "type FooBar (foo: int, bar: string)\n";
         assert(varlink_service_new(&service, "Varlink", "Test Service", "0.1", "http://", "@org.example.foo", -1) == 0);
-        assert(varlink_service_add_interface(service, interfacestring, NULL) == 0);
+        assert(varlink_service_add_interface(service, description, NULL) == 0);
 
         interface = varlink_service_get_interface_by_name(service, "foo.bar");
         assert(interface);
@@ -167,13 +167,13 @@ static void test_type_get_typestring(void) {
 }
 
 static void test_recursive_types(void) {
-        const char *interfacestring;
+        const char *description;
         VarlinkInterface *interface;
         VarlinkType *type, *foobar_type;
 
-        interfacestring = "interface foo.bar\n"
-                          "type FooBar (foo: int, bar: FooBar)\n";
-        assert(varlink_interface_new(&interface, interfacestring, NULL) == 0);
+        description = "interface foo.bar\n"
+                      "type FooBar (foo: int, bar: FooBar)\n";
+        assert(varlink_interface_new(&interface, description, NULL) == 0);
 
         foobar_type = varlink_interface_get_type(interface, "FooBar");
         assert(foobar_type && strcmp(varlink_type_get_typestring(foobar_type), "(foo: int, bar: FooBar)") == 0);

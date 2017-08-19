@@ -48,20 +48,20 @@ struct VarlinkMethod {
 };
 
 long varlink_interface_new(VarlinkInterface **interfacep,
-                           const char *interfacestring,
+                           const char *description,
                            VarlinkParseError **errorp);
 
 VarlinkInterface *varlink_interface_free(VarlinkInterface *interface);
 void varlink_interface_freep(VarlinkInterface **interface);
 VarlinkMethod *varlink_interface_get_method(VarlinkInterface *interface, const char *name);
 VarlinkType *varlink_interface_get_type(VarlinkInterface *interface, const char *name);
-long varlink_interface_write_interfacestring(VarlinkInterface *interface,
-                                             char **stringp,
-                                             long indent, long width,
-                                             const char *comment_pre, const char *comment_post,
-                                             const char *keyword_pre, const char *keyword_post,
-                                             const char *method_pre, const char *method_post,
-                                             const char *type_pre, const char *type_post);
+long varlink_interface_write_description(VarlinkInterface *interface,
+                                         char **stringp,
+                                         long indent, long width,
+                                         const char *comment_pre, const char *comment_post,
+                                         const char *keyword_pre, const char *keyword_post,
+                                         const char *method_pre, const char *method_post,
+                                         const char *type_pre, const char *type_post);
 
 long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name);
 bool varlink_interface_name_valid(const char *name);

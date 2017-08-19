@@ -341,12 +341,12 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 }
 
 long varlink_interface_new(VarlinkInterface **interfacep,
-                           const char *interfacestring,
+                           const char *description,
                            VarlinkParseError **errorp) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-        scanner_new_varlink(&scanner, interfacestring);
+        scanner_new_varlink(&scanner, description);
 
         if (!varlink_interface_new_from_scanner(&interface, scanner) ||
             !scanner_expect_char(scanner, '\0')) {
@@ -380,13 +380,13 @@ VarlinkMethod *varlink_interface_get_method(VarlinkInterface *interface, const c
         return member->method;
 }
 
-long varlink_interface_write_interfacestring(VarlinkInterface *interface,
-                                             char **stringp,
-                                             long indent, long width,
-                                             const char *comment_pre, const char *comment_post,
-                                             const char *keyword_pre, const char *keyword_post,
-                                             const char *method_pre, const char *method_post,
-                                             const char *type_pre, const char *type_post) {
+long varlink_interface_write_description(VarlinkInterface *interface,
+                                         char **stringp,
+                                         long indent, long width,
+                                         const char *comment_pre, const char *comment_post,
+                                         const char *keyword_pre, const char *keyword_post,
+                                         const char *method_pre, const char *method_post,
+                                         const char *type_pre, const char *type_post) {
         _cleanup_(fclosep) FILE *stream = NULL;
         _cleanup_(freep) char *string = NULL;
         unsigned long size;

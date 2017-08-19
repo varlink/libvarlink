@@ -226,9 +226,9 @@ static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
         if (!interface)
                 return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", NULL);
 
-        r = varlink_interface_write_interfacestring(interface, &string, -1, -1,
-                                                    NULL, NULL, NULL, NULL,
-                                                    NULL, NULL, NULL, NULL);
+        r = varlink_interface_write_description(interface, &string, -1, -1,
+                                                NULL, NULL, NULL, NULL,
+                                                NULL, NULL, NULL, NULL);
         if (r < 0)
                 return r;
 

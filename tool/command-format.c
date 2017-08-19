@@ -105,12 +105,12 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 return EXIT_FAILURE;
         }
 
-        r = varlink_interface_write_interfacestring(interface, &out,
-                                                    0, 72,
-                                                    NULL, NULL,
-                                                    NULL, NULL,
-                                                    NULL, NULL,
-                                                    NULL, NULL);
+        r = varlink_interface_write_description(interface, &out,
+                                                0, 72,
+                                                NULL, NULL,
+                                                NULL, NULL,
+                                                NULL, NULL,
+                                                NULL, NULL);
         if (r < 0) {
                 fprintf(stderr, "Error writing interface: %s", strerror(-r));
                 return EXIT_FAILURE;
