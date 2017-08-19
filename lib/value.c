@@ -31,6 +31,7 @@ void varlink_value_clear(VarlinkTypeKind kind, VarlinkValue *value) {
                                 varlink_object_unref(value->object);
                         break;
 
+                case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_ALIAS:
                         abort();
                         break;
@@ -190,6 +191,7 @@ long varlink_value_write_json(VarlinkTypeKind kind,
                                 return r;
                         break;
 
+                case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_ALIAS:
                         abort();
                         break;

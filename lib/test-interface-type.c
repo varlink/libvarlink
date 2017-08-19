@@ -87,6 +87,19 @@ static void test_object(void) {
         }
 }
 
+static void test_enum(void) {
+        VarlinkType *type;
+        VarlinkType *field_type;
+
+        assert(varlink_type_new(&type, "(enumeration: (one, two, three))") == 0);
+        assert(strcmp(varlink_type_get_typestring(type), "(enumeration: (one, two, three))") == 0);
+
+        field_type = varlink_type_field_get_type(type, "enumeration");
+        assert(field_type);
+        assert(strcmp(varlink_type_get_typestring(field_type), "(one, two, three)") == 0);
+        assert(varlink_type_unref(type) == NULL);
+}
+
 static void test_interface_type_add(void) {
         VarlinkService *service;
         const char *interfacestring;
@@ -188,6 +201,7 @@ static void test_nonexisting(void) {
 int main(void) {
         test_basic();
         test_object();
+        test_enum();
         test_interface_type_add();
         test_interface_type_lookup();
         test_type_get_typestring();

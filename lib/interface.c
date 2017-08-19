@@ -98,16 +98,28 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         for (unsigned long i = 0; scanner_peek(scanner) != ')'; i += 1) {
                                 _cleanup_(varlink_type_field_freep) VarlinkTypeField *field = NULL;
 
-                                if (i > 0 && !scanner_expect_char(scanner, type->kind == VARLINK_TYPE_OBJECT ? ',' : '|'))
+                                if (i > 0 && !scanner_expect_char(scanner, ','))
                                         return false;
 
                                 field = calloc(1, sizeof(VarlinkTypeField));
                                 field->description = scanner_get_last_docstring(scanner);
 
-                                if (!scanner_read_identifier(scanner, is_field_char, &field->name) ||
-                                    !scanner_expect_char(scanner, ':') ||
-                                    !varlink_type_new_from_scanner(&field->type, scanner))
+                                if (!scanner_read_identifier(scanner, is_field_char, &field->name))
                                         return false;
+
+                                if (scanner_expect_char(scanner, ':')) {
+                                        if (type->kind == VARLINK_TYPE_ENUM)
+                                                return scanner_error(scanner, "No type declaration in enum expected for: %s", field->name);;
+
+                                        if (!varlink_type_new_from_scanner(&field->type, scanner))
+                                                return scanner_error(scanner, "Expecting type for: %s", field->name);;
+                                } else {
+                                        if (i == 0)
+                                                type->kind = VARLINK_TYPE_ENUM;
+
+                                        if (type->kind == VARLINK_TYPE_OBJECT)
+                                                return scanner_error(scanner, "Missing type declaration for: %s", field->name);;
+                                }
 
                                 /* make sure a field with this name doesn't exist yet */
                                 if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
@@ -193,6 +205,7 @@ VarlinkType *varlink_type_unref(VarlinkType *type) {
                         case VARLINK_TYPE_FOREIGN_OBJECT:
                                 break;
 
+                        case VARLINK_TYPE_ENUM:
                         case VARLINK_TYPE_OBJECT:
                                 for (unsigned long i = 0; i < type->n_fields; i += 1)
                                         varlink_type_field_free(type->fields[i]);
@@ -284,6 +297,7 @@ static void varlink_type_print(VarlinkType *type,
                         fprintf(stream, "%sstring%s", type_pre, type_post);
                         break;
 
+                case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_OBJECT: {
                         bool docstring = false;
 
@@ -312,13 +326,17 @@ static void varlink_type_print(VarlinkType *type,
                                         for (long l = 0; l < indent + 1; l += 1)
                                                 fprintf(stream, "  ");
 
-                                fprintf(stream, "%s: ", field->name);
+                                fprintf(stream, "%s", field->name);
 
-                                varlink_type_print(field->type,
-                                                   stream,
-                                                   indent >= 0 ? indent + 1 : -1,
-                                                   comment_pre, comment_post,
-                                                   type_pre, type_post);
+                                if (type->kind == VARLINK_TYPE_OBJECT) {
+                                        fprintf(stream, ": ");
+
+                                        varlink_type_print(field->type,
+                                                           stream,
+                                                           indent >= 0 ? indent + 1 : -1,
+                                                           comment_pre, comment_post,
+                                                           type_pre, type_post);
+                                }
 
                                 if (i + 1 < type->n_fields) {
                                         fprintf(stream, ", ");
@@ -425,6 +443,7 @@ static long varlink_interface_try_resolve(VarlinkInterface *interface,
                 case VARLINK_TYPE_INT:
                 case VARLINK_TYPE_FLOAT:
                 case VARLINK_TYPE_STRING:
+                case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_FOREIGN_OBJECT:
                         break;
 

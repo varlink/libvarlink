@@ -358,8 +358,8 @@ long varlink_object_set_empty_object(VarlinkObject *object, const char *field_na
 }
 
 static void object_write_json(FILE *stream,
-                               long indent,
-                               bool first) {
+                              long indent,
+                              bool first) {
         if (!first) {
                 fprintf(stream, ",");
                 if (indent >= 0)
@@ -457,5 +457,5 @@ long varlink_object_to_pretty_json(VarlinkObject *object,
 }
 
 _public_ long varlink_object_to_json(VarlinkObject *object, char **stringp) {
-        return varlink_object_to_pretty_json(object, stringp, 0, NULL, NULL, NULL, NULL);
+        return varlink_object_to_pretty_json(object, stringp, -1, NULL, NULL, NULL, NULL);
 }

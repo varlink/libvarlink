@@ -21,6 +21,7 @@ static const char *error_strings[] = {
         [VARLINK_ERROR_TYPE_MISMATCH] ="TypeMismatch",
         [VARLINK_ERROR_INVALID_INDEX] ="InvalidIndex",
         [VARLINK_ERROR_UNKNOWN_FIELD] ="UnknownField",
+        [VARLINK_ERROR_INVALID_VALUE] ="InvalidValue",
         [VARLINK_ERROR_READ_ONLY] ="ReadOnly",
         [VARLINK_ERROR_INVALID_JSON] ="InvalidJson",
         [VARLINK_ERROR_SENDING_MESSAGE] ="SendingMessage",
