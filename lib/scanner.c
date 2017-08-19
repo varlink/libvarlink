@@ -37,7 +37,7 @@ static inline bool ascii_is_digit(char c) {
         return c >= '0' && c <= '9';
 }
 
-long scanner_new_varlink(Scanner **scannerp, const char *string) {
+long scanner_new_interface(Scanner **scannerp, const char *string) {
         Scanner *scanner;
 
         scanner = calloc(1, sizeof(Scanner));

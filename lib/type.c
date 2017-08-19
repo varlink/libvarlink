@@ -27,7 +27,7 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-        scanner_new_varlink(&scanner, typestring);
+        scanner_new_interface(&scanner, typestring);
 
         if (!varlink_type_new_from_scanner(&type, scanner) ||
             !scanner_expect_char(scanner, '\0'))
