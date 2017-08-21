@@ -96,18 +96,19 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                                 if (!scanner_read_identifier(scanner, is_field_char, &field->name))
                                         return false;
 
-                                if (scanner_expect_char(scanner, ':')) {
+                                if (scanner_peek(scanner) == ':') {
                                         if (type->kind == VARLINK_TYPE_ENUM)
                                                 return scanner_error(scanner, "No type declaration in enum expected for: %s", field->name);;
 
+                                        scanner_expect_char(scanner, ':');
                                         if (!varlink_type_new_from_scanner(&field->type, scanner))
-                                                return scanner_error(scanner, "Expecting type for: %s", field->name);;
+                                                return scanner_error(scanner, "Expecting type for: %s", field->name);
                                 } else {
                                         if (i == 0)
                                                 type->kind = VARLINK_TYPE_ENUM;
 
                                         if (type->kind == VARLINK_TYPE_OBJECT)
-                                                return scanner_error(scanner, "Missing type declaration for: %s", field->name);;
+                                                return scanner_error(scanner, "Missing type declaration for: %s", field->name);
                                 }
 
                                 /* make sure a field with this name doesn't exist yet */
