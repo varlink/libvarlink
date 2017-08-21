@@ -20,6 +20,9 @@ export GCC_COLORS
 
 pkgconfiglibdir=$(libdir)/pkgconfig
 bashcompletiondir = $(datadir)/bash-completion/completions
+vimftdetectdir = $(datadir)/vim/vimfiles/after/ftdetect
+vimftplugindir = $(datadir)/vim/vimfiles/after/ftplugin
+vimsyntaxdir = $(datadir)/vim/vimfiles/after/syntax
 
 include_HEADERS =
 pkgconfiglib_DATA =
@@ -252,6 +255,18 @@ varlink_LDADD = \
 
 dist_bashcompletion_DATA += \
 	bash-completion/varlink
+
+# ------------------------------------------------------------------------------¶
+# vim syntax highlighting
+
+dist_vimftdetect_DATA = \
+	vim/ftdetect/varlink.vim
+
+dist_vimftplugin_DATA = \
+	vim/ftplugin/varlink.vim
+
+dist_vimsyntax_DATA = \
+	vim/syntax/varlink.vim
 
 # ------------------------------------------------------------------------------¶
 # test suite

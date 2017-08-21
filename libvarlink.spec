@@ -46,6 +46,7 @@ make check
 %{_libdir}/libvarlink.so.*
 %{_bindir}/varlink
 %{_datadir}/bash-completion/completions/varlink
+%{_datadir}/vim/vimfiles/after/*
 
 %files devel
 %{_includedir}/varlink.h
