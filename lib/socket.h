@@ -6,6 +6,9 @@ typedef struct VarlinkSocket VarlinkSocket;
 
 struct VarlinkSocket {
         int fd;
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
 
         uint8_t *in;
         unsigned long in_start;
@@ -30,13 +33,12 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message);
 long varlink_socket_connect(VarlinkSocket *socket, const char *address);
 long varlink_socket_accept(VarlinkSocket *socket,
                            const char *address,
-                           int listen_fd,
-                           VarlinkObject **credentialsp);
+                           int listen_fd);
 
 long varlink_socket_connect_unix(VarlinkSocket *socket, const char *path);
 long varlink_socket_listen_unix(const char *path, int *fdp);
-long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp);
+long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd);
 
 long varlink_socket_connect_tcp(VarlinkSocket *socket, const char *address);
 long varlink_socket_listen_tcp(const char *address, int *fdp);
-long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp);
+long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd);

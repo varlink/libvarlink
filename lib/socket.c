@@ -31,6 +31,9 @@ static long varlink_address_get_type(const char *address) {
 
 void varlink_socket_init(VarlinkSocket *socket) {
         socket->fd = -1;
+        socket->pid = (pid_t)-1;
+        socket->uid = (uid_t)-1;
+        socket->gid = (gid_t)-1;
 
         socket->in = malloc(CONNECTION_BUFFER_SIZE);
         socket->in_start = 0;
@@ -192,14 +195,13 @@ long varlink_socket_connect(VarlinkSocket *socket, const char *address) {
 
 long varlink_socket_accept( VarlinkSocket *socket,
                             const char *address,
-                            int listen_fd,
-                            VarlinkObject **credentialsp) {
+                            int listen_fd) {
         switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
-                        return varlink_socket_accept_unix(socket, listen_fd, credentialsp);
+                        return varlink_socket_accept_unix(socket, listen_fd);
 
                 case VARLINK_ADDRESS_TCP:
-                        return  varlink_socket_accept_tcp(socket, listen_fd, credentialsp);
+                        return  varlink_socket_accept_tcp(socket, listen_fd);
 
                 default:
                         return -VARLINK_ERROR_PANIC;

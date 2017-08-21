@@ -81,63 +81,15 @@ long varlink_socket_listen_tcp(const char *address, int *fdp) {
         return 0;
 }
 
-long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp) {
+long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
-        union {
-                struct sockaddr sa;
-                struct sockaddr_in in;
-                struct sockaddr_in6 in6;
-        } sa;
-        socklen_t sa_len = sizeof(sa);
 
         assert(socket->fd == -1);
 
         fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
-
-        if (getpeername(fd, &sa.sa, &sa_len) < 0)
-                return -VARLINK_ERROR_CANNOT_ACCEPT;
-
-        switch (sa.sa.sa_family) {
-                case AF_INET: {
-                        uint32_t addr;
-
-                        addr = be32toh(sa.in.sin_addr.s_addr);
-                        asprintf(&address,
-                                 "%u.%u.%u.%u:%u",
-                                 addr >> 24, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff,
-                                 be16toh(sa.in.sin_port));
-
-                        break;
-
-                }
-
-                case AF_INET6: {
-                        char addr[INET6_ADDRSTRLEN];
-
-                        inet_ntop(AF_INET6, &sa.in6.sin6_addr, addr, sizeof(addr));
-                        asprintf(&address,
-                                 "[%s]:%u",
-                                 addr,
-                                 be16toh(sa.in6.sin6_port));
-
-                        break;
-                }
-
-                default:
-                        return -VARLINK_ERROR_PANIC;
-        }
-
-        if (credentialsp) {
-                VarlinkObject *credentials;
-
-                varlink_object_new(&credentials);
-                varlink_object_set_string(credentials, "address", address);
-
-                *credentialsp = credentials;
-        }
 
         socket->fd = fd;
         fd = -1;

@@ -87,7 +87,7 @@ long varlink_socket_listen_unix(const char *path, int *fdp) {
         return 0;
 }
 
-long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd, VarlinkObject **credentialsp) {
+long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         struct sockaddr_un sa;
@@ -115,17 +115,9 @@ long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd, VarlinkObj
         if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
 
-        if (credentialsp) {
-                VarlinkObject *credentials;
-
-                varlink_object_new(&credentials);
-                varlink_object_set_string(credentials, "address", address);
-                varlink_object_set_int(credentials, "pid", ucred.pid);
-                varlink_object_set_int(credentials, "uid", ucred.uid);
-                varlink_object_set_int(credentials, "gid", ucred.gid);
-
-                *credentialsp = credentials;
-        }
+        socket->pid = ucred.pid;
+        socket->uid = ucred.uid;
+        socket->gid = ucred.gid;
 
         socket->fd = fd;
         fd = -1;

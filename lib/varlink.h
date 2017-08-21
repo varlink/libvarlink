@@ -33,6 +33,7 @@ enum {
         VARLINK_ERROR_INVALID_MESSAGE,
         VARLINK_ERROR_INVALID_CALL,
         VARLINK_ERROR_CONNECTION_CLOSED,
+        VARLINK_ERROR_NOT_AVAILABLE,
         VARLINK_ERROR_MAX
 };
 
@@ -304,7 +305,19 @@ VarlinkCall *varlink_call_ref(VarlinkCall *call);
 VarlinkCall *varlink_call_unref(VarlinkCall *call);
 void varlink_call_unrefp(VarlinkCall **callp);
 
+/*
+ * Get the fully-qualified method name for the current call.
+ */
 const char *varlink_call_get_method(VarlinkCall *call);
+
+/*
+ * Retreive the PID, uid, gid of the process which established
+ * the connection for the current call.
+ *
+ * Error:
+ *   VARLINK_ERROR_NOT_AVAILABLE
+ */
+long varlink_call_get_credentials(VarlinkCall *call, pid_t *pidp, uid_t *uidp, gid_t *gidp);
 
 /*
  * Sets a function which is called when the client cancels a call (i.e.,

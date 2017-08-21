@@ -17,6 +17,7 @@ global:
         varlink_array_ref;
         varlink_array_unref;
         varlink_array_unrefp;
+        varlink_call_get_credentials;
         varlink_call_get_method;
         varlink_call_ref;
         varlink_call_reply;

@@ -52,7 +52,6 @@ struct VarlinkCall {
 
 struct ServiceConnection {
         VarlinkSocket socket;
-        VarlinkObject *credentials;
         VarlinkCall *call;
 };
 
@@ -124,6 +123,31 @@ _public_ const char *varlink_call_get_method(VarlinkCall *call) {
         return call->method;
 }
 
+_public_ long varlink_call_get_credentials(VarlinkCall *call, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
+        if (pidp) {
+                if (call->connection->socket.pid == (pid_t)-1)
+                        return -VARLINK_ERROR_NOT_AVAILABLE;
+
+                *pidp = call->connection->socket.pid;
+        }
+
+        if (uidp) {
+                if (call->connection->socket.uid == (uid_t)-1)
+                        return -VARLINK_ERROR_NOT_AVAILABLE;
+
+                *uidp = call->connection->socket.uid;
+        }
+
+        if (gidp) {
+                if (call->connection->socket.gid == (gid_t)-1)
+                        return -VARLINK_ERROR_NOT_AVAILABLE;
+
+                *gidp = call->connection->socket.gid;
+        }
+
+        return 0;
+}
+
 static long interface_compare(const void *key, void *value) {
         VarlinkInterface *interface = value;
 
@@ -148,9 +172,6 @@ static ServiceConnection *service_connection_free(ServiceConnection *connection)
         }
 
         varlink_socket_deinit(&connection->socket);
-
-        if (connection->credentials)
-                varlink_object_unref(connection->credentials);
 
         free(connection);
 
@@ -434,8 +455,7 @@ static long varlink_service_accept(VarlinkService *service) {
 
         r = varlink_socket_accept(&connection->socket,
                                   service->address,
-                                  service->listen_fd,
-                                  &connection->credentials);
+                                  service->listen_fd);
         if (r < 0)
                 return r; /* CannotAccept */
 
