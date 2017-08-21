@@ -22,12 +22,14 @@ static long read_file(FILE *file, char **contentsp) {
                         contents = realloc(contents, allocated);
                 }
 
-                n = fread(contents + size, 1, alloced - size, file);
-                if (n == 0)
-                        return -ferror(file);
+                n = fread(contents + size, 1, allocated - size, file);
+                if (n == 0 && ferror(file))
+                        return -errno;
 
                 size += n;
         }
+
+        contents[size] = '\0';
 
         *contentsp = contents;
         contents = NULL;
