@@ -215,7 +215,7 @@ long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name)
 
 static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Scanner *scanner) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-        unsigned n_alloced = 0;
+        unsigned n_allocated = 0;
         long r;
 
         varlink_interface_allocate(&interface, NULL);
@@ -232,9 +232,9 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
         while (scanner_peek(scanner) != '\0') {
                 VarlinkInterfaceMember *member;
 
-                if (n_alloced == interface->n_members) {
-                        n_alloced = MAX(2 * n_alloced, 16);
-                        interface->members = realloc(interface->members, n_alloced * sizeof(VarlinkInterfaceMember));
+                if (n_allocated == interface->n_members) {
+                        n_allocated = MAX(2 * n_allocated, 16);
+                        interface->members = realloc(interface->members, n_allocated * sizeof(VarlinkInterfaceMember));
                 }
 
                 member = &interface->members[interface->n_members];

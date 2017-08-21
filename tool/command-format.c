@@ -11,15 +11,15 @@
 
 static long read_file(FILE *file, char **contentsp) {
         _cleanup_(freep) char *contents = NULL;
-        unsigned long alloced = 0;
+        unsigned long allocated = 0;
         unsigned long size = 0;
 
         while (!feof(file)) {
                 long n;
 
-                if (size == alloced) {
-                        alloced = MAX(alloced * 2, 4096);
-                        contents = realloc(contents, alloced);
+                if (size == allocated) {
+                        allocated = MAX(allocated * 2, 4096);
+                        contents = realloc(contents, allocated);
                 }
 
                 n = fread(contents + size, 1, alloced - size, file);

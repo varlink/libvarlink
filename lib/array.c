@@ -11,7 +11,7 @@ struct VarlinkArray {
 
         VarlinkValue *elements;
         unsigned long n_elements;
-        unsigned long n_alloced_elements;
+        unsigned long n_allocated_elements;
 
         bool writable;
 };
@@ -19,9 +19,9 @@ struct VarlinkArray {
 static VarlinkValue *array_append(VarlinkArray *array) {
         VarlinkValue *v;
 
-        if (array->n_elements == array->n_alloced_elements) {
-                array->n_alloced_elements = MAX(array->n_alloced_elements * 2, 32);
-                array->elements = realloc(array->elements, array->n_alloced_elements * sizeof(VarlinkValue));
+        if (array->n_elements == array->n_allocated_elements) {
+                array->n_allocated_elements = MAX(array->n_allocated_elements * 2, 32);
+                array->elements = realloc(array->elements, array->n_allocated_elements * sizeof(VarlinkValue));
         }
 
         v = &array->elements[array->n_elements];
