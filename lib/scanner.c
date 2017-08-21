@@ -181,7 +181,7 @@ bool scanner_expect_char(Scanner *scanner, char c) {
         scanner_advance(scanner);
 
         if (*scanner->p != c)
-                return scanner_error(scanner, "Expected '%c'", c);
+                return scanner_error(scanner, "Expecting '%c'", c);
 
         scanner->p += 1;
 
@@ -195,7 +195,7 @@ bool scanner_expect_keyword(Scanner *scanner, const char *keyword) {
         scanner_advance(scanner);
 
         if (strncmp(scanner->p, keyword, len) != 0)
-                return scanner_error(scanner, "Expected '%s'", keyword);
+                return scanner_error(scanner, "Expecting '%s'", keyword);
 
         c = scanner->p[len];
         if ((c >= 'a' && c <= 'z') ||
@@ -214,7 +214,7 @@ bool scanner_read_identifier(Scanner *scanner, bool (*is_allowed_char)(char, boo
         scanner_advance(scanner);
 
         if (*scanner->p == '\0' || !is_allowed_char(*scanner->p, true))
-                return scanner_error(scanner, "Expected identifier");
+                return scanner_error(scanner, "Expecting identifier");
 
         start = scanner->p;
         scanner->p += 1;
@@ -355,7 +355,7 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
 
         number.i = strtol(scanner->p, &end, 10);
         if (end == scanner->p)
-                return scanner_error(scanner, "Expected number");
+                return scanner_error(scanner, "Expecting number");
 
         if (*end == '.' || *end == 'e' || *end == 'E') {
                 locale_t loc;
@@ -384,7 +384,7 @@ bool scanner_read_uint(Scanner *scanner, uint64_t *uintp) {
 
         u = strtoul(scanner->p, &end, 10);
         if (end == scanner->p)
-                return scanner_error(scanner, "Expected unsigned integer");
+                return scanner_error(scanner, "Expecting unsigned integer");
 
         scanner->p = end;
 
@@ -398,7 +398,7 @@ bool scanner_read_arrow(Scanner *scanner) {
         scanner_advance(scanner);
 
         if (strncmp(scanner->p, "->", 2) != 0)
-                return scanner_error(scanner, "Expected '->'");
+                return scanner_error(scanner, "Expecting '->'");
 
         scanner->p += 2;
 

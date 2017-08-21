@@ -137,7 +137,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         break;
 
                 default:
-                        return scanner_error(scanner, "Expected type");
+                        return scanner_error(scanner, "Expecting type");
         }
 
         if (scanner_peek(scanner) == '[') {

@@ -286,7 +286,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 break;
 
                         default:
-                                return scanner_error(scanner, "Expected 'type', 'method', or 'error'");
+                                return scanner_error(scanner, "Expecting 'type', 'method', or 'error'");
                 }
 
                 r = avl_tree_insert(interface->member_tree, member->name, member);
