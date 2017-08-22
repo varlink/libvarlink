@@ -51,6 +51,6 @@ const char *varlink_type_get_typestring(VarlinkType *type);
 VarlinkType *varlink_type_field_get_type(VarlinkType *type, const char *name);
 long varlink_type_write_typestring(VarlinkType *type,
                                    FILE *stream,
-                                   long indent, long width,
+                                   long indent,
                                    const char *comment_pre, const char *comment_post,
                                    const char *type_pre, const char *type_post);

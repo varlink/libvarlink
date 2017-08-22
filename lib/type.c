@@ -265,6 +265,37 @@ void varlink_type_unrefp(VarlinkType **typep) {
                 varlink_type_unref(*typep);
 }
 
+static bool is_multiline(VarlinkType *type) {
+        /* "()" */
+        if (type->n_fields == 0)
+                return false;
+
+        /* A maximum of two object fields */
+        if (type->kind == VARLINK_TYPE_OBJECT && type->n_fields > 2)
+                return true;
+
+        for (unsigned long i = 0; i < type->n_fields; i += 1) {
+                VarlinkTypeField *field = type->fields[i];
+
+                /* No documentation */
+                if (field->description)
+                        return true;
+
+                /* No nested complex types */
+                if (type->kind == VARLINK_TYPE_OBJECT) {
+                    if (field->type->kind == VARLINK_TYPE_OBJECT ||
+                        field->type->kind == VARLINK_TYPE_ENUM)
+                        return true;
+                }
+        }
+
+        /* No longer than half a line */
+        if (strlen(varlink_type_get_typestring(type)) > 40)
+                return true;
+
+        return false;
+}
+
 static void varlink_type_print(VarlinkType *type,
                                FILE *stream,
                                long indent,
@@ -295,18 +326,22 @@ static void varlink_type_print(VarlinkType *type,
 
                 case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_OBJECT: {
-                        bool docstring = false;
+                        bool multiline = false;
+                        bool docstring_printed = false;
+
+                        if (indent >= 0)
+                                multiline = is_multiline(type);
 
                         fprintf(stream, "(");
 
                         for (unsigned long i = 0; i < type->n_fields; i += 1) {
                                 VarlinkTypeField *field = type->fields[i];
 
-                                if (indent >= 0) {
+                                if (multiline) {
                                         fprintf(stream, "\n");
 
                                         if (field->description) {
-                                                if (i > 0 && !docstring)
+                                                if (i > 0 && !docstring_printed)
                                                         fprintf(stream, "\n");
 
                                                 for (const char *start = field->description; *start;) {
@@ -327,9 +362,9 @@ static void varlink_type_print(VarlinkType *type,
                                                         start = end + 1;
                                                 }
 
-                                                docstring = true;
+                                                docstring_printed = true;
                                         } else
-                                                docstring = false;
+                                                docstring_printed = false;
 
                                         for (long l = 0; l < indent + 1; l += 1)
                                                 fprintf(stream, "  ");
@@ -348,14 +383,17 @@ static void varlink_type_print(VarlinkType *type,
                                 }
 
                                 if (i + 1 < type->n_fields) {
-                                        fprintf(stream, ", ");
+                                        fprintf(stream, ",");
 
-                                        if (field->description)
+                                        if (!multiline)
+                                                fprintf(stream, " ");
+
+                                        if (multiline && field->description)
                                                 fprintf(stream, "\n");
                                 }
                         }
 
-                        if (indent >= 0) {
+                        if (multiline) {
                                 fprintf(stream, "\n");
 
                                 for (long l = 0; l < indent; l += 1)
@@ -411,33 +449,20 @@ const char *varlink_type_get_typestring(VarlinkType *type) {
 
 long varlink_type_write_typestring(VarlinkType *type,
                                    FILE *stream,
-                                   long indent, long width,
+                                   long indent,
                                    const char *comment_pre, const char *comment_post,
                                    const char *type_pre, const char *type_post) {
-        const char *typestring;
-
         if (!type_pre)
                 type_pre = "";
 
         if (!type_post)
                 type_post = "";
 
-        typestring = varlink_type_get_typestring(type);
-        if (!typestring)
-                return -VARLINK_ERROR_PANIC;
-
-        if (width > 0 && (long)strlen(typestring) > width)
-                varlink_type_print(type,
-                                   stream,
-                                   indent,
-                                   comment_pre, comment_post,
-                                   type_pre, type_post);
-        else
-                varlink_type_print(type,
-                                   stream,
-                                   -1,
-                                   comment_pre, comment_post,
-                                   type_pre, type_post);
+        varlink_type_print(type,
+                           stream,
+                           indent,
+                           comment_pre, comment_post,
+                           type_pre, type_post);
 
         return 0;
 }

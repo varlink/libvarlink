@@ -426,7 +426,6 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
                 VarlinkInterfaceMember *member = &interface->members[i];
-                long remaining = width;
 
                 fprintf(stream, "\n\n");
 
@@ -438,8 +437,6 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                 for (long l = 0; l < indent; l += 1)
                         fprintf(stream, "  ");
 
-                remaining -= indent * 2;
-
                 switch (member->type) {
                         case VARLINK_MEMBER_ALIAS:
                                 fprintf(stream, "%stype%s %s%s%s ",
@@ -448,14 +445,9 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                         member->name,
                                         type_post);
 
-                                remaining -= 8;
-                                remaining -= strlen(member->name);
-                                if (remaining < 0)
-                                        remaining = 0;
-
                                 r = varlink_type_write_typestring(member->alias,
                                                                   stream,
-                                                                  indent, remaining,
+                                                                  indent,
                                                                   comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
@@ -466,30 +458,19 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                         keyword_pre, keyword_post,
                                         method_pre, member->name, method_post);
 
-                                remaining -= 2;
-                                remaining -= strlen(member->name);
-                                if (remaining < 0)
-                                        remaining = 0;
-
                                 r = varlink_type_write_typestring(member->method->type_in,
                                                                   stream,
-                                                                  indent, remaining,
+                                                                  indent,
                                                                   comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
                                         return r;
 
-                                remaining -= strlen(varlink_type_get_typestring(member->method->type_in));
-
                                 fprintf(stream, " %s->%s ", keyword_pre, keyword_post);
-
-                                remaining -= 4;
-                                if (remaining < 0)
-                                        remaining = 0;
 
                                 r = varlink_type_write_typestring(member->method->type_out,
                                                                   stream,
-                                                                  indent, remaining,
+                                                                  indent,
                                                                   comment_pre, comment_post,
                                                                   type_pre, type_post);
                                 if (r < 0)
@@ -502,15 +483,10 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                         member->name,
                                         type_post);
 
-                                remaining -= 8;
-                                remaining -= strlen(member->name);
-                                if (remaining < 0)
-                                        remaining = 0;
-
                                 if (member->error) {
                                         r = varlink_type_write_typestring(member->error,
                                                                           stream,
-                                                                          indent, remaining,
+                                                                          indent,
                                                                           comment_pre, comment_post,
                                                                           type_pre, type_post);
                                         if (r < 0)
