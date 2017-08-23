@@ -222,11 +222,11 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
         interface->description = scanner_get_last_docstring(scanner);
 
-        if (!scanner_expect_keyword(scanner, "interface") ||
-            !scanner_read_identifier(scanner, is_interface_char, &interface->name))
-                return false;
+        if (!scanner_read_keyword(scanner, "interface"))
+                return scanner_error(scanner, "'interface' expected");
 
-        if (!varlink_interface_name_valid(interface->name))
+        if (!scanner_read_identifier(scanner, is_interface_char, &interface->name) ||
+            !varlink_interface_name_valid(interface->name))
                 return scanner_error(scanner, "Invalid interface name");
 
         while (scanner_peek(scanner) != '\0') {
@@ -241,53 +241,45 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                 interface->n_members += 1;
                 memset(member, 0, sizeof(VarlinkInterfaceMember));
 
-                switch (scanner_peek(scanner)) {
-                        case 't':
-                                member->type = VARLINK_MEMBER_ALIAS;
-                                member->description = scanner_get_last_docstring(scanner);
+                if (scanner_read_keyword(scanner, "type")) {
+                        member->type = VARLINK_MEMBER_ALIAS;
+                        member->description = scanner_get_last_docstring(scanner);
 
-                                if (!scanner_expect_keyword(scanner, "type") ||
-                                    !scanner_read_identifier(scanner, is_member_char, &member->name) ||
-                                    !varlink_type_new_from_scanner(&member->alias, scanner))
-                                        return false;
+                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                            !varlink_type_new_from_scanner(&member->alias, scanner))
+                                return false;
 
-                                if (member->alias->kind != VARLINK_TYPE_OBJECT)
-                                        return scanner_error(scanner, "Type definitions must be objects");
-                                break;
+                        if (member->alias->kind != VARLINK_TYPE_OBJECT)
+                                return scanner_error(scanner, "Type definitions must be objects");
 
-                        case 'm':
-                                member->type = VARLINK_MEMBER_METHOD;
-                                member->method = calloc(1, sizeof(VarlinkMethod));
-                                member->description = scanner_get_last_docstring(scanner);
+                } else if (scanner_read_keyword(scanner, "method")) {
+                        member->type = VARLINK_MEMBER_METHOD;
+                        member->method = calloc(1, sizeof(VarlinkMethod));
+                        member->description = scanner_get_last_docstring(scanner);
 
-                                if (!scanner_expect_keyword(scanner, "method") ||
-                                    !scanner_read_identifier(scanner, is_member_char, &member->name) ||
-                                    !varlink_type_new_from_scanner(&member->method->type_in, scanner) ||
-                                    !scanner_read_arrow(scanner) ||
-                                    !varlink_type_new_from_scanner(&member->method->type_out, scanner))
-                                        return false;
+                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                            !varlink_type_new_from_scanner(&member->method->type_in, scanner) ||
+                            !scanner_expect_operator(scanner, "->") ||
+                            !varlink_type_new_from_scanner(&member->method->type_out, scanner))
+                                return false;
 
-                                if (member->method->type_in->kind != VARLINK_TYPE_OBJECT ||
-                                    member->method->type_out->kind != VARLINK_TYPE_OBJECT)
-                                        return scanner_error(scanner, "Method input and output parameters must be literal objects");
-                                break;
+                        if (member->method->type_in->kind != VARLINK_TYPE_OBJECT ||
+                            member->method->type_out->kind != VARLINK_TYPE_OBJECT)
+                                return scanner_error(scanner, "Method input and output parameters must be literal objects");
 
-                        case 'e':
-                                member->type = VARLINK_MEMBER_ERROR;
-                                member->description = scanner_get_last_docstring(scanner);
+                } else if (scanner_read_keyword(scanner, "error")) {
+                        member->type = VARLINK_MEMBER_ERROR;
+                        member->description = scanner_get_last_docstring(scanner);
 
-                                if (!scanner_expect_keyword(scanner, "error") ||
-                                    !scanner_read_identifier(scanner, is_member_char, &member->name) ||
-                                    !varlink_type_new_from_scanner(&member->error, scanner))
-                                        return false;
+                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                            !varlink_type_new_from_scanner(&member->error, scanner))
+                                return false;
 
-                                if (member->error->kind != VARLINK_TYPE_OBJECT)
-                                        return scanner_error(scanner, "Error data must be an object");
-                                break;
+                        if (member->error->kind != VARLINK_TYPE_OBJECT)
+                                return scanner_error(scanner, "Error data must be an object");
 
-                        default:
-                                return scanner_error(scanner, "Expecting 'type', 'method', or 'error'");
-                }
+                } else
+                        return scanner_error(scanner, "'type', 'method', or 'error' expected");
 
                 r = avl_tree_insert(interface->member_tree, member->name, member);
                 if (r < 0)
@@ -339,7 +331,7 @@ long varlink_interface_new(VarlinkInterface **interfacep,
         scanner_new_interface(&scanner, description);
 
         if (!varlink_interface_new_from_scanner(&interface, scanner) ||
-            !scanner_expect_char(scanner, '\0')) {
+            scanner_peek(scanner) != '\0') {
                 scanner_steal_error(scanner, errorp);
                 return -VARLINK_ERROR_INVALID_INTERFACE;
         }

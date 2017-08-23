@@ -30,7 +30,7 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
         scanner_new_interface(&scanner, typestring);
 
         if (!varlink_type_new_from_scanner(&type, scanner) ||
-            !scanner_expect_char(scanner, '\0'))
+            scanner_peek(scanner) != '\0')
                 return -VARLINK_ERROR_INVALID_INTERFACE;
 
         *typep = type;
@@ -41,114 +41,88 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
 
 bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
+        char *identifier = NULL;
 
-        switch (scanner_peek(scanner)) {
-                case 'b':
-                        if (!scanner_expect_keyword(scanner, "bool"))
+        if (scanner_read_keyword(scanner, "bool"))
+                varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
+
+        else if (scanner_read_keyword(scanner, "int"))
+                varlink_type_allocate(&type, VARLINK_TYPE_INT);
+
+        else if (scanner_read_keyword(scanner, "float"))
+                varlink_type_allocate(&type, VARLINK_TYPE_FLOAT);
+
+        else if (scanner_read_keyword(scanner, "string"))
+                varlink_type_allocate(&type, VARLINK_TYPE_STRING);
+
+        else if (scanner_read_keyword(scanner, "object"))
+                varlink_type_allocate(&type, VARLINK_TYPE_FOREIGN_OBJECT);
+
+        else if (scanner_read_identifier(scanner, is_custom_type_char, &identifier)) {
+                varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
+                type->alias = identifier;
+
+        } else if (scanner_peek(scanner) ==  '(') {
+                unsigned long n_fields_allocated = 0;
+
+                scanner_expect_operator(scanner, "(");
+                varlink_type_allocate(&type, VARLINK_TYPE_OBJECT);
+
+                for (unsigned long i = 0; scanner_peek(scanner) != ')'; i += 1) {
+                        _cleanup_(varlink_type_field_freep) VarlinkTypeField *field = NULL;
+
+                        if (i > 0 && !scanner_expect_operator(scanner, ","))
                                 return false;
 
-                        varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
-                        break;
+                        field = calloc(1, sizeof(VarlinkTypeField));
+                        field->description = scanner_get_last_docstring(scanner);
 
-                case 'i':
-                        if (!scanner_expect_keyword(scanner, "int"))
+                        if (!scanner_expect_identifier(scanner, is_field_char, &field->name))
                                 return false;
 
-                        varlink_type_allocate(&type, VARLINK_TYPE_INT);
-                        break;
+                        if (scanner_peek(scanner) == ':') {
+                                if (type->kind == VARLINK_TYPE_ENUM)
+                                        return scanner_error(scanner, "No type declaration in enum expected for: %s", field->name);;
 
-                case 'f':
-                        if (!scanner_expect_keyword(scanner, "float"))
-                                return false;
+                                scanner_expect_operator(scanner, ":");
+                                if (!varlink_type_new_from_scanner(&field->type, scanner))
+                                        return scanner_error(scanner, "Expecting type for: %s", field->name);
+                        } else {
+                                if (i == 0)
+                                        type->kind = VARLINK_TYPE_ENUM;
 
-                        varlink_type_allocate(&type, VARLINK_TYPE_FLOAT);
-                        break;
-
-                case 's':
-                        if (!scanner_expect_keyword(scanner, "string"))
-                                return false;
-
-                        varlink_type_allocate(&type, VARLINK_TYPE_STRING);
-                        break;
-
-                case 'o':
-                        if (!scanner_expect_keyword(scanner, "object"))
-                                return false;
-
-                        varlink_type_allocate(&type, VARLINK_TYPE_FOREIGN_OBJECT);
-                        break;
-
-                case '(': {
-                        unsigned long n_fields_allocated = 0;
-
-                        scanner_expect_char(scanner, '(');
-                        varlink_type_allocate(&type, VARLINK_TYPE_OBJECT);
-
-                        for (unsigned long i = 0; scanner_peek(scanner) != ')'; i += 1) {
-                                _cleanup_(varlink_type_field_freep) VarlinkTypeField *field = NULL;
-
-                                if (i > 0 && !scanner_expect_char(scanner, ','))
-                                        return false;
-
-                                field = calloc(1, sizeof(VarlinkTypeField));
-                                field->description = scanner_get_last_docstring(scanner);
-
-                                if (!scanner_read_identifier(scanner, is_field_char, &field->name))
-                                        return false;
-
-                                if (scanner_peek(scanner) == ':') {
-                                        if (type->kind == VARLINK_TYPE_ENUM)
-                                                return scanner_error(scanner, "No type declaration in enum expected for: %s", field->name);;
-
-                                        scanner_expect_char(scanner, ':');
-                                        if (!varlink_type_new_from_scanner(&field->type, scanner))
-                                                return scanner_error(scanner, "Expecting type for: %s", field->name);
-                                } else {
-                                        if (i == 0)
-                                                type->kind = VARLINK_TYPE_ENUM;
-
-                                        if (type->kind == VARLINK_TYPE_OBJECT)
-                                                return scanner_error(scanner, "Missing type declaration for: %s", field->name);
-                                }
-
-                                /* make sure a field with this name doesn't exist yet */
-                                if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
-                                        return scanner_error(scanner, "Duplicate field name: %s", field->name);
-
-                                if (type->n_fields == n_fields_allocated) {
-                                        n_fields_allocated = MAX(n_fields_allocated * 2, 4);
-                                        type->fields = realloc(type->fields, n_fields_allocated * sizeof(VarlinkType *));
-                                }
-
-                                type->fields[i] = field;
-                                type->n_fields += 1;
-                                field = NULL;
+                                if (type->kind == VARLINK_TYPE_OBJECT)
+                                        return scanner_error(scanner, "Missing type declaration for: %s", field->name);
                         }
 
-                        if (!scanner_expect_char(scanner, ')'))
-                                return false;
-                        break;
+                        /* make sure a field with this name doesn't exist yet */
+                        if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
+                                return scanner_error(scanner, "Duplicate field name: %s", field->name);
+
+                        if (type->n_fields == n_fields_allocated) {
+                                n_fields_allocated = MAX(n_fields_allocated * 2, 4);
+                                type->fields = realloc(type->fields, n_fields_allocated * sizeof(VarlinkType *));
+                        }
+
+                        type->fields[i] = field;
+                        type->n_fields += 1;
+                        field = NULL;
                 }
 
-                case 'A' ... 'Z':
-                        varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
+                if (!scanner_expect_operator(scanner, ")"))
+                        return false;
 
-                        if (!scanner_read_identifier(scanner, is_custom_type_char, &type->alias))
-                                return false;
-                        break;
-
-                default:
-                        return scanner_error(scanner, "Expecting type");
-        }
+        } else
+                return scanner_error(scanner, "Expecting type");
 
         if (scanner_peek(scanner) == '[') {
                 _cleanup_(varlink_type_unrefp) VarlinkType *array = NULL;
 
                 varlink_type_allocate(&array, VARLINK_TYPE_ARRAY);
 
-                scanner_expect_char(scanner, '[');
+                scanner_expect_operator(scanner, "[");
                 if ((isdigit(scanner_peek(scanner)) && !scanner_read_uint(scanner, &array->fixed_n_elements)) ||
-                    !scanner_expect_char(scanner, ']'))
+                    !scanner_expect_operator(scanner, "]"))
                         return false;
 
                 array->element_type = type;

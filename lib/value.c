@@ -39,64 +39,40 @@ void varlink_value_clear(VarlinkTypeKind kind, VarlinkValue *value) {
 }
 
 bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner) {
-        switch (scanner_peek(scanner)) {
-                case '{':
-                        if (!varlink_object_new_from_scanner(&value->object, scanner))
-                                return false;
+        ScannerNumber number;
 
-                        *kindp = VARLINK_TYPE_OBJECT;
-                        break;
-
-                case '[':
-                        if (!varlink_array_new_from_scanner(&value->array, scanner))
-                                return false;
-
-                        *kindp = VARLINK_TYPE_ARRAY;
-                        break;
-
-                case 't':
-                        if (!scanner_expect_keyword(scanner, "true"))
-                                return false;
-
-                        value->b = true;
-                        *kindp = VARLINK_TYPE_BOOL;
-                        break;
-
-                case 'f':
-                        if (!scanner_expect_keyword(scanner, "false"))
-                                return false;
-
-                        value->b = false;
-                        *kindp = VARLINK_TYPE_BOOL;
-                        break;
-
-                case '\"':
-                        if (!scanner_read_string(scanner, &value->s))
-                                return false;
-
-                        *kindp = VARLINK_TYPE_STRING;
-                        break;
-
-                case '-':
-                case '0' ... '9': {
-                        ScannerNumber number;
-
-                        if (!scanner_read_number(scanner, &number))
-                                return false;
-
-                        if (number.is_double) {
-                                value->f = number.d;
-                                *kindp = VARLINK_TYPE_FLOAT;
-                        } else {
-                                value->i = number.i;
-                                *kindp = VARLINK_TYPE_INT;
-                        }
-                        break;
-                }
-
-                default:
+        if (scanner_peek(scanner) == '{') {
+                if (!varlink_object_new_from_scanner(&value->object, scanner))
                         return false;
-        }
+                *kindp = VARLINK_TYPE_OBJECT;
+
+        } else if (scanner_peek(scanner) == '[') {
+                if (!varlink_array_new_from_scanner(&value->array, scanner))
+                        return false;
+
+                *kindp = VARLINK_TYPE_ARRAY;
+
+        } else if (scanner_read_keyword(scanner, "true")) {
+                value->b = true;
+                *kindp = VARLINK_TYPE_BOOL;
+
+        } else if (scanner_read_keyword(scanner, "false")) {
+                value->b = false;
+                *kindp = VARLINK_TYPE_BOOL;
+
+        } else if (scanner_read_string(scanner, &value->s)) {
+                *kindp = VARLINK_TYPE_STRING;
+
+        } else if (scanner_read_number(scanner, &number)) {
+                if (number.is_double) {
+                        value->f = number.d;
+                        *kindp = VARLINK_TYPE_FLOAT;
+                } else {
+                        value->i = number.i;
+                        *kindp = VARLINK_TYPE_INT;
+                }
+        } else
+                return scanner_error(scanner, "expected json value");
 
         return true;
 }

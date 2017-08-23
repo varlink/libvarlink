@@ -54,14 +54,14 @@ long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner) {
         if (varlink_array_new(&array) != 0)
                 return false;
 
-        if (!scanner_expect_char(scanner, '['))
+        if (!scanner_expect_operator(scanner, "["))
                 return false;
 
         while (scanner_peek(scanner) != ']') {
                 VarlinkTypeKind kind;
                 VarlinkValue *value;
 
-                if (!first && !scanner_expect_char(scanner, ','))
+                if (!first && !scanner_expect_operator(scanner, ","))
                         return false;
 
                 value = array_append(array);
@@ -76,7 +76,7 @@ long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner) {
                 first = false;
         }
 
-        if (!scanner_expect_char(scanner, ']'))
+        if (!scanner_expect_operator(scanner, "]"))
                 return false;
 
         *arrayp = array;

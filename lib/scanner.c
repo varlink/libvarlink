@@ -101,7 +101,7 @@ void scanner_steal_error(Scanner *scanner, VarlinkParseError **errorp) {
         }
 }
 
-static void scanner_advance(Scanner *scanner) {
+static const char *scanner_advance(Scanner *scanner) {
         for (;;) {
                 switch (*scanner->p) {
                         case ' ':
@@ -120,7 +120,7 @@ static void scanner_advance(Scanner *scanner) {
 
                         case '#':
                                 if (scanner->json)
-                                        return;
+                                        return scanner->p;
 
                                 if (!scanner->last_comment_start)
                                         scanner->last_comment_start = scanner->p;
@@ -129,7 +129,7 @@ static void scanner_advance(Scanner *scanner) {
                                 break;
 
                         default:
-                                return;
+                                return scanner->p;
                 }
         }
 }
@@ -177,53 +177,50 @@ char scanner_peek(Scanner *scanner) {
         return *scanner->p;
 }
 
-bool scanner_expect_char(Scanner *scanner, char c) {
-        scanner_advance(scanner);
-
-        if (*scanner->p != c)
-                return scanner_error(scanner, "Expecting '%c'", c);
-
-        scanner->p += 1;
-
-        return true;
-}
-
-bool scanner_expect_keyword(Scanner *scanner, const char *keyword) {
+bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
         unsigned long len = strlen(keyword);
         char c;
 
         scanner_advance(scanner);
 
         if (strncmp(scanner->p, keyword, len) != 0)
-                return scanner_error(scanner, "Expecting '%s'", keyword);
+                return false;
 
         c = scanner->p[len];
         if ((c >= 'a' && c <= 'z') ||
             (c >= 'A' && c <= 'Z') ||
             (c == '_'))
-                return scanner_error(scanner, "Extraneous characters");
+                return false;
 
         scanner->p += len;
 
         return true;
 }
 
-bool scanner_read_identifier(Scanner *scanner, bool (*is_allowed_char)(char, bool), char **identifierp) {
-        const char *start;
+bool scanner_read_identifier(Scanner *scanner, bool (*is_allowed_char)(char c, bool first), char **identifierp) {
+        const char *p;
 
-        scanner_advance(scanner);
+        p = scanner_advance(scanner);
 
-        if (*scanner->p == '\0' || !is_allowed_char(*scanner->p, true))
-                return scanner_error(scanner, "Expecting identifier");
+        if (*p == '\0' || !is_allowed_char(*p, true))
+                return false;
 
-        start = scanner->p;
-        scanner->p += 1;
+        p += 1;
 
-        while (*scanner->p != '\0' && is_allowed_char(*scanner->p, false))
-                scanner->p += 1;
+        while (*p != '\0' && is_allowed_char(*p, false))
+                p += 1;
 
         if (identifierp)
-                *identifierp = strndup(start, scanner->p - start);
+                *identifierp = strndup(scanner->p, p - scanner->p);
+
+        scanner->p = p;
+
+        return true;
+}
+
+bool scanner_expect_identifier(Scanner *scanner, bool (*allow)(char c, bool first), char **identifierp) {
+        if (!scanner_read_identifier(scanner, allow, identifierp))
+                return scanner_error(scanner, "identifier expected");
 
         return true;
 }
@@ -279,24 +276,29 @@ bool scanner_read_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
         unsigned long size;
+        const char *p;
 
-        if (!scanner_expect_char(scanner, '"'))
+        p = scanner_advance(scanner);
+
+        if (*p != '"')
                 return false;
+
+        p += 1;
 
         stream = open_memstream(&string, &size);
 
         for (;;) {
-                if (*scanner->p == '\0')
-                        return scanner_error(scanner, "Untermindated string literal");
+                if (*p == '\0')
+                        return false;
 
-                if (*scanner->p == '"') {
-                        scanner->p += 1;
+                if (*p == '"') {
+                        p += 1;
                         break;
                 }
 
-                if (*scanner->p == '\\') {
-                        scanner->p += 1;
-                        switch (*scanner->p) {
+                if (*p == '\\') {
+                        p += 1;
+                        switch (*p) {
                                 case '"':
                                         fprintf(stream, "\"");
                                         break;
@@ -322,18 +324,18 @@ bool scanner_read_string(Scanner *scanner, char **stringp) {
                                         fprintf(stream, "\t");
                                         break;
                                 case 'u':
-                                        if (!read_unicode_char(scanner->p + 1, stream))
-                                                return scanner_error(scanner, "Invalid unicode character");
+                                        if (!read_unicode_char(p + 1, stream))
+                                                return false;
 
-                                        scanner->p += 4;
+                                        p += 4;
                                         break;
                                 default:
-                                        return scanner_error(scanner, "Invalid escape sequence");
+                                        return false;
                         }
                 } else
-                        fprintf(stream, "%c", *scanner->p);
+                        fprintf(stream, "%c", *p);
 
-                scanner->p += 1;
+                p += 1;
         }
 
         fclose(stream);
@@ -343,6 +345,8 @@ bool scanner_read_string(Scanner *scanner, char **stringp) {
                 *stringp = string;
                 string = NULL;
         }
+
+        scanner->p = p;
 
         return true;
 }
@@ -355,7 +359,7 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
 
         number.i = strtol(scanner->p, &end, 10);
         if (end == scanner->p)
-                return scanner_error(scanner, "Expecting number");
+                return false;
 
         if (*end == '.' || *end == 'e' || *end == 'E') {
                 locale_t loc;
@@ -378,15 +382,17 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
 
 bool scanner_read_uint(Scanner *scanner, uint64_t *uintp) {
         uint64_t u;
-        char *end;
 
         scanner_advance(scanner);
 
-        u = strtoul(scanner->p, &end, 10);
-        if (end == scanner->p)
-                return scanner_error(scanner, "Expecting unsigned integer");
+        /*
+         * Don't allow leading 0s and negative values (strtoul converts
+         * those to positives)
+         */
+        if (*scanner->p < '1' || *scanner->p > '9')
+                return false;
 
-        scanner->p = end;
+        u = strtoul(scanner->p, (char **)&scanner->p, 10);
 
         if (uintp)
                 *uintp = u;
@@ -394,13 +400,15 @@ bool scanner_read_uint(Scanner *scanner, uint64_t *uintp) {
         return true;
 }
 
-bool scanner_read_arrow(Scanner *scanner) {
+bool scanner_expect_operator(Scanner *scanner, const char *op) {
+        unsigned long length = strlen(op);
+
         scanner_advance(scanner);
 
-        if (strncmp(scanner->p, "->", 2) != 0)
-                return scanner_error(scanner, "Expecting '->'");
+        if (strncmp(scanner->p, op, length) != 0)
+                return scanner_error(scanner, "'%s' expected", op);
 
-        scanner->p += 2;
+        scanner->p += length;
 
         return true;
 }

@@ -67,27 +67,24 @@ bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         bool first = true;
 
-        if (varlink_object_new(&object) != 0)
+        if (!scanner_expect_operator(scanner, "{"))
                 return false;
 
-        if (!scanner_expect_char(scanner, '{'))
+        if (varlink_object_new(&object) < 0)
                 return false;
 
         while (scanner_peek(scanner) != '}') {
                 _cleanup_(freep) char *name = NULL;
 
-                if (!first && !scanner_expect_char(scanner, ','))
+                if (!first && !scanner_expect_operator(scanner, ","))
                         return false;
 
                 if (!scanner_read_string(scanner, &name) ||
-                    !scanner_expect_char(scanner, ':'))
+                    !scanner_expect_operator(scanner, ":"))
                         return false;
 
                 /* treat `null` the same as non-existent keys */
-                if (scanner_peek(scanner) == 'n') {
-                        if (!scanner_expect_keyword(scanner, "null"))
-                                return false;
-                } else {
+                if (!scanner_read_keyword(scanner, "null")) {
                         Field *field;
 
                         field = object_replace(object, name);
@@ -98,7 +95,7 @@ bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 first = false;
         }
 
-        if (!scanner_expect_char(scanner, '}'))
+        if (!scanner_expect_operator(scanner, "}"))
                 return false;
 
         *objectp = object;
@@ -114,7 +111,7 @@ _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *
         scanner_new_json(&scanner, json);
 
         if (!varlink_object_new_from_scanner(&object, scanner) ||
-            !scanner_expect_char(scanner, '\0'))
+            scanner_peek(scanner) != '\0')
                 return -VARLINK_ERROR_INVALID_JSON;
 
         *objectp = object;
