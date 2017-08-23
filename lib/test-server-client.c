@@ -9,10 +9,6 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 
-enum {
-        TEST_ERROR_TIMEOUT
-};
-
 typedef struct {
         VarlinkService *service;
         VarlinkConnection *connection;
@@ -68,9 +64,8 @@ static long test_process_events(Test *test) {
                          varlink_connection_get_events(test->connection),
                          test->connection) == 0);
 
-        n = epoll_wait(test->epoll_fd, events, ARRAY_SIZE(events), 100);
-        if (n == 0)
-                return -TEST_ERROR_TIMEOUT;
+        n = epoll_wait(test->epoll_fd, events, ARRAY_SIZE(events), 1000);
+        assert(n > 0);
 
         for (long i = 0; i < n; i += 1) {
                 if (events[i].data.ptr == test->service)
@@ -121,7 +116,6 @@ int main(void) {
 
         Test test = { 0 };
         VarlinkCall *later_call = NULL;
-        long r;
 
         assert(varlink_service_new(&test.service, "Varlink", "Test Service", "0.1", "http://", "@test.socket", -1) == 0);
         assert(varlink_service_add_interface(test.service, interface,
@@ -158,10 +152,8 @@ int main(void) {
                         assert(varlink_object_unref(parameters) == NULL);
                 }
 
-                for (long i = 0; call.n_received < ARRAY_SIZE(words) && i < 10; i += 1) {
-                        r = test_process_events(&test);
-                        assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-                }
+                for (long i = 0; call.n_received < ARRAY_SIZE(words) && i < 10; i += 1)
+                        assert(test_process_events(&test) == 0);
 
                 assert(call.n_received == ARRAY_SIZE(words));
         }
@@ -182,10 +174,7 @@ int main(void) {
                         assert(varlink_object_unref(parameters) == NULL);
                 }
 
-                for (long i = 0; call.n_received < ARRAY_SIZE(words) && i < 10; i += 1) {
-                        r = test_process_events(&test);
-                        assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-                }
+                assert(test_process_events(&test) == 0);
 
                 assert(call.n_received == 0);
         }
@@ -195,20 +184,17 @@ int main(void) {
 
                 assert(varlink_connection_call(test.connection, "org.varlink.example.Later", NULL, 0,
                                                later_callback, &out) == 0);
-                for (long i = 0; later_call == NULL && i < 10; i += 1) {
-                        r = test_process_events(&test);
-                        assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-                }
+                for (long i = 0; later_call == NULL && i < 10; i += 1)
+                        assert(test_process_events(&test) == 0);
+
                 assert(later_call != NULL);
 
                 assert(varlink_call_reply(later_call, NULL, 0) == 0);
                 later_call = varlink_call_unref(later_call);
                 assert(later_call == NULL);
 
-                for (long i = 0; out == NULL && i < 10; i += 1) {
-                        r = test_process_events(&test);
-                        assert(r == 0 || r == -TEST_ERROR_TIMEOUT);
-                }
+                for (long i = 0; out == NULL && i < 10; i += 1)
+                        assert(test_process_events(&test) == 0);
 
                 assert(out != NULL);
                 assert(varlink_object_unref(out) == NULL);
