@@ -15,14 +15,6 @@
 #include <string.h>
 #include <unistd.h>
 
-static bool is_field_char(char c, bool first) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_') || (!first && isdigit(c));
-}
-
-static bool is_custom_type_char(char c, bool first) {
-        return (c >= 'A' && c <= 'Z') || (!first && (c >= 'a' && c <= 'z'));
-}
-
 long varlink_type_new(VarlinkType **typep, const char *typestring) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
@@ -41,7 +33,6 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
 
 bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
-        char *identifier = NULL;
 
         if (scanner_read_keyword(scanner, "bool"))
                 varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
@@ -58,11 +49,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         else if (scanner_read_keyword(scanner, "object"))
                 varlink_type_allocate(&type, VARLINK_TYPE_FOREIGN_OBJECT);
 
-        else if (scanner_read_identifier(scanner, is_custom_type_char, &identifier)) {
-                varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
-                type->alias = identifier;
-
-        } else if (scanner_peek(scanner) ==  '(') {
+        else if (scanner_peek(scanner) ==  '(') {
                 unsigned long n_fields_allocated = 0;
 
                 scanner_expect_operator(scanner, "(");
@@ -77,7 +64,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         field = calloc(1, sizeof(VarlinkTypeField));
                         field->description = scanner_get_last_docstring(scanner);
 
-                        if (!scanner_expect_identifier(scanner, is_field_char, &field->name))
+                        if (!scanner_expect_field_name(scanner, &field->name))
                                 return false;
 
                         if (i == 0 && scanner_peek(scanner) != ':')
@@ -106,8 +93,15 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                 if (!scanner_expect_operator(scanner, ")"))
                         return false;
 
-        } else
-                return scanner_error(scanner, "type expected");
+        } else {
+                char *alias;
+
+                if (!scanner_expect_type_name(scanner, &alias))
+                        return scanner_error(scanner, "type expected");
+
+                varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
+                type->alias = alias;
+        }
 
         if (scanner_peek(scanner) == '[') {
                 _cleanup_(varlink_type_unrefp) VarlinkType *array = NULL;

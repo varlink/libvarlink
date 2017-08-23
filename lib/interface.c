@@ -15,17 +15,6 @@
 #include <string.h>
 #include <unistd.h>
 
-static bool is_interface_char(char c, bool first) {
-        return (c >= 'a' && c <= 'z') || c == '.' || c == '-' || isdigit(c);
-}
-
-static bool is_member_char(char c, bool first) {
-        if (first)
-                return c >= 'A' && c <= 'Z';
-        else
-                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || isdigit(c);
-}
-
 static void write_docstring(FILE *stream,
                             long indent,
                             const char *comment_pre, const char *comment_post,
@@ -138,63 +127,6 @@ void varlink_interface_freep(VarlinkInterface **interfacep) {
                 varlink_interface_free(*interfacep);
 }
 
-bool varlink_interface_name_valid(const char *name) {
-        unsigned long len;
-        bool has_dot = false;
-        bool has_alpha = false;
-
-        if (!name)
-                return false;
-
-        len = strlen(name);
-        if (len < 3 || len > 255)
-                return false;
-
-        if (name[0] == '.' || name[len - 1] == '.')
-                return false;
-
-        if (name[0] == '-' || name[len - 1] == '-')
-                return false;
-
-        for (unsigned long i = 0; i < len; i += 1) {
-                switch (name[i]) {
-                        case 'a' ... 'z':
-                                has_alpha = true;
-                                break;
-
-                        case '0' ... '9':
-                                break;
-
-                        case '.':
-                                if (name[i - 1] == '.')
-                                        return false;
-
-                                if (name[i - 1] == '.')
-                                        return false;
-
-                                if (!has_alpha)
-                                        return false;
-
-                                has_dot = true;
-                                break;
-
-                        case '-':
-                                if (name[i - 1] == '.')
-                                        return false;
-
-                                break;
-
-                        default:
-                                return false;
-                }
-        }
-
-        if (!has_dot || !has_alpha)
-                return false;
-
-        return true;
-}
-
 static long member_compare(const void *key, void *value) {
         VarlinkInterfaceMember *member = value;
 
@@ -225,8 +157,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
         if (!scanner_read_keyword(scanner, "interface"))
                 return scanner_error(scanner, "'interface' expected");
 
-        if (!scanner_read_identifier(scanner, is_interface_char, &interface->name) ||
-            !varlink_interface_name_valid(interface->name))
+        if (!scanner_expect_interface_name(scanner, &interface->name))
                 return scanner_error(scanner, "Invalid interface name");
 
         while (scanner_peek(scanner) != '\0') {
@@ -245,7 +176,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                         member->type = VARLINK_MEMBER_ALIAS;
                         member->description = scanner_get_last_docstring(scanner);
 
-                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                        if (!scanner_expect_member_name(scanner, &member->name) ||
                             !varlink_type_new_from_scanner(&member->alias, scanner))
                                 return false;
 
@@ -257,7 +188,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                         member->method = calloc(1, sizeof(VarlinkMethod));
                         member->description = scanner_get_last_docstring(scanner);
 
-                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                        if (!scanner_expect_member_name(scanner, &member->name) ||
                             !varlink_type_new_from_scanner(&member->method->type_in, scanner) ||
                             !scanner_expect_operator(scanner, "->") ||
                             !varlink_type_new_from_scanner(&member->method->type_out, scanner))
@@ -271,7 +202,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                         member->type = VARLINK_MEMBER_ERROR;
                         member->description = scanner_get_last_docstring(scanner);
 
-                        if (!scanner_expect_identifier(scanner, is_member_char, &member->name) ||
+                        if (!scanner_expect_member_name(scanner, &member->name) ||
                             !varlink_type_new_from_scanner(&member->error, scanner))
                                 return false;
 

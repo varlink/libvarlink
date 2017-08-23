@@ -3,6 +3,7 @@
 #include "parse-error.h"
 #include "varlink.h"
 
+#include <ctype.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -19,23 +20,6 @@ struct Scanner {
 
         VarlinkParseError *error;
 };
-
-/* Names must not be subject to libc's locale rules. */
-static inline bool ascii_is_lower(char c) {
-        return c >= 'a' && c <= 'z';
-}
-
-static inline bool ascii_is_upper(char c) {
-        return c >= 'A' && c <= 'Z';
-}
-
-static inline bool ascii_is_alpha(char c) {
-        return ascii_is_lower(c) || ascii_is_upper(c);
-}
-
-static inline bool ascii_is_digit(char c) {
-        return c >= '0' && c <= '9';
-}
 
 long scanner_new_interface(Scanner **scannerp, const char *string) {
         Scanner *scanner;
@@ -177,52 +161,167 @@ char scanner_peek(Scanner *scanner) {
         return *scanner->p;
 }
 
-bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
-        unsigned long len = strlen(keyword);
-        char c;
-
+static unsigned long scanner_word_len(Scanner *scanner) {
         scanner_advance(scanner);
 
-        if (strncmp(scanner->p, keyword, len) != 0)
+        for (unsigned long i = 0;; i += 1) {
+                switch (scanner->p[i]) {
+                        case '0' ... '9':
+                        case 'a' ... 'z':
+                        case 'A' ... 'Z':
+                        case '_':
+                        case '-':
+                        case '.':
+                                break;
+
+                        default:
+                               return i;
+                }
+        }
+}
+
+bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
+        unsigned long word_len = scanner_word_len(scanner);
+        unsigned long keyword_len = strlen(keyword);
+
+        if (word_len != keyword_len)
                 return false;
 
-        c = scanner->p[len];
-        if ((c >= 'a' && c <= 'z') ||
-            (c >= 'A' && c <= 'Z') ||
-            (c == '_'))
+        if (strncmp(scanner->p, keyword, word_len) != 0)
                 return false;
 
+        scanner->p += word_len;
+
+        return true;
+}
+
+static bool interface_name_valid(const char *name, unsigned long len) {
+        bool has_dot = false;
+        bool has_alpha = false;
+
+        if (len < 3 || len > 255)
+                return false;
+
+        if (name[0] == '.' || name[len - 1] == '.')
+                return false;
+
+        if (name[0] == '-' || name[len - 1] == '-')
+                return false;
+
+        for (unsigned long i = 0; i < len; i += 1) {
+                switch (name[i]) {
+                        case 'a' ... 'z':
+                                has_alpha = true;
+                                break;
+
+                        case '0' ... '9':
+                                break;
+
+                        case '.':
+                                if (name[i - 1] == '.')
+                                        return false;
+
+                                if (name[i - 1] == '.')
+                                        return false;
+
+                                if (!has_alpha)
+                                        return false;
+
+                                has_dot = true;
+                                break;
+
+                        case '-':
+                                if (name[i - 1] == '.')
+                                        return false;
+
+                                break;
+
+                        default:
+                                return false;
+                }
+        }
+
+        if (!has_dot || !has_alpha)
+                return false;
+
+        return true;
+}
+
+bool scanner_expect_interface_name(Scanner *scanner, char **namep) {
+        unsigned long len = scanner_word_len(scanner);
+
+        if (!interface_name_valid(scanner->p, len))
+                return scanner_error(scanner, "Invalid interface name");
+
+        *namep = strndup(scanner->p, len);
         scanner->p += len;
 
         return true;
 }
 
-bool scanner_read_identifier(Scanner *scanner, bool (*is_allowed_char)(char c, bool first), char **identifierp) {
-        const char *p;
+bool scanner_expect_field_name(Scanner *scanner, char **namep) {
+        unsigned long len = scanner_word_len(scanner);
 
-        p = scanner_advance(scanner);
+        switch (*scanner->p) {
+                case 'a' ... 'z':
+                case 'A' ... 'Z':
+                case '_':
+                        break;
 
-        if (*p == '\0' || !is_allowed_char(*p, true))
-                return false;
+                default:
+                        return scanner_error(scanner, "Invalid first character in field name");
+        }
 
-        p += 1;
+        for (unsigned long i = 1; i < len; i += 1) {
+                switch (scanner->p[i]) {
+                        case '0' ... '9':
+                        case 'a' ... 'z':
+                        case 'A' ... 'Z':
+                        case '_':
+                                break;
 
-        while (*p != '\0' && is_allowed_char(*p, false))
-                p += 1;
+                        default:
+                                return scanner_error(scanner, "Invalid character in field name");
+                }
+        }
 
-        if (identifierp)
-                *identifierp = strndup(scanner->p, p - scanner->p);
-
-        scanner->p = p;
+        *namep = strndup(scanner->p, len);
+        scanner->p += len;
 
         return true;
 }
 
-bool scanner_expect_identifier(Scanner *scanner, bool (*allow)(char c, bool first), char **identifierp) {
-        if (!scanner_read_identifier(scanner, allow, identifierp))
-                return scanner_error(scanner, "identifier expected");
+bool scanner_expect_member_name(Scanner *scanner, char **namep) {
+        unsigned long len = scanner_word_len(scanner);
+
+        switch (*scanner->p) {
+                case 'A' ... 'Z':
+                        break;
+
+                default:
+                        return scanner_error(scanner, "Invalid first character in member name");
+        }
+
+        for (unsigned long i = 1; i < len; i += 1) {
+                switch (scanner->p[i]) {
+                        case '0' ... '9':
+                        case 'a' ... 'z':
+                        case 'A' ... 'Z':
+                                break;
+
+                        default:
+                                return scanner_error(scanner, "Invalid first character in member name");
+                }
+        }
+
+        *namep = strndup(scanner->p, len);
+        scanner->p += len;
 
         return true;
+}
+
+bool scanner_expect_type_name(Scanner *scanner, char **namep) {
+        return scanner_expect_member_name(scanner, namep);
 }
 
 static bool unhex(char d, uint8_t *valuep) {
