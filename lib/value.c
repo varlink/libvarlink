@@ -44,6 +44,7 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
         if (scanner_peek(scanner) == '{') {
                 if (!varlink_object_new_from_scanner(&value->object, scanner))
                         return false;
+
                 *kindp = VARLINK_TYPE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
@@ -60,7 +61,10 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                 value->b = false;
                 *kindp = VARLINK_TYPE_BOOL;
 
-        } else if (scanner_read_string(scanner, &value->s)) {
+        } else if (scanner_peek(scanner) == '"') {
+                if (!scanner_expect_json_string(scanner, &value->s))
+                        return false;
+
                 *kindp = VARLINK_TYPE_STRING;
 
         } else if (scanner_read_number(scanner, &number)) {

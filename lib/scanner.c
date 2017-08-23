@@ -272,7 +272,7 @@ static bool read_unicode_char(const char *p, FILE *stream) {
 }
 
 
-bool scanner_read_string(Scanner *scanner, char **stringp) {
+bool scanner_expect_json_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
         unsigned long size;
@@ -302,35 +302,44 @@ bool scanner_read_string(Scanner *scanner, char **stringp) {
                                 case '"':
                                         fprintf(stream, "\"");
                                         break;
+
                                 case '\\':
                                         fprintf(stream, "\\");
                                         break;
+
                                 case '/':
                                         fprintf(stream, "/");
                                         break;
+
                                 case 'b':
                                         fprintf(stream, "\b");
                                         break;
+
                                 case 'f':
                                         fprintf(stream, "\f");
                                         break;
+
                                 case 'n':
                                         fprintf(stream, "\n");
                                         break;
+
                                 case 'r':
                                         fprintf(stream, "\r");
                                         break;
+
                                 case 't':
                                         fprintf(stream, "\t");
                                         break;
+
                                 case 'u':
                                         if (!read_unicode_char(p + 1, stream))
-                                                return false;
+                                                return scanner_error(scanner, "invalid unicode character");
 
                                         p += 4;
                                         break;
+
                                 default:
-                                        return false;
+                                        return scanner_error(scanner, "invalid escape sequence");
                         }
                 } else
                         fprintf(stream, "%c", *p);

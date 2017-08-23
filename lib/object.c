@@ -79,7 +79,7 @@ bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 if (!first && !scanner_expect_operator(scanner, ","))
                         return false;
 
-                if (!scanner_read_string(scanner, &name) ||
+                if (!scanner_expect_json_string(scanner, &name) ||
                     !scanner_expect_operator(scanner, ":"))
                         return false;
 

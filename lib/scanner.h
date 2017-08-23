@@ -51,6 +51,7 @@ char scanner_peek(Scanner *scanner);
  */
 bool scanner_expect_identifier(Scanner *scanner, bool (*allow)(char c, bool first), char **identifierp);
 bool scanner_expect_operator(Scanner *scanner, const char *op);
+bool scanner_expect_json_string(Scanner *scanner, char **stringp);
 
 /*
  * The functions read the next token and return true, if the next token
@@ -58,6 +59,5 @@ bool scanner_expect_operator(Scanner *scanner, const char *op);
  */
 bool scanner_read_keyword(Scanner *scanner, const char *keyword);
 bool scanner_read_identifier(Scanner *scanner, bool (*allow)(char c, bool first), char **identifierp);
-bool scanner_read_string(Scanner *scanner, char **stringp);
 bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp);
 bool scanner_read_uint(Scanner *scanner, uint64_t *uintp);
