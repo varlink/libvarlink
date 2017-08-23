@@ -72,7 +72,7 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                         *kindp = VARLINK_TYPE_INT;
                 }
         } else
-                return scanner_error(scanner, "expected json value");
+                return scanner_error(scanner, "json value expected");
 
         return true;
 }

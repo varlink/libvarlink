@@ -99,7 +99,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 case 0:
                         break;
                 case -CLI_ERROR_MISSING_ARGUMENT:
-                        fprintf(stderr, "Error: expecting INTERFACE.METHOD [ARGUMENTS]\n");
+                        fprintf(stderr, "Error: INTERFACE.METHOD [ARGUMENTS] expected\n");
                         return CLI_ERROR_MISSING_ARGUMENT;
                 default:
                         return CLI_ERROR_PANIC;

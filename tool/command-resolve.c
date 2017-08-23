@@ -35,7 +35,7 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
 
         interface = argv[optind];
         if (!interface) {
-                fprintf(stderr, "Error: expecting INTERFACE\n");
+                fprintf(stderr, "Error: INTERFACE expected\n");
 
                 return EXIT_FAILURE;
         }

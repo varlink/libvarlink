@@ -80,24 +80,18 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         if (!scanner_expect_identifier(scanner, is_field_char, &field->name))
                                 return false;
 
-                        if (scanner_peek(scanner) == ':') {
-                                if (type->kind == VARLINK_TYPE_ENUM)
-                                        return scanner_error(scanner, "No type declaration in enum expected for: %s", field->name);;
+                        if (i == 0 && scanner_peek(scanner) != ':')
+                                type->kind = VARLINK_TYPE_ENUM;
 
-                                scanner_expect_operator(scanner, ":");
-                                if (!varlink_type_new_from_scanner(&field->type, scanner))
-                                        return scanner_error(scanner, "Expecting type for: %s", field->name);
-                        } else {
-                                if (i == 0)
-                                        type->kind = VARLINK_TYPE_ENUM;
-
-                                if (type->kind == VARLINK_TYPE_OBJECT)
-                                        return scanner_error(scanner, "Missing type declaration for: %s", field->name);
+                        if (type->kind == VARLINK_TYPE_OBJECT) {
+                                if (!scanner_expect_operator(scanner, ":") ||
+                                    !varlink_type_new_from_scanner(&field->type, scanner))
+                                        return false;
                         }
 
                         /* make sure a field with this name doesn't exist yet */
                         if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
-                                return scanner_error(scanner, "Duplicate field name: %s", field->name);
+                                return scanner_error(scanner, "duplicate field name: %s", field->name);
 
                         if (type->n_fields == n_fields_allocated) {
                                 n_fields_allocated = MAX(n_fields_allocated * 2, 4);
@@ -113,7 +107,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         return false;
 
         } else
-                return scanner_error(scanner, "Expecting type");
+                return scanner_error(scanner, "type expected");
 
         if (scanner_peek(scanner) == '[') {
                 _cleanup_(varlink_type_unrefp) VarlinkType *array = NULL;
