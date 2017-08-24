@@ -245,9 +245,9 @@ static bool is_multiline(VarlinkType *type) {
 
                 /* No nested complex types */
                 if (type->kind == VARLINK_TYPE_OBJECT) {
-                    if (field->type->kind == VARLINK_TYPE_OBJECT ||
-                        field->type->kind == VARLINK_TYPE_ENUM)
-                        return true;
+                        if (field->type->kind == VARLINK_TYPE_OBJECT ||
+                            field->type->kind == VARLINK_TYPE_ENUM)
+                                return true;
                 }
         }
 

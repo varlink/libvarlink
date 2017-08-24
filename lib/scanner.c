@@ -175,7 +175,7 @@ static unsigned long scanner_word_len(Scanner *scanner) {
                                 break;
 
                         default:
-                               return i;
+                                return i;
                 }
         }
 }
@@ -265,11 +265,10 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
         switch (*scanner->p) {
                 case 'a' ... 'z':
                 case 'A' ... 'Z':
-                case '_':
                         break;
 
                 default:
-                        return scanner_error(scanner, "Invalid first character in field name");
+                        return scanner_error(scanner, "Invalid character in field name");
         }
 
         for (unsigned long i = 1; i < len; i += 1) {
@@ -291,28 +290,35 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
         return true;
 }
 
-bool scanner_expect_member_name(Scanner *scanner, char **namep) {
-        unsigned long len = scanner_word_len(scanner);
-
-        switch (*scanner->p) {
+static bool member_name_valid(const char *member, unsigned long len) {
+        switch (*member) {
                 case 'A' ... 'Z':
                         break;
 
                 default:
-                        return scanner_error(scanner, "Invalid first character in member name");
+                        return false;
         }
 
         for (unsigned long i = 1; i < len; i += 1) {
-                switch (scanner->p[i]) {
+                switch (member[i]) {
                         case '0' ... '9':
                         case 'a' ... 'z':
                         case 'A' ... 'Z':
                                 break;
 
                         default:
-                                return scanner_error(scanner, "Invalid first character in member name");
+                                return false;
                 }
         }
+
+        return true;
+}
+
+bool scanner_expect_member_name(Scanner *scanner, char **namep) {
+        unsigned long len = scanner_word_len(scanner);
+
+        if (!member_name_valid(scanner->p, len))
+                return scanner_error(scanner, "Invalid member name");
 
         *namep = strndup(scanner->p, len);
         scanner->p += len;
@@ -321,7 +327,42 @@ bool scanner_expect_member_name(Scanner *scanner, char **namep) {
 }
 
 bool scanner_expect_type_name(Scanner *scanner, char **namep) {
-        return scanner_expect_member_name(scanner, namep);
+        unsigned long len = scanner_word_len(scanner);
+        unsigned long interface_len = 0;
+        const char *member = NULL;
+        unsigned long member_len = 0;
+
+        if (member_name_valid(scanner->p, len)) {
+                *namep = strndup(scanner->p, len);
+                scanner->p += len;
+                return true;
+        }
+
+        if (len < 3)
+                return scanner_error(scanner, "Invalid type name");
+
+        for (unsigned long i = 0; i < len; i += 1) {
+                if (scanner->p[i] >= 'A' && scanner->p[i] <= 'Z') {
+                        if (scanner->p[i - 1] != '.')
+                                return scanner_error(scanner, "Invalid type name");
+
+                        interface_len = i - 1;
+                        member = scanner->p + i;
+                        member_len = len - i;
+                        break;
+                }
+        }
+
+        if (!interface_name_valid(scanner->p, interface_len))
+                return scanner_error(scanner, "Invalid type name");
+
+        if (!member_name_valid(member, member_len))
+                return scanner_error(scanner, "Invalid member part in fully-qualified type name");
+
+        *namep = strndup(scanner->p, len);
+        scanner->p += len;
+
+        return true;
 }
 
 static bool unhex(char d, uint8_t *valuep) {
