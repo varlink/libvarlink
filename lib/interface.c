@@ -70,7 +70,8 @@ static long varlink_interface_try_resolve(VarlinkInterface *interface,
                         if (varlink_interface_get_type(interface, type->alias) == NULL) {
                                 if (first_unknownp)
                                         *first_unknownp = type->alias;
-                                return r;
+
+                                return -1;
                         }
                         break;
         }
