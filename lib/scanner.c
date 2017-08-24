@@ -1,6 +1,5 @@
 #include "scanner.h"
 #include "util.h"
-#include "parse-error.h"
 #include "varlink.h"
 
 #include <ctype.h>
@@ -9,19 +8,35 @@
 #include <stdio.h>
 #include <string.h>
 
-struct Scanner {
-        const char *string;
-        const char *p;
-        const char *pline;
-        unsigned long line_nr;
-
-        const char *last_comment_start;
-        bool json;
-
-        VarlinkParseError *error;
+static const char *error_strings[] = {
+        [SCANNER_ERROR_PANIC] = "Panic",
+        [SCANNER_ERROR_INTERFACE_KEYWORD_EXPECTED] = "InterfaceKeywordExpected",
+        [SCANNER_ERROR_KEYWORD_EXPECTED] = "KeywordExpected",
+        [SCANNER_ERROR_DUPLICATE_FIELD_NAME] = "DuplicateFieldName",
+        [SCANNER_ERROR_INTERFACE_NAME_INVALID] = "InterfaceNameInvalid",
+        [SCANNER_ERROR_OBJECT_EXPECTED] = "ObjectExpected",
+        [SCANNER_ERROR_DUPLICATE_MEMBER_NAME] = "DuplicateMemberName",
+        [SCANNER_ERROR_MEMBER_NAME_INVALID] = "MemberNameInvalid",
+        [SCANNER_ERROR_UNKNOWN_TYPE] = "UnknownType",
+        [SCANNER_ERROR_FIELD_NAME_INVALID] = "FieldNameInvalid",
+        [SCANNER_ERROR_TYPE_NAME_INVALID] = "TypeNameInvalid",
+        [SCANNER_ERROR_INVALID_CHARACTER] = "InvalidCharacter",
+        [SCANNER_ERROR_OPERATOR_EXPECTED] = "OperatorExpected",
+        [SCANNER_ERROR_TYPE_EXPECTED] = "TypeExpected",
+        [SCANNER_ERROR_JSON_EXPECTED] = "JsonExpected",
 };
 
-long scanner_new_interface(Scanner **scannerp, const char *string) {
+const char *scanner_error_string(long error) {
+        if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
+                return "<invalid>";
+
+        if (!error_strings[error])
+                return "<missing>";
+
+        return error_strings[error];
+}
+
+static long scanner_new(Scanner **scannerp, const char *string) {
         Scanner *scanner;
 
         scanner = calloc(1, sizeof(Scanner));
@@ -35,25 +50,26 @@ long scanner_new_interface(Scanner **scannerp, const char *string) {
         return 0;
 }
 
+long scanner_new_interface(Scanner **scannerp, const char *string) {
+        return scanner_new(scannerp, string);
+}
+
 long scanner_new_json(Scanner **scannerp, const char *string) {
         Scanner *scanner;
+        long r;
 
-        scanner = calloc(1, sizeof(Scanner));
-        scanner->string = string;
-        scanner->p = scanner->string;
-        scanner->pline = scanner->string;
-        scanner->line_nr = 1;
+        r = scanner_new(&scanner, string);
+        if (r < 0)
+                return r;
+
         scanner->json = true;
-
         *scannerp = scanner;
 
         return 0;
 }
 
 void scanner_free(Scanner *scanner) {
-        if (scanner->error)
-                varlink_parse_error_free(scanner->error);
-
+        free(scanner->error.identifier);
         free(scanner);
 }
 
@@ -62,27 +78,17 @@ void scanner_freep(Scanner **scannerp) {
                 scanner_free(*scannerp);
 }
 
-bool scanner_error(Scanner *scanner, const char *fmt, ...) {
-        if (!scanner->error) {
-                va_list ap;
+bool scanner_error(Scanner *scanner, long error, const char *identifier) {
+        if (scanner->error.no == 0) {
+                scanner->error.no = error;
+                scanner->error.line_nr = scanner->line_nr;
+                scanner->error.pos_nr = 1 + scanner->p - scanner->pline;
 
-                varlink_parse_error_new(&scanner->error);
-                scanner->error->line_nr = scanner->line_nr;
-                scanner->error->pos_nr = 1 + scanner->p - scanner->pline;
-
-                va_start(ap, fmt);
-                vasprintf(&scanner->error->message, fmt, ap);
-                va_end(ap);
+                if (identifier)
+                        scanner->error.identifier = strdup(identifier);
         }
 
         return false;
-}
-
-void scanner_steal_error(Scanner *scanner, VarlinkParseError **errorp) {
-        if (errorp) {
-                *errorp = scanner->error;
-                scanner->error = NULL;
-        }
 }
 
 static const char *scanner_advance(Scanner *scanner) {
@@ -260,7 +266,7 @@ bool scanner_expect_interface_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
 
         if (!interface_name_valid(scanner->p, len))
-                return scanner_error(scanner, "Invalid interface name");
+                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID, NULL);
 
         *namep = strndup(scanner->p, len);
         scanner->p += len;
@@ -277,7 +283,7 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                         break;
 
                 default:
-                        return scanner_error(scanner, "Invalid character in field name");
+                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
         }
 
         for (unsigned long i = 1; i < len; i += 1) {
@@ -289,7 +295,7 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                                 break;
 
                         default:
-                                return scanner_error(scanner, "Invalid character in field name");
+                                return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
                 }
         }
 
@@ -327,7 +333,7 @@ bool scanner_expect_member_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
 
         if (!member_name_valid(scanner->p, len))
-                return scanner_error(scanner, "Invalid member name");
+                return scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID, NULL);
 
         *namep = strndup(scanner->p, len);
         scanner->p += len;
@@ -348,12 +354,12 @@ bool scanner_expect_type_name(Scanner *scanner, char **namep) {
         }
 
         if (len < 3)
-                return scanner_error(scanner, "Invalid type name");
+                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
 
         for (unsigned long i = 0; i < len; i += 1) {
                 if (scanner->p[i] >= 'A' && scanner->p[i] <= 'Z') {
                         if (scanner->p[i - 1] != '.')
-                                return scanner_error(scanner, "Invalid type name");
+                                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
 
                         interface_len = i - 1;
                         member = scanner->p + i;
@@ -363,10 +369,10 @@ bool scanner_expect_type_name(Scanner *scanner, char **namep) {
         }
 
         if (!interface_name_valid(scanner->p, interface_len))
-                return scanner_error(scanner, "Invalid type name");
+                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
 
         if (!member_name_valid(member, member_len))
-                return scanner_error(scanner, "Invalid member part in fully-qualified type name");
+                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
 
         *namep = strndup(scanner->p, len);
         scanner->p += len;
@@ -482,13 +488,13 @@ bool scanner_expect_json_string(Scanner *scanner, char **stringp) {
 
                                 case 'u':
                                         if (!read_unicode_char(p + 1, stream))
-                                                return scanner_error(scanner, "Invalid unicode character");
+                                                return scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER, NULL);
 
                                         p += 4;
                                         break;
 
                                 default:
-                                        return scanner_error(scanner, "Invalid escape sequence");
+                                        return scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER, NULL);
                         }
                 } else
                         fprintf(stream, "%c", *p);
@@ -564,7 +570,7 @@ bool scanner_expect_operator(Scanner *scanner, const char *op) {
         scanner_advance(scanner);
 
         if (strncmp(scanner->p, op, length) != 0)
-                return scanner_error(scanner, "'%s' expected", op);
+                return scanner_error(scanner, SCANNER_ERROR_OPERATOR_EXPECTED, op);
 
         scanner->p += length;
 

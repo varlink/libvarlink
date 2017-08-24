@@ -1,6 +1,5 @@
 #include "command.h"
 #include "interface.h"
-#include "parse-error.h"
 #include "util.h"
 
 #include <errno.h>
@@ -47,7 +46,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         const char *in_filename = NULL;
         const char *out_filename = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-        _cleanup_(varlink_parse_error_freep) VarlinkParseError *error = NULL;
+        _cleanup_(scanner_freep) Scanner *scanner = NULL;
         _cleanup_(fclosep) FILE *in_file = NULL;
         _cleanup_(fclosep) FILE *out_file = NULL;
         _cleanup_(freep) char *in = NULL;
@@ -98,12 +97,12 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 return EXIT_FAILURE;
         }
 
-        r = varlink_interface_new(&interface, in, &error);
+        r = varlink_interface_new(&interface, in, &scanner);
         if (r < 0) {
-                unsigned long line_nr, pos_nr;
-                const char *message = varlink_parse_error_get_string(error, &line_nr, &pos_nr);
-
-                fprintf(stderr, "%s:%lu:%lu: %s\n", in_filename, line_nr, pos_nr, message);
+                fprintf(stderr, "%s:%lu:%lu: %s %s\n",
+                                in_filename,
+                                scanner->line_nr, scanner->error.pos_nr,
+                                scanner_error_string(scanner->error.no), scanner->error.identifier ?: "");
                 return EXIT_FAILURE;
         }
 

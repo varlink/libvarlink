@@ -1,6 +1,7 @@
 #include "error.h"
 #include "interface.h"
 #include "service.h"
+#include "scanner.h"
 #include "util.h"
 
 #include <ctype.h>
@@ -172,10 +173,10 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
         interface->description = scanner_get_last_docstring(scanner);
 
         if (!scanner_read_keyword(scanner, "interface"))
-                return scanner_error(scanner, "'interface' expected");
+                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_KEYWORD_EXPECTED, NULL);
 
         if (!scanner_expect_interface_name(scanner, &interface->name))
-                return scanner_error(scanner, "Invalid interface name");
+                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID, NULL);
 
         while (scanner_peek(scanner) != '\0') {
                 VarlinkInterfaceMember *member;
@@ -198,7 +199,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 return false;
 
                         if (member->alias->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, "Type definitions must be objects");
+                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
 
                 } else if (scanner_read_keyword(scanner, "method")) {
                         member->type = VARLINK_MEMBER_METHOD;
@@ -213,7 +214,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
                         if (member->method->type_in->kind != VARLINK_TYPE_OBJECT ||
                             member->method->type_out->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, "Method input and output parameters must be literal objects");
+                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
 
                 } else if (scanner_read_keyword(scanner, "error")) {
                         member->type = VARLINK_MEMBER_ERROR;
@@ -224,13 +225,13 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 return false;
 
                         if (member->error->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, "Error data must be an object");
+                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
 
                 } else
-                        return scanner_error(scanner, "'type', 'method', or 'error' expected");
+                        return scanner_error(scanner, SCANNER_ERROR_KEYWORD_EXPECTED, NULL);
 
                 if (avl_tree_insert(interface->member_tree, member->name, member) < 0)
-                        return scanner_error(scanner, "Duplicate member: %s", member->name);
+                        return scanner_error(scanner, SCANNER_ERROR_DUPLICATE_MEMBER_NAME, member->name);
         }
 
         /* check if all referenced types exist */
@@ -241,21 +242,21 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                 switch (member->type) {
                         case VARLINK_MEMBER_ALIAS:
                                 if (!varlink_interface_try_resolve(interface, member->alias, &first_unknown))
-                                        return scanner_error(scanner, "Unkown type: %s", first_unknown);
+                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
                                 break;
 
                         case VARLINK_MEMBER_METHOD:
                                 if (!varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown))
-                                        return scanner_error(scanner, "Unkown type: %s", first_unknown);
+                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
 
                                 if (!varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown))
-                                        return scanner_error(scanner, "Unkown type: %s", first_unknown);
+                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
                                 break;
 
                         case VARLINK_MEMBER_ERROR:
                                 if (member->error) {
                                         if (!varlink_interface_try_resolve(interface, member->error, &first_unknown))
-                                                return scanner_error(scanner, "Unkown type: %s", first_unknown);
+                                                return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
                                 }
                                 break;
                 }
@@ -269,7 +270,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
 long varlink_interface_new(VarlinkInterface **interfacep,
                            const char *description,
-                           VarlinkParseError **errorp) {
+                           Scanner **scannerp) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
@@ -277,7 +278,10 @@ long varlink_interface_new(VarlinkInterface **interfacep,
 
         if (!varlink_interface_new_from_scanner(&interface, scanner) ||
             scanner_peek(scanner) != '\0') {
-                scanner_steal_error(scanner, errorp);
+                if (scannerp) {
+                        *scannerp = scanner;
+                        scanner = NULL;
+                }
                 return -VARLINK_ERROR_INVALID_INTERFACE;
         }
 

@@ -27,10 +27,10 @@ static void test_invalid(void) {
         for (unsigned long c = 0; c < ARRAY_SIZE(cases); c += 1) {
                 const char *string = cases[c];
                 _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-                _cleanup_(varlink_parse_error_freep) VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                assert(varlink_interface_new(&interface, string, &error) == -VARLINK_ERROR_INVALID_INTERFACE);
-                assert(error);
+                assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(scanner->error.no > 0);
         }
 }
 
@@ -79,12 +79,11 @@ static void test_name(void) {
         for (unsigned long i = 0; i < ARRAY_SIZE(invalid); i += 1) {
                 _cleanup_(freep) char *string = NULL;
                 VarlinkInterface *interface;
-                VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
                 asprintf(&string, "interface %s", invalid[i]);
-                assert(varlink_interface_new(&interface, string, &error) == -VARLINK_ERROR_INVALID_INTERFACE);
-                assert(error);
-                assert(varlink_parse_error_free(error) == NULL);
+                assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(scanner);
         }
 }
 
@@ -113,12 +112,11 @@ static void test_method_name(void) {
         for (unsigned long i = 0; i < ARRAY_SIZE(invalid); i += 1) {
                 _cleanup_(freep) char *string = NULL;
                 VarlinkInterface *interface;
-                VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
                 asprintf(&string, "interface a.b\nmethod %s() -> ()", invalid[i]);
-                assert(varlink_interface_new(&interface, string, &error) == -VARLINK_ERROR_INVALID_INTERFACE);
-                assert(error);
-                assert(varlink_parse_error_free(error) == NULL);
+                assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(scanner);
         }
 
         /* duplicate */
@@ -127,11 +125,10 @@ static void test_method_name(void) {
                                      "method A() -> ()\n"
                                      "method A() -> ()\n";
                 VarlinkInterface *interface;
-                VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                assert(varlink_interface_new(&interface, string, &error) == -VARLINK_ERROR_INVALID_INTERFACE);
-                assert(error);
-                assert(varlink_parse_error_free(error) == NULL);
+                assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(scanner);
         }
 }
 
@@ -149,10 +146,10 @@ static void test_docstrings(void) {
                                      "method Foo () -> ()\n";
 
                 VarlinkInterface *interface = NULL;
-                VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                assert(varlink_interface_new(&interface, string, &error) == 0);
-                assert(error == NULL);
+                assert(varlink_interface_new(&interface, string, &scanner) == 0);
+                assert(scanner == NULL);
                 assert(strcmp(interface->description, "Description\nSecond line\n") == 0);
                 assert(strcmp(varlink_interface_get_member_description(interface, "A"), "A type\n") == 0);
                 assert(strcmp(varlink_interface_get_member_description(interface, "Foo"), "A method\n") == 0);
@@ -166,10 +163,10 @@ static void test_docstrings(void) {
                                      "type A (one: int)\n";
 
                 VarlinkInterface *interface = NULL;
-                VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                assert(varlink_interface_new(&interface, string, &error) == 0);
-                assert(error == NULL);
+                assert(varlink_interface_new(&interface, string, &scanner) == 0);
+                assert(scanner == NULL);
                 assert(interface->description == NULL);
                 assert(varlink_interface_get_type(interface, "A") != NULL);
                 assert(varlink_interface_free(interface) == NULL);
@@ -202,11 +199,14 @@ static void test_writer(void) {
         for (unsigned long c = 0; c < ARRAY_SIZE(cases); c += 1) {
                 const char *string = cases[c];
                 _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-                _cleanup_(varlink_parse_error_freep) VarlinkParseError *error = NULL;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
                 _cleanup_(freep) char *output = NULL;
 
-                if (varlink_interface_new(&interface, string, &error) < 0) {
-                        fprintf(stderr, "case %lu: %lu:%lu: %s\n", c, error->line_nr, error->pos_nr, error->message);
+                if (varlink_interface_new(&interface, string, &scanner) < 0) {
+                        fprintf(stderr, "case %lu: %lu:%lu: %li %s\n",
+                                        c,
+                                        scanner->error.line_nr, scanner->error.pos_nr,
+                                        scanner->error.no, scanner->error.identifier);
                         assert(false);
                 }
 

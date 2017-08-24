@@ -1,5 +1,6 @@
 #include "error.h"
 #include "interface.h"
+#include "scanner.h"
 #include "service.h"
 #include "util.h"
 
@@ -78,7 +79,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
 
                         /* make sure a field with this name doesn't exist yet */
                         if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
-                                return scanner_error(scanner, "Duplicate field name: %s", field->name);
+                                return scanner_error(scanner, SCANNER_ERROR_DUPLICATE_FIELD_NAME, field->name);
 
                         if (type->n_fields == n_fields_allocated) {
                                 n_fields_allocated = MAX(n_fields_allocated * 2, 4);
@@ -97,7 +98,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                 char *alias;
 
                 if (!scanner_expect_type_name(scanner, &alias))
-                        return scanner_error(scanner, "Type expected");
+                        return scanner_error(scanner, SCANNER_ERROR_TYPE_EXPECTED, NULL);
 
                 varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
                 type->alias = alias;

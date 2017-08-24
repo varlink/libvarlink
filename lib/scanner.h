@@ -1,8 +1,43 @@
 #pragma once
 
-#include "parse-error.h"
+#include <stdbool.h>
+#include <stdint.h>
 
-typedef struct Scanner Scanner;
+enum {
+        SCANNER_ERROR_PANIC,
+        SCANNER_ERROR_INTERFACE_KEYWORD_EXPECTED,
+        SCANNER_ERROR_KEYWORD_EXPECTED,
+        SCANNER_ERROR_DUPLICATE_FIELD_NAME,
+        SCANNER_ERROR_INTERFACE_NAME_INVALID,
+        SCANNER_ERROR_OBJECT_EXPECTED,
+        SCANNER_ERROR_DUPLICATE_MEMBER_NAME,
+        SCANNER_ERROR_MEMBER_NAME_INVALID,
+        SCANNER_ERROR_UNKNOWN_TYPE,
+        SCANNER_ERROR_FIELD_NAME_INVALID,
+        SCANNER_ERROR_TYPE_NAME_INVALID,
+        SCANNER_ERROR_INVALID_CHARACTER,
+        SCANNER_ERROR_OPERATOR_EXPECTED,
+        SCANNER_ERROR_TYPE_EXPECTED,
+        SCANNER_ERROR_JSON_EXPECTED,
+        SCANNER_ERROR_MAX
+};
+
+typedef struct {
+        const char *string;
+        const char *p;
+        const char *pline;
+        unsigned long line_nr;
+
+        const char *last_comment_start;
+        bool json;
+
+        struct {
+                long no;
+                char *identifier;
+                unsigned long line_nr;
+                unsigned long pos_nr;
+        } error;
+} Scanner;
 
 typedef struct {
         bool is_double;
@@ -12,21 +47,13 @@ typedef struct {
         };
 } ScannerNumber;
 
+bool scanner_error(Scanner *scanner, long error, const char *identifier);
+const char *scanner_error_string(long error);
+
 long scanner_new_interface(Scanner **scannerp, const char *string);
 long scanner_new_json(Scanner **scannerp, const char *string);
 void scanner_free(Scanner *scanner);
 void scanner_freep(Scanner **scannerp);
-
-/*
- * Sets the error on scanner and returns false.
- */
-bool scanner_error(Scanner *scanner, const char *fmt, ...) __attribute__((format (printf, 2, 3)));
-
-/*
- * If errorp is not NULL and scanner has an error, copies the error into
- * errorp.
- */
-void scanner_steal_error(Scanner *scanner, VarlinkParseError **errorp);
 
 /*
  * If the scanner was created with scanner_new_interface(), return the

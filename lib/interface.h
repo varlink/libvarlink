@@ -49,7 +49,7 @@ struct VarlinkMethod {
 
 long varlink_interface_new(VarlinkInterface **interfacep,
                            const char *description,
-                           VarlinkParseError **errorp);
+                           Scanner **scannerp);
 
 VarlinkInterface *varlink_interface_free(VarlinkInterface *interface);
 void varlink_interface_freep(VarlinkInterface **interface);

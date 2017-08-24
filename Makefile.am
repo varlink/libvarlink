@@ -74,8 +74,6 @@ libvarlink_a_SOURCES = \
 	lib/interface.h \
 	lib/object.c \
 	lib/object.h \
-	lib/parse-error.c \
-	lib/parse-error.h \
 	lib/scanner.c \
 	lib/scanner.h \
 	lib/socket.c \
