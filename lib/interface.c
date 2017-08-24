@@ -38,11 +38,9 @@ static void write_docstring(FILE *stream,
         }
 }
 
-static long varlink_interface_try_resolve(VarlinkInterface *interface,
+static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                                           VarlinkType *type,
                                           const char **first_unknownp) {
-        long r = 0;
-
         switch (type->kind) {
                 case VARLINK_TYPE_BOOL:
                 case VARLINK_TYPE_INT:
@@ -53,17 +51,15 @@ static long varlink_interface_try_resolve(VarlinkInterface *interface,
                         break;
 
                 case VARLINK_TYPE_ARRAY:
-                        r = varlink_interface_try_resolve(interface, type->element_type, first_unknownp);
-                        if (r < 0)
-                                return r;
+                        if (!varlink_interface_try_resolve(interface, type->element_type, first_unknownp))
+                                return false;
+
                         break;
 
                 case VARLINK_TYPE_OBJECT:
-                        for (unsigned long i = 0; i < type->n_fields; i += 1) {
-                                r = varlink_interface_try_resolve(interface, type->fields[i]->type, first_unknownp);
-                                if (r < 0)
-                                        return r;
-                        }
+                        for (unsigned long i = 0; i < type->n_fields; i += 1)
+                                if (!varlink_interface_try_resolve(interface, type->fields[i]->type, first_unknownp))
+                                        return false;
                         break;
 
                 case VARLINK_TYPE_ALIAS:
@@ -71,12 +67,12 @@ static long varlink_interface_try_resolve(VarlinkInterface *interface,
                                 if (first_unknownp)
                                         *first_unknownp = type->alias;
 
-                                return -1;
+                                return false;
                         }
                         break;
         }
 
-        return 0;
+        return true;
 }
 
 static VarlinkMethod *varlink_method_free(VarlinkMethod *method) {
@@ -149,7 +145,6 @@ long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name)
 static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Scanner *scanner) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         unsigned n_allocated = 0;
-        long r;
 
         varlink_interface_allocate(&interface, NULL);
 
@@ -213,8 +208,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                 } else
                         return scanner_error(scanner, "'type', 'method', or 'error' expected");
 
-                r = avl_tree_insert(interface->member_tree, member->name, member);
-                if (r < 0)
+                if (avl_tree_insert(interface->member_tree, member->name, member) < 0)
                         return scanner_error(scanner, "Duplicate member: %s", member->name);
         }
 
@@ -225,23 +219,19 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
                 switch (member->type) {
                         case VARLINK_MEMBER_ALIAS:
-                                r = varlink_interface_try_resolve(interface, member->alias, &first_unknown);
-                                if (r < 0)
+                                if (!varlink_interface_try_resolve(interface, member->alias, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
                                 break;
                         case VARLINK_MEMBER_METHOD:
-                                r = varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown);
-                                if (r < 0)
+                                if (!varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
 
-                                r = varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown);
-                                if (r < 0)
+                                if (!varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
                                 break;
                         case VARLINK_MEMBER_ERROR:
                                 if (member->error) {
-                                        r = varlink_interface_try_resolve(interface, member->error, &first_unknown);
-                                        if (r < 0)
+                                        if (!varlink_interface_try_resolve(interface, member->error, &first_unknown))
                                                 return scanner_error(scanner, "Unkown type: %s", first_unknown);
                                 }
                                 break;
