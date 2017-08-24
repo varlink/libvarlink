@@ -119,7 +119,7 @@ static void test_method_name(void) {
                 assert(scanner);
         }
 
-        /* duplicate */
+        /* duplicate method */
         {
                 const char *string = "interface a.b\n"
                                      "method A() -> ()\n"
@@ -129,6 +129,23 @@ static void test_method_name(void) {
 
                 assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
                 assert(scanner);
+                assert(scanner->error.no == SCANNER_ERROR_DUPLICATE_MEMBER_NAME);
+        }
+
+        /* duplicate field */
+        {
+                const char *string = "interface a.b\n"
+                                     "method A(\n"
+                                     " one: string,\n"
+                                     " two: string,\n"
+                                     " two: string\n"
+                                     ") -> ()\n";
+                VarlinkInterface *interface;
+                _cleanup_(scanner_freep) Scanner *scanner = NULL;
+
+                assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(scanner);
+                assert(scanner->error.no == SCANNER_ERROR_DUPLICATE_FIELD_NAME);
         }
 }
 
