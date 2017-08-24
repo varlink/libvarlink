@@ -63,6 +63,27 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                         break;
 
                 case VARLINK_TYPE_ALIAS:
+                        if (*type->alias >= 'a' && *type->alias <= 'z') {
+                                _cleanup_(freep) char *interface_name = NULL;
+                                _cleanup_(freep) char *type_name = NULL;
+
+                                if (varlink_interface_parse_qualified_name(type->alias, &interface_name, &type_name) < 0)
+                                        return false;
+
+                                /* Remove our own prefix */
+                                if (strcmp(interface->name, interface_name) == 0) {
+                                        if (varlink_interface_get_type(interface, type_name) == NULL) {
+                                                if (first_unknownp)
+                                                        *first_unknownp = type->alias;
+
+                                                return false;
+                                        }
+                                }
+
+                                /* Do not resolve external types */
+                                break;
+                        }
+
                         if (varlink_interface_get_type(interface, type->alias) == NULL) {
                                 if (first_unknownp)
                                         *first_unknownp = type->alias;
@@ -222,6 +243,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 if (!varlink_interface_try_resolve(interface, member->alias, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
                                 break;
+
                         case VARLINK_MEMBER_METHOD:
                                 if (!varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
@@ -229,6 +251,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 if (!varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown))
                                         return scanner_error(scanner, "Unkown type: %s", first_unknown);
                                 break;
+
                         case VARLINK_MEMBER_ERROR:
                                 if (member->error) {
                                         if (!varlink_interface_try_resolve(interface, member->error, &first_unknown))

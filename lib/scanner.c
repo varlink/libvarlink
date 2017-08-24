@@ -164,7 +164,16 @@ char scanner_peek(Scanner *scanner) {
 static unsigned long scanner_word_len(Scanner *scanner) {
         scanner_advance(scanner);
 
-        for (unsigned long i = 0;; i += 1) {
+        switch (*scanner->p) {
+                case 'a' ... 'z':
+                case 'A' ... 'Z':
+                        break;
+
+                default:
+                        return 0;
+        }
+
+        for (unsigned long i = 1;; i += 1) {
                 switch (scanner->p[i]) {
                         case '0' ... '9':
                         case 'a' ... 'z':
