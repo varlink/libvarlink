@@ -432,13 +432,13 @@ bool scanner_expect_json_string(Scanner *scanner, char **stringp) {
 
                                 case 'u':
                                         if (!read_unicode_char(p + 1, stream))
-                                                return scanner_error(scanner, "invalid unicode character");
+                                                return scanner_error(scanner, "Invalid unicode character");
 
                                         p += 4;
                                         break;
 
                                 default:
-                                        return scanner_error(scanner, "invalid escape sequence");
+                                        return scanner_error(scanner, "Invalid escape sequence");
                         }
                 } else
                         fprintf(stream, "%c", *p);
