@@ -100,9 +100,9 @@ static long format_run(Cli *cli, int argc, char **argv) {
         r = varlink_interface_new(&interface, in, &scanner);
         if (r < 0) {
                 fprintf(stderr, "%s:%lu:%lu: %s %s\n",
-                                in_filename,
-                                scanner->line_nr, scanner->error.pos_nr,
-                                scanner_error_string(scanner->error.no), scanner->error.identifier ?: "");
+                        in_filename,
+                        scanner->line_nr, scanner->error.pos_nr,
+                        scanner_error_string(scanner->error.no), scanner->error.identifier ?: "");
                 return EXIT_FAILURE;
         }
 

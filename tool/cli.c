@@ -197,7 +197,7 @@ long cli_call_on_address(Cli *cli,
                          char **errorp,
                          VarlinkObject **outp) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        struct Reply reply = { 0 };
+        struct Reply reply = {};
         long r;
 
         r = varlink_connection_new(&connection, address);
@@ -341,7 +341,7 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
 }
 
 long cli_run(Cli *cli, int argc, char **argv) {
-        CliArguments arguments = { 0 };
+        CliArguments arguments = {};
         const CliCommand *command;
         long r;
 
@@ -406,7 +406,7 @@ void cli_print_completion(const char *current, const char *format, ...) {
 }
 
 long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
-        CliArguments arguments = { 0 };
+        CliArguments arguments = {};
         int r;
 
         r = cli_parse_arguments(argc, argv, &arguments);

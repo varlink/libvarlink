@@ -114,7 +114,7 @@ int main(void) {
                                         "method Later() -> ()";
         const char *words[] = { "one", "two", "three", "four", "five" };
 
-        Test test = { 0 };
+        Test test = {};
         VarlinkCall *later_call = NULL;
 
         assert(varlink_service_new(&test.service, "Varlink", "Test Service", "0.1", "http://", "@test.socket", -1) == 0);

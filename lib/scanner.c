@@ -299,6 +299,16 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                 }
         }
 
+        switch (scanner->p[len - 1]) {
+                case '0' ... '9':
+                case 'a' ... 'z':
+                case 'A' ... 'Z':
+                        break;
+
+                default:
+                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
+        }
+
         *namep = strndup(scanner->p, len);
         scanner->p += len;
 
@@ -516,7 +526,7 @@ bool scanner_expect_json_string(Scanner *scanner, char **stringp) {
 }
 
 bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
-        ScannerNumber number = { 0 };
+        ScannerNumber number = {};
         char *end;
 
         scanner_advance(scanner);

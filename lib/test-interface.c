@@ -221,9 +221,9 @@ static void test_writer(void) {
 
                 if (varlink_interface_new(&interface, string, &scanner) < 0) {
                         fprintf(stderr, "case %lu: %lu:%lu: %li %s\n",
-                                        c,
-                                        scanner->error.line_nr, scanner->error.pos_nr,
-                                        scanner->error.no, scanner->error.identifier);
+                                c,
+                                scanner->error.line_nr, scanner->error.pos_nr,
+                                scanner->error.no, scanner->error.identifier);
                         assert(false);
                 }
 
