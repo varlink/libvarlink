@@ -24,7 +24,7 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
 
         if (!varlink_type_new_from_scanner(&type, scanner) ||
             scanner_peek(scanner) != '\0')
-                return -VARLINK_ERROR_INVALID_INTERFACE;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *typep = type;
         type = NULL;

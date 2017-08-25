@@ -30,6 +30,7 @@ static const char *error_strings[] = {
         [VARLINK_ERROR_INVALID_CALL] ="InvalidCall",
         [VARLINK_ERROR_CONNECTION_CLOSED] ="ConnectionClosed",
         [VARLINK_ERROR_NOT_AVAILABLE] ="NotAvailable",
+        [VARLINK_ERROR_INVALID_TYPE] = "InvalidType",
 };
 
 const char *varlink_error_string(long error) {

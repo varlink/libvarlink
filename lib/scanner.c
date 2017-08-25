@@ -291,7 +291,11 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                         case '0' ... '9':
                         case 'a' ... 'z':
                         case 'A' ... 'Z':
+                                break;
+
                         case '_':
+                                if (scanner->p[i - 1] == '_')
+                                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
                                 break;
 
                         default:

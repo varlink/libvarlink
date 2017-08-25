@@ -35,6 +35,24 @@ static void test_object(void) {
         {
                 VarlinkType *type;
 
+                assert(varlink_type_new(&type, "(a: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(B: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(aB: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(Ba: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(a_b: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(a__b: int)") == -VARLINK_ERROR_INVALID_TYPE);
+                assert(varlink_type_new(&type, "(_a: int)") == -VARLINK_ERROR_INVALID_TYPE);
+                assert(varlink_type_new(&type, "(a_: int)") == -VARLINK_ERROR_INVALID_TYPE);
+        }
+
+        {
+                VarlinkType *type;
+
                 assert(varlink_type_new(&type, "()") == 0);
                 assert(strcmp(varlink_type_get_typestring(type), "()") == 0);
                 assert(varlink_type_field_get_type(type, "none") == NULL);
@@ -83,7 +101,7 @@ static void test_object(void) {
         {
                 VarlinkType *type;
 
-                assert(varlink_type_new(&type, "(one: string, two: string, one: string)") == -VARLINK_ERROR_INVALID_INTERFACE);
+                assert(varlink_type_new(&type, "(one: string, two: string, one: string)") == -VARLINK_ERROR_INVALID_TYPE);
         }
 }
 
