@@ -241,6 +241,7 @@ static long avl_tree_insert_subtree(AVLTree *tree,
                                     void *value) {
         AVLTreeNode *node;
         long d;
+        long r;
 
         node = *nodep;
 
@@ -258,10 +259,16 @@ static long avl_tree_insert_subtree(AVLTree *tree,
                 return -AVL_ERROR_KEY_EXISTS;
 
         if (d < 0) {
-                avl_tree_insert_subtree(tree, &node->left, key, value);
+                r = avl_tree_insert_subtree(tree, &node->left, key, value);
+                if (r < 0)
+                        return r;
+
                 node->left->parent = node;
         } else {
-                avl_tree_insert_subtree(tree, &node->right, key, value);
+                r = avl_tree_insert_subtree(tree, &node->right, key, value);
+                if (r < 0)
+                        return r;
+
                 node->right->parent = node;
         }
 
