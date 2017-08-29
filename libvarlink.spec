@@ -1,9 +1,6 @@
-%define build_date %(date +"%%a %%b %%d %%Y")
-%define build_timestamp %(date +"%%Y%%m%%d.%%H%M%%S")
-
 Name:           libvarlink
 Version:        1
-Release:        %{build_timestamp}%{?dist}
+Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL2.0
 URL:            https://github.com/varlink/%{name}
@@ -54,5 +51,5 @@ make check
 %{_libdir}/pkgconfig/libvarlink.pc
 
 %changelog
-* %{build_date} <info@varlink.org> %{version}-%{build_timestamp}
-- %{name} %{version}
+* Tue Aug 29 2017 <info@varlink.org> 1-1
+- libvarlink 1

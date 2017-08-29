@@ -26,11 +26,11 @@ vgcore.*
 lib/*.pc
 /*.so.0
 
+/test-array
+/test-avl
+/test-error
 /test-interface
 /test-server-client
 /test-type
-/test-array
 /test-object
-/test-error
-/test-avl
 /varlink
