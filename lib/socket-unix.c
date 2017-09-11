@@ -75,7 +75,7 @@ long varlink_socket_listen_unix(const char *path, int *fdp) {
         if (bind(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        if (sa.sun_path[0] != '@')
+        if (sa.sun_path[0] != '\0')
                 chmod(sa.sun_path, 0666);
 
         if (listen(fd, SOMAXCONN) < 0)
