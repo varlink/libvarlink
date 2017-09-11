@@ -5,7 +5,8 @@ Summary:        Varlink C Library
 License:        ASL2.0
 URL:            https://github.com/varlink/%{name}
 Source0:        https://github.com/varlink/%{name}/archive/%{name}-%{version}.tar.gz
-BuildRequires:  autoconf automake pkgconfig
+BuildRequires:  meson
+BuildRequires:  gcc
 
 %description
 Varlink C Library
@@ -22,15 +23,15 @@ developing applications that use %{name}.
 %setup -q
 
 %build
-./autogen.sh
-%configure
-make %{?_smp_mflags}
+%meson
+%meson_build
 
 %check
-make check
+export LC_CTYPE=C.utf8
+%meson_test
 
 %install
-%make_install
+%meson_install
 
 %post -p /sbin/ldconfig
 
