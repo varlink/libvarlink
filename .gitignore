@@ -10,6 +10,8 @@
 *.trs
 *~
 vgcore.*
+/TAGS
+/tags
 
 /aclocal.m4
 /build*/

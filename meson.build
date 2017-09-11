@@ -122,3 +122,25 @@ executable(
 	link_with : libvarlink_a,
 	include_directories : libvarlink_include,
 	install : true)
+
+############################################################
+
+git = find_program('git', required : false)
+
+if git.found()
+        all_files = run_command(
+                git,
+                ['--git-dir=@0@/.git'.format(meson.current_source_dir()),
+                 'ls-files',
+                 ':/*.[ch]'])
+        all_files = files(all_files.stdout().split())
+
+        custom_target(
+                'tags',
+                output : 'tags',
+                command : ['env', 'etags', '-o', '@0@/TAGS'.format(meson.current_source_dir())] + all_files)
+        custom_target(
+                'ctags',
+                output : 'ctags',
+                command : ['env', 'ctags', '-o', '@0@/tags'.format(meson.current_source_dir())] + all_files)
+endif
