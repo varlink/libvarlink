@@ -1,3 +1,6 @@
+install_headers(
+        'varlink.h')
+
 libvarlink_sources = '''
         array.c
         array.h
