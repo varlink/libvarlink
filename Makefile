@@ -1,11 +1,20 @@
 all: build
 	ninja -C build
-
-check: build
-	meson test -C build --wrap=valgrind
+.PHONY: all
 
 build:
 	meson build
+
+clean:
+	rm -rf build/
+
+install: build
+	ninja -C build install
+.PHONY: install
+
+check: build
+	meson test -C build --wrap=valgrind
+.PHONY: check
 
 format:
 	@for f in lib/*.[ch] tool/*.[ch]; do \
@@ -14,7 +23,7 @@ format:
 	done
 .PHONY: format
 
-install-tree: all
+install-tree: build
 	rm -rf build/install-tree
 	DESTDIR=install-tree ninja -C build install
 	tree build/install-tree
