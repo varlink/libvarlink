@@ -96,6 +96,10 @@ endif
 libdir = join_paths(prefixdir, get_option('libdir'))
 includedir = join_paths(prefixdir, get_option('includedir'))
 pkgconfiglibdir = join_paths(libdir, 'pkgconfig')
+bashcompletiondir = 'share/bash-completion/completions'
+vimftdetectdir = 'share/vim/vimfiles/after/ftdetect'
+vimftplugindir = 'share/vim/vimfiles/after/ftplugin'
+vimsyntaxdir = 'share/vim/vimfiles/after/syntax'
 
 substs = configuration_data()
 substs.set('VERSION', meson.project_version())
@@ -108,6 +112,8 @@ varlinker_py = find_program('./varlink-wrapper.py')
 
 subdir('lib')
 subdir('tool')
+subdir('vim')
+subdir('bash-completion')
 
 # we define this here, so it ends up in the top level build dir
 executable(
