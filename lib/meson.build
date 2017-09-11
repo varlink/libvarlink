@@ -94,3 +94,7 @@ exe = executable(
 	link_with : libvarlink_a,
 	dependencies: libm)
 test('test-avl', exe)
+
+exe = find_program('test-symbols.sh')
+test('test-symbols', exe,
+     args : [libvarlink_sym, libvarlink_a])
