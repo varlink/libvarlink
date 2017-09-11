@@ -49,7 +49,7 @@ AM_LDFLAGS = $(OUR_LDFLAGS)
 # ------------------------------------------------------------------------------
 # varlink interface files
 
-%.varlink.inc.c: %.varlink
+%.varlink.c.inc: %.varlink
 	$(AM_V_GEN) \
 		if [ -x /usr/bin/varlink ]; then varlink format $< >/dev/null; fi && \
 		echo "static const char *$(subst .,_,$(patsubst %.h,%,$(notdir $<))) = R\"INTERFACE(" > $@ && \
@@ -134,7 +134,7 @@ pkgconfiglib_DATA += \
 	lib/libvarlink.pc
 
 BUILT_SOURCES += \
-	lib/org.varlink.service.varlink.inc.c
+	lib/org.varlink.service.varlink.c.inc
 
 TESTS += \
 	lib/test-symbols.sh

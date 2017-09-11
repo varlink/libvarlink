@@ -15,7 +15,7 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "org.varlink.service.varlink.inc.c"
+#include "org.varlink.service.varlink.c.inc"
 
 typedef struct ServiceConnection ServiceConnection;
 
