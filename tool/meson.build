@@ -14,3 +14,10 @@ varlink_sources = files('''
         terminal-colors.c
         terminal-colors.h
 '''.split())
+
+executable(
+        'varlink',
+        varlink_sources,
+        link_with : libvarlink_a,
+        include_directories : libvarlink_include,
+        install : true)

@@ -34,7 +34,7 @@ varlink_c_inc = custom_target(
         'org.varlink.service.varlink',
         input : 'org.varlink.service.varlink',
         output : 'org.varlink.service.varlink.c.inc',
-        command : [varlinker_py, '@INPUT@', '@OUTPUT@'])
+        command : [varlink_wrapper_py, '@INPUT@', '@OUTPUT@'])
 
 libvarlink_a = static_library(
         'varlink',

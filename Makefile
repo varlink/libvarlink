@@ -7,6 +7,7 @@ build:
 
 clean:
 	rm -rf build/
+.PHONY: clean
 
 install: build
 	ninja -C build install

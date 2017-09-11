@@ -61,8 +61,6 @@ foreach arg : c_args
         add_project_arguments(arg, language : 'c')
 endforeach
 
-# -Wp,-D_FORTIFY_SOURCE=2
-
 ld_args = '''
         -Wl,--as-needed
         -Wl,--no-undefined
@@ -106,22 +104,12 @@ substs.set('VERSION', meson.project_version())
 substs.set('libdir', libdir)
 substs.set('includedir', prefixdir)
 
-############################################################
-
-varlinker_py = find_program('./varlink-wrapper.py')
+varlink_wrapper_py = find_program('./varlink-wrapper.py')
 
 subdir('lib')
 subdir('tool')
 subdir('vim')
 subdir('bash-completion')
-
-# we define this here, so it ends up in the top level build dir
-executable(
-        'varlink',
-        varlink_sources,
-        link_with : libvarlink_a,
-        include_directories : libvarlink_include,
-        install : true)
 
 ############################################################
 
