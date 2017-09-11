@@ -1,24 +1,21 @@
-check-format:
-	@for f in lib/*.[ch] tool/*.[ch]; do \
-		echo "  CHECK-FORMAT $$f"; \
-		astyle --quiet --options=$(abs_srcdir)/.astylerc < $$f | cmp -s $$f -; \
-		if [ $$? -ne 0 ]; then \
-			astyle --quiet --options=$(abs_srcdir)/.astylerc < $$f | diff -u $$f -; \
-			exit 1; \
-		fi; \
-	done
+all: build
+	ninja -C build
+
+check: build
+	meson test -C build --wrap=valgrind
+
+build:
+	meson build
 
 format:
 	@for f in lib/*.[ch] tool/*.[ch]; do \
-		echo "  FORMAT $$f"; \
-		astyle --quiet --options=$(abs_srcdir)/.astylerc $$f; \
+		echo $$f; \
+		astyle --quiet --options=.astylerc $$f; \
 	done
-endif
-.PHONY: check-format
 .PHONY: format
 
 install-tree: all
-	rm -rf $(abs_builddir)/install-tree
-	$(MAKE) install DESTDIR=$(abs_builddir)/install-tree
-	tree $(abs_builddir)/install-tree
+	rm -rf build/install-tree
+	DESTDIR=install-tree ninja -C build install
+	tree build/install-tree
 .PHONY: install-tree
