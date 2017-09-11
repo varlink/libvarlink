@@ -1,0 +1,96 @@
+libvarlink_sources = '''
+        array.c
+        array.h
+        avltree.c
+        avltree.h
+        connection.c
+        error.c
+        error.h
+        interface.c
+        interface.h
+        object.c
+        object.h
+        scanner.c
+        scanner.h
+        socket.c
+        socket.h
+        socket-tcp.c
+        socket-unix.c
+        service.c
+        service.h
+        type.h
+        type.c
+        util.c
+        util.h
+        value.c
+        value.h
+        varlink.h
+'''.split()
+
+varlink_c_inc = custom_target(
+        'org.varlink.service.varlink',
+	input : 'org.varlink.service.varlink',
+	output : 'org.varlink.service.varlink.c.inc',
+	command : [varlinker_py, '@INPUT@', '@OUTPUT@'])
+
+libvarlink_a = static_library(
+        'varlink',
+        libvarlink_sources,
+        varlink_c_inc,
+        install : false)
+
+libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
+libvarlink_so = shared_library(
+        'varlink',
+	libvarlink_sources,
+	version : '0',
+        link_args : ['-shared',
+                     '-Wl,--version-script=' + libvarlink_sym],
+        install : true)
+
+libvarlink_include = include_directories('.')
+
+############################################################
+
+exe = executable(
+        'test-interface',
+	'test-interface.c',
+	link_with : libvarlink_a)
+test('test-interface', exe)
+
+exe = executable(
+        'test-server-client',
+	'test-server-client.c',
+	link_with : libvarlink_a)
+test('test-server-client', exe)
+
+exe = executable(
+        'test-object',
+	'test-object.c',
+	link_with : libvarlink_a)
+test('test-object', exe)
+
+exe = executable(
+        'test-array',
+	'test-array.c',
+	link_with : libvarlink_a)
+test('test-array', exe)
+
+exe = executable(
+        'test-type',
+	'test-type.c',
+	link_with : libvarlink_a)
+test('test-type', exe)
+
+exe = executable(
+        'test-error',
+	'test-error.c',
+	link_with : libvarlink_a)
+test('test-error', exe)
+
+exe = executable(
+        'test-avl',
+	'test-avl.c',
+	link_with : libvarlink_a,
+	dependencies: libm)
+test('test-avl', exe)
