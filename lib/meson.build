@@ -29,9 +29,9 @@ libvarlink_sources = '''
 
 varlink_c_inc = custom_target(
         'org.varlink.service.varlink',
-	input : 'org.varlink.service.varlink',
-	output : 'org.varlink.service.varlink.c.inc',
-	command : [varlinker_py, '@INPUT@', '@OUTPUT@'])
+        input : 'org.varlink.service.varlink',
+        output : 'org.varlink.service.varlink.c.inc',
+        command : [varlinker_py, '@INPUT@', '@OUTPUT@'])
 
 libvarlink_a = static_library(
         'varlink',
@@ -42,8 +42,8 @@ libvarlink_a = static_library(
 libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
 libvarlink_so = shared_library(
         'varlink',
-	libvarlink_sources,
-	version : '0',
+        libvarlink_sources,
+        version : '0',
         link_args : ['-shared',
                      '-Wl,--version-script=' + libvarlink_sym],
         install : true)
@@ -63,47 +63,47 @@ install_data(libvarlink_pc,
 
 exe = executable(
         'test-interface',
-	'test-interface.c',
-	link_with : libvarlink_a)
+        'test-interface.c',
+        link_with : libvarlink_a)
 test('test-interface', exe)
 
 exe = executable(
         'test-server-client',
-	'test-server-client.c',
-	link_with : libvarlink_a)
+        'test-server-client.c',
+        link_with : libvarlink_a)
 test('test-server-client', exe)
 
 exe = executable(
         'test-object',
-	'test-object.c',
-	link_with : libvarlink_a)
+        'test-object.c',
+        link_with : libvarlink_a)
 test('test-object', exe)
 
 exe = executable(
         'test-array',
-	'test-array.c',
-	link_with : libvarlink_a)
+        'test-array.c',
+        link_with : libvarlink_a)
 test('test-array', exe)
 
 exe = executable(
         'test-type',
-	'test-type.c',
-	link_with : libvarlink_a)
+        'test-type.c',
+        link_with : libvarlink_a)
 test('test-type', exe)
 
 exe = executable(
         'test-error',
-	'test-error.c',
-	link_with : libvarlink_a)
+        'test-error.c',
+        link_with : libvarlink_a)
 test('test-error', exe)
 
 exe = executable(
         'test-avl',
-	'test-avl.c',
-	link_with : libvarlink_a,
-	dependencies: libm)
+        'test-avl.c',
+        link_with : libvarlink_a,
+        dependencies: libm)
 test('test-avl', exe)
 
 exe = find_program('test-symbols.sh')
 test('test-symbols', exe,
-     args : [libvarlink_sym, libvarlink_a])
+     args : [libvarlink_sym, join_paths(meson.build_root(), 'lib/libvarlink.a')])

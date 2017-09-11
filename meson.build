@@ -117,11 +117,11 @@ subdir('bash-completion')
 
 # we define this here, so it ends up in the top level build dir
 executable(
-	'varlink',
-	varlink_sources,
-	link_with : libvarlink_a,
-	include_directories : libvarlink_include,
-	install : true)
+        'varlink',
+        varlink_sources,
+        link_with : libvarlink_a,
+        include_directories : libvarlink_include,
+        install : true)
 
 ############################################################
 

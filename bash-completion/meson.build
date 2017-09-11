@@ -1,2 +1,2 @@
 install_data('varlink',
-	     install_dir : bashcompletiondir)
+             install_dir : bashcompletiondir)
