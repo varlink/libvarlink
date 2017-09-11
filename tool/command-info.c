@@ -2,6 +2,7 @@
 #include "terminal-colors.h"
 #include "util.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
@@ -107,9 +108,43 @@ static long info_run(Cli *cli, int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
+static long info_complete(Cli *cli, int argc, char **argv, const char *current) {
+        _cleanup_(freep) char *prefix = NULL;
+        DIR *dir;
+        char *p;
+
+        p = strrchr(current, '/');
+        if (p) {
+                prefix = strndup(current, p - current + 1);
+                dir = opendir(prefix);
+        } else
+                dir = opendir(".");
+        if (!dir)
+                return 0;
+
+        for (struct dirent *d = readdir(dir); d; d = readdir(dir)) {
+                if (d->d_name[0] == '.')
+                        continue;
+
+                switch (d->d_type) {
+                        case DT_DIR:
+                                cli_print_completion(current, "%s%s/", prefix ?: "", d->d_name);
+                                break;
+
+                        case DT_SOCK:
+                                cli_print_completion(current, "%s%s", prefix ?: "", d->d_name);
+                                break;
+                }
+        }
+
+        closedir(dir);
+
+        return 0;
+}
+
 const CliCommand command_info = {
         .name = "info",
         .info = "Print information about a service",
-        .run = info_run
+        .run = info_run,
+        .complete = info_complete
 };
-

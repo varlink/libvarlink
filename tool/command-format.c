@@ -143,7 +143,7 @@ static long format_complete(Cli *cli, int argc, char **argv, const char *current
 
         p = strrchr(current, '/');
         if (p) {
-                prefix = strndup(current, p - current);
+                prefix = strndup(current, p - current + 1);
                 dir = opendir(prefix);
         } else
                 dir = opendir(".");
@@ -154,25 +154,23 @@ static long format_complete(Cli *cli, int argc, char **argv, const char *current
                 if (d->d_name[0] == '.')
                         continue;
 
-                if (d->d_type == DT_DIR) {
-                        if (prefix)
-                                cli_print_completion(current, "%s/%s/", prefix, d->d_name);
-                        else
-                                cli_print_completion(current, "%s/", d->d_name);
-                        continue;
-                }
+                switch (d->d_type) {
+                        case DT_DIR:
+                                cli_print_completion(current, "%s%s/", prefix ?: "", d->d_name);
+                                break;
 
-                if (d->d_type == DT_REG || d->d_type == DT_LNK) {
-                        long l = strlen(d->d_name);
+                        case DT_REG:
+                        case DT_LNK: {
+                                long l = strlen(d->d_name);
 
-                        if (l < 9)
-                                continue;
+                                if (l < 9)
+                                        break;
 
-                        if (strcmp(d->d_name + l - 8, ".varlink") == 0) {
-                                if (prefix)
-                                        cli_print_completion(current, "%s/%s", prefix, d->d_name);
-                                else
-                                        cli_print_completion(current, "%s", d->d_name);
+                                if (strcmp(d->d_name + l - 8, ".varlink") != 0)
+                                        break;
+
+                                cli_print_completion(current, "%s%s", prefix ?: "", d->d_name);
+                                break;
                         }
                 }
         }
