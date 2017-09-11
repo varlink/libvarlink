@@ -38,8 +38,6 @@ export LC_CTYPE=C.utf8
 %postun -p /sbin/ldconfig
 
 %files
-%license AUTHORS
-%license COPYRIGHT
 %license LICENSE
 %{_libdir}/libvarlink.so.*
 %{_bindir}/varlink
