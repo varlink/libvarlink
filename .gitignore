@@ -10,9 +10,11 @@
 *.trs
 *~
 vgcore.*
+/TAGS
+/tags
 
 /aclocal.m4
-/build/
+/build*/
 /config.log
 /config.status
 /configure
