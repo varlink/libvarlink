@@ -89,6 +89,19 @@ config_h = configure_file(
 
 add_project_arguments('-include', 'config.h', language : 'c')
 
+prefixdir = get_option('prefix')
+if not prefixdir.startswith('/')
+        error('Prefix is not absolute: "@0@"'.format(prefixdir))
+endif
+libdir = join_paths(prefixdir, get_option('libdir'))
+includedir = join_paths(prefixdir, get_option('includedir'))
+pkgconfiglibdir = join_paths(libdir, 'pkgconfig')
+
+substs = configuration_data()
+substs.set('VERSION', meson.project_version())
+substs.set('libdir', libdir)
+substs.set('includedir', prefixdir)
+
 ############################################################
 
 varlinker_py = find_program('./varlink-wrapper.py')

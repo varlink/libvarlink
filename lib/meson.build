@@ -52,6 +52,15 @@ libvarlink_include = include_directories('.')
 
 ############################################################
 
+libvarlink_pc = configure_file(
+        input : 'libvarlink.pc.in',
+        output : 'libvarlink.pc',
+        configuration : substs)
+install_data(libvarlink_pc,
+             install_dir : pkgconfiglibdir)
+
+############################################################
+
 exe = executable(
         'test-interface',
 	'test-interface.c',
