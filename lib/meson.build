@@ -30,7 +30,7 @@ libvarlink_sources = '''
         varlink.h
 '''.split()
 
-varlink_c_inc = custom_target(
+org_varlink_service_varlink_c_inc = custom_target(
         'org.varlink.service.varlink',
         input : 'org.varlink.service.varlink',
         output : 'org.varlink.service.varlink.c.inc',
@@ -39,7 +39,7 @@ varlink_c_inc = custom_target(
 libvarlink_a = static_library(
         'varlink',
         libvarlink_sources,
-        varlink_c_inc,
+        org_varlink_service_varlink_c_inc,
         install : false)
 
 libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
