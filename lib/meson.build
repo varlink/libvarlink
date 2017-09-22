@@ -13,6 +13,8 @@ libvarlink_sources = '''
         interface.h
         object.c
         object.h
+        protocol.c
+        protocol.h
         scanner.c
         scanner.h
         socket.c

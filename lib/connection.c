@@ -1,4 +1,5 @@
 #include "object.h"
+#include "protocol.h"
 #include "socket.h"
 #include "util.h"
 
@@ -88,10 +89,9 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
         /* Check if the socket is valid, because a callback might have closed the connection */
         while (connection->socket.fd >= 0) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
-                VarlinkObject *parameters = NULL;
-                const char *error = NULL;
-                bool continues = false;
-                long flags = 0;
+                _cleanup_(freep) char *error = NULL;
+                _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+                uint64_t flags = 0;
                 ReplyCallback *callback;
 
                 r = varlink_socket_read(&connection->socket, &message);
@@ -105,27 +105,16 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                 if (!callback)
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
-                r = varlink_object_get_string(message, "error", &error);
-                if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
+                r = varlink_protocol_unpack_reply(message, &error, &parameters, &flags);
+                if (r < 0)
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
-                r = varlink_object_get_object(message, "parameters", &parameters);
-                if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
+                if ((flags & VARLINK_REPLY_CONTINUES) && !(callback->call_flags & VARLINK_CALL_MORE))
                         return VARLINK_ERROR_INVALID_MESSAGE;
-
-                r = varlink_object_get_bool(message, "continues", &continues);
-                if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                        return VARLINK_ERROR_INVALID_MESSAGE;
-
-                if (continues && !(callback->call_flags & VARLINK_CALL_MORE))
-                        return VARLINK_ERROR_INVALID_MESSAGE;
-
-                if (continues)
-                        flags |= VARLINK_REPLY_CONTINUES;
 
                 callback->func(connection, error, parameters, flags, callback->userdata);
 
-                if (!continues) {
+                if (!(flags & VARLINK_REPLY_CONTINUES)) {
                         STAILQ_REMOVE_HEAD(&connection->pending, entry);
                         free(callback);
                 }
@@ -163,6 +152,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                                       void *userdata) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
         ReplyCallback *callback;
+        long r;
 
         if (connection->socket.fd < 0)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
@@ -170,12 +160,9 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        if (varlink_object_new(&call) < 0 ||
-            varlink_object_set_string(call, "method", qualified_method) < 0)
-                return -VARLINK_ERROR_PANIC;
-
-        if (flags & VARLINK_CALL_MORE)
-                varlink_object_set_bool(call, "more", true);
+        r = varlink_protocol_pack_call(qualified_method, parameters, flags, &call);
+        if (r < 0)
+                return r;
 
         if (!(flags & VARLINK_CALL_ONEWAY)) {
                 callback = calloc(1, sizeof(ReplyCallback));
@@ -183,13 +170,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 callback->func = func;
                 callback->userdata = userdata;
                 STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
-        } else
-                varlink_object_set_bool(call, "oneway", true);
-
-        if (parameters)
-                varlink_object_set_object(call, "parameters", parameters);
-        else
-                varlink_object_set_empty_object(call, "parameters");
+        }
 
         return varlink_socket_write(&connection->socket, call);
 }

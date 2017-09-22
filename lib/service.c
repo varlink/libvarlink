@@ -2,6 +2,7 @@
 
 #include "interface.h"
 #include "object.h"
+#include "protocol.h"
 #include "socket.h"
 #include "util.h"
 
@@ -60,9 +61,6 @@ static long varlink_call_new(VarlinkCall **callp,
                              ServiceConnection *connection,
                              VarlinkObject *message) {
         _cleanup_(varlink_call_unrefp) VarlinkCall *call = NULL;
-        const char *method;
-        VarlinkObject *parameters;
-        bool more, oneway;
         long r;
 
         call = calloc(1, sizeof(VarlinkCall));
@@ -70,23 +68,9 @@ static long varlink_call_new(VarlinkCall **callp,
         call->service = service;
         call->connection = connection;
 
-        r = varlink_object_get_string(message, "method", &method);
+        r = varlink_protocol_unpack_call(message, &call->method, &call->parameters, &call->flags);
         if (r < 0)
-                return -VARLINK_ERROR_INVALID_METHOD;
-
-        call->method = strdup(method);
-
-        r = varlink_object_get_object(message, "parameters", &parameters);
-        if (parameters)
-                call->parameters = varlink_object_ref(parameters);
-        else
-                varlink_object_new(&call->parameters);
-
-        if (varlink_object_get_bool(message, "more", &more) == 0 && more)
-                call->flags |= VARLINK_CALL_MORE;
-
-        if (varlink_object_get_bool(message, "oneway", &oneway) == 0 && oneway)
-                call->flags |= VARLINK_CALL_ONEWAY;
+                return r;
 
         *callp = call;
         call = NULL;
@@ -575,17 +559,9 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 return 0;
         }
 
-        r = varlink_object_new(&message);
+        r = varlink_protocol_pack_reply(NULL, parameters, flags, &message);
         if (r < 0)
                 return r;
-
-        if (parameters)
-                varlink_object_set_object(message, "parameters", parameters);
-        else
-                varlink_object_set_empty_object(message, "parameters");
-
-        if (flags & VARLINK_REPLY_CONTINUES)
-                varlink_object_set_bool(message, "continues", true);
 
         r = varlink_socket_write(&call->connection->socket, message);
         if (r < 0)
@@ -614,16 +590,9 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_object_new(&message);
+        r = varlink_protocol_pack_reply(error, parameters, 0, &message);
         if (r < 0)
                 return r;
-
-        varlink_object_set_string(message, "error", error);
-
-        if (parameters)
-                varlink_object_set_object(message, "parameters", parameters);
-        else
-                varlink_object_set_empty_object(message, "parameters");
 
         r = varlink_socket_write(&call->connection->socket, message);
         if (r < 0)
