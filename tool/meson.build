@@ -3,6 +3,7 @@ varlink_sources = files('''
         cli.h
         command.c
         command.h
+        command-bridge.c
         command-call.c
         command-complete.c
         command-error.c

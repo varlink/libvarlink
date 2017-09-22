@@ -1,5 +1,6 @@
 #include "command.h"
 
+extern const CliCommand command_bridge;
 extern const CliCommand command_call;
 extern const CliCommand command_complete;
 extern const CliCommand command_error;
@@ -9,6 +10,7 @@ extern const CliCommand command_info;
 extern const CliCommand command_resolve;
 
 const CliCommand *cli_commands[] = {
+        &command_bridge,
         &command_call,
         &command_complete,
         &command_error,
