@@ -216,6 +216,33 @@ static long org_varlink_service_GetInfo(VarlinkService *service,
         return varlink_call_reply(call, info, 0);
 }
 
+static long varlink_call_reply_interface_not_found(VarlinkCall *call, const char *interface) {
+        _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+
+        varlink_object_new(&parameters);
+        varlink_object_set_string(parameters, "interface", interface);
+
+        return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", parameters);
+}
+
+static long varlink_call_reply_method_not_found(VarlinkCall *call, const char *method) {
+        _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+
+        varlink_object_new(&parameters);
+        varlink_object_set_string(parameters, "method", method);
+
+        return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", parameters);
+}
+
+static long varlink_call_reply_method_not_implemented(VarlinkCall *call, const char *method) {
+        _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+
+        varlink_object_new(&parameters);
+        varlink_object_set_string(parameters, "method", method);
+
+        return varlink_call_reply_error(call, "org.varlink.service.MethodNotImplemented", parameters);
+}
+
 static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
                                                         VarlinkCall *call,
                                                         VarlinkObject *parameters,
@@ -232,7 +259,7 @@ static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
 
         interface = avl_tree_find(service->interfaces, name);
         if (!interface)
-                return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", NULL);
+                return varlink_call_reply_interface_not_found(call, name);
 
         r = varlink_interface_write_description(interface, &string, -1, -1,
                                                 NULL, NULL, NULL, NULL,
@@ -259,18 +286,18 @@ static long varlink_service_method_callback(VarlinkService *service,
 
         r = varlink_interface_parse_qualified_name(call->method, &interface_name, &method_name);
         if (r < 0)
-                return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", NULL);
+                return varlink_call_reply_invalid_parameter(call, call->method);
 
         interface = avl_tree_find(service->interfaces, interface_name);
         if (!interface)
-                return varlink_call_reply_error(call, "org.varlink.service.InterfaceNotFound", NULL);
+                return varlink_call_reply_interface_not_found(call, interface_name);
 
         method = varlink_interface_get_method(interface, method_name);
         if (!method)
-                return varlink_call_reply_error(call, "org.varlink.service.MethodNotFound", NULL);
+                return varlink_call_reply_method_not_found(call, method_name);
 
         if (!method->callback)
-                return varlink_call_reply_error(call, "org.varlink.service.MethodNotImplemented", NULL);
+                return varlink_call_reply_method_not_implemented(call, method_name);
 
         return method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
 }
@@ -613,7 +640,7 @@ _public_ long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char
 
         varlink_object_set_string(parameters, "parameter", parameter);
 
-        return varlink_call_reply_error(call, "org.varlink.service.InvalidParameters", parameters);
+        return varlink_call_reply_error(call, "org.varlink.service.InvalidParameter", parameters);
 }
 
 VarlinkInterface *varlink_service_get_interface_by_name(VarlinkService *service, const char *name) {
