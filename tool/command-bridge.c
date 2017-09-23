@@ -194,7 +194,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
                                         program_invocation_short_name);
-                                return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
+                                return -CLI_ERROR_INVALID_ARGUMENT;
                 }
         }
 
@@ -215,9 +215,9 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         case 0:
                                 break;
                         case -VARLINK_ERROR_INVALID_MESSAGE:
-                                return cli_exit_error(CLI_ERROR_INVALID_MESSAGE);
+                                return -CLI_ERROR_INVALID_MESSAGE;
                         default:
-                                return cli_exit_error(CLI_ERROR_PANIC);
+                                return -CLI_ERROR_PANIC;
                 }
 
                 if (!call)
@@ -225,29 +225,29 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
 
                 r = varlink_protocol_unpack_call(call, &method, &parameters, &flags);
                 if (r < 0)
-                        return cli_exit_error(CLI_ERROR_INVALID_MESSAGE);
+                        return -CLI_ERROR_INVALID_MESSAGE;
 
                 dot = strrchr(method, '.');
                 if (!dot)
-                        return cli_exit_error(CLI_ERROR_INVALID_MESSAGE);
+                        return -CLI_ERROR_INVALID_MESSAGE;
 
                 interface = strndup(method, dot - method);
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0)
-                        return cli_exit_error(CLI_ERROR_PANIC);
+                        return -CLI_ERROR_PANIC;
 
                 r = varlink_connection_new(&connection, address);
                 if (r < 0)
-                        return cli_exit_error(CLI_ERROR_PANIC);
+                        return -CLI_ERROR_PANIC;
 
                 r = varlink_connection_call(connection, method, parameters, flags, reply_callback, bridge);
                 if (r < 0)
-                        return cli_exit_error(CLI_ERROR_PANIC);
+                        return -CLI_ERROR_PANIC;
 
                 r = cli_process_all_events(cli, connection);
                 if (r < 0)
-                        return cli_exit_error(-r);
+                        return r;
         }
 
         return bridge->status;

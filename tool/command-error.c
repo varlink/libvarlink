@@ -26,7 +26,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
                                 return EXIT_SUCCESS;
 
                         default:
-                                return cli_exit_error(CLI_ERROR_PANIC);
+                                return -CLI_ERROR_PANIC;
                 }
         }
 
@@ -49,7 +49,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
                         return EXIT_SUCCESS;
                 }
 
-                return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
+                return -CLI_ERROR_INVALID_ARGUMENT;
 
         }
 

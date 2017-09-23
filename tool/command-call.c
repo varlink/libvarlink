@@ -148,31 +148,31 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
         r  = cli_split_address(arguments.method, &address, &method);
         if (r < 0)
-                return cli_exit_error(-r);
+                return r;
 
         if (!address) {
                 _cleanup_(freep) char *interface = NULL;
 
                 r = varlink_interface_parse_qualified_name(method, &interface, NULL);
                 if (r < 0)
-                        return cli_exit_error(CLI_ERROR_INVALID_ARGUMENT);
+                        return -CLI_ERROR_INVALID_ARGUMENT;
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0)
-                        return cli_exit_error(-r);
+                        return -r;
         }
 
         r = varlink_connection_new(&connection, address);
         if (r < 0)
-                return cli_exit_error(CLI_ERROR_PANIC);
+                return -CLI_ERROR_PANIC;
 
         r = varlink_connection_call(connection, method, parameters, VARLINK_CALL_MORE, reply_callback, &error);
         if (r < 0)
-                return cli_exit_error(CLI_ERROR_PANIC);
+                return -CLI_ERROR_PANIC;
 
         r = cli_process_all_events(cli, connection);
         if (r < 0)
-                return cli_exit_error(-r);
+                return r;
 
         return EXIT_SUCCESS;
 }

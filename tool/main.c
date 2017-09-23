@@ -7,7 +7,11 @@ int main(int argc, char **argv) {
 
         r = cli_new(&cli);
         if (r < 0)
-                return cli_exit_error(-r);
+                return -r;
 
-        return cli_run(cli, argc, argv);
+        r = cli_run(cli, argc, argv);
+        if (r < 0)
+                return -r;
+
+        return 0;
 }

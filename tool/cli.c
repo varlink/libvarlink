@@ -55,12 +55,6 @@ const char *cli_error_string(long error) {
         return error_strings[error];
 }
 
-long cli_exit_error(long error) {
-        fprintf(stderr, "Error: %s\n", cli_error_string(error));
-
-        return error;
-}
-
 long cli_new(Cli **mp) {
         _cleanup_(cli_freep) Cli *cli = NULL;
         sigset_t mask;
@@ -347,7 +341,7 @@ long cli_run(Cli *cli, int argc, char **argv) {
 
         r = cli_parse_arguments(argc, argv, &arguments);
         if (r < 0)
-                return cli_exit_error(-r);
+                return r;
 
         if (arguments.resolver)
                 cli->resolver = arguments.resolver;
@@ -378,14 +372,14 @@ long cli_run(Cli *cli, int argc, char **argv) {
         if (arguments.command == NULL) {
                 fprintf(stderr, "Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
                 fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
-                return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
+                return -CLI_ERROR_COMMAND_NOT_FOUND;
         }
 
         command = cli_get_command(cli, arguments.command);
         if (!command) {
                 fprintf(stderr, "%s: '%s' is not a valid command.\n", program_invocation_short_name, arguments.command);
                 fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
-                return cli_exit_error(CLI_ERROR_COMMAND_NOT_FOUND);
+                return -CLI_ERROR_COMMAND_NOT_FOUND;
         }
 
         return command->run(cli, arguments.remaining_argc, arguments.remaining_argv);

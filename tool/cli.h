@@ -28,7 +28,6 @@ typedef struct {
 } Cli;
 
 const char *cli_error_string(long error);
-long cli_exit_error(long error);
 
 long cli_new(Cli **clip);
 Cli *cli_free(Cli *cli);
