@@ -9,9 +9,5 @@ int main(int argc, char **argv) {
         if (r < 0)
                 return -r;
 
-        r = cli_run(cli, argc, argv);
-        if (r < 0)
-                return -r;
-
-        return 0;
+        return cli_run(cli, argc, argv);
 }

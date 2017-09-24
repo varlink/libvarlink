@@ -52,6 +52,9 @@ static long call_arguments_new(CallArguments **argumentsp) {
 static long call_parse_url(CallArguments *arguments, const char *url) {
         /* varlink:// */
         if (strncmp(url, "varlink://", 10) == 0) {
+                if (!strchr(url + 10, '/'))
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+
                 arguments->method = url + 10;
 
                 return 1;
@@ -230,16 +233,21 @@ static long call_run(Cli *cli, int argc, char **argv) {
         switch (r) {
                 case 0:
                         break;
+
                 case -CLI_ERROR_MISSING_ARGUMENT:
-                        fprintf(stderr, "Error: INTERFACE.METHOD [ARGUMENTS] expected\n");
+                        fprintf(stderr, "Missing argument, INTERFACE.METHOD [ARGUMENTS] expected\n");
                         return CLI_ERROR_MISSING_ARGUMENT;
+
+                case -CLI_ERROR_INVALID_ARGUMENT:
+                        fprintf(stderr, "Invalid argument, INTERFACE.METHOD [ARGUMENTS] expected\n");
+                        return CLI_ERROR_INVALID_ARGUMENT;
+
                 default:
                         return CLI_ERROR_PANIC;
         }
 
         if (arguments->help) {
-                printf("Usage: %s call [ADDRESS/]INTERFACE.METHOD [ARGUMENTS]\n",
-                       program_invocation_short_name);
+                printf("Usage: %s call [ADDRESS/]INTERFACE.METHOD [ARGUMENTS]\n", program_invocation_short_name);
                 printf("\n");
                 printf("Call METHOD on INTERFACE at ADDRESS. ARGUMENTS must be valid JSON.\n");
                 printf("\n");
@@ -280,38 +288,38 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
         r  = cli_split_address(arguments->method, &address, &method);
         if (r < 0)
-                return r;
+                return -r;
 
         if (!address) {
                 _cleanup_(freep) char *interface = NULL;
 
                 r = varlink_interface_parse_qualified_name(method, &interface, NULL);
                 if (r < 0)
-                        return -CLI_ERROR_INVALID_ARGUMENT;
+                        return CLI_ERROR_INVALID_ARGUMENT;
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0)
-                        return r;
+                        return -r;
         }
 
         if (arguments->host) {
                 r = connection_new_ssh(&connection, arguments);
                 if (r < 0)
-                        return -CLI_ERROR_PANIC;
+                        return CLI_ERROR_PANIC;
 
         } else {
                 r = varlink_connection_new(&connection, address);
                 if (r < 0)
-                        return -CLI_ERROR_PANIC;
+                        return CLI_ERROR_PANIC;
         }
 
         r = varlink_connection_call(connection, method, parameters, VARLINK_CALL_MORE, reply_callback, &error);
         if (r < 0)
-                return -CLI_ERROR_PANIC;
+                return CLI_ERROR_PANIC;
 
         r = cli_process_all_events(cli, connection);
         if (r < 0)
-                return r;
+                return -r;
 
         return EXIT_SUCCESS;
 }
@@ -326,6 +334,7 @@ static long call_complete(Cli *cli, int argc, char **argv, const char *current) 
                 case -CLI_ERROR_INVALID_ARGUMENT:
                 case -CLI_ERROR_MISSING_ARGUMENT:
                         break;
+
                 default:
                         return -r;
         }
