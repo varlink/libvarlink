@@ -1,3 +1,4 @@
+#include "connection.h"
 #include "object.h"
 #include "protocol.h"
 #include "socket.h"
@@ -35,14 +36,35 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
+static long connection_new(VarlinkConnection **connectionp) {
+        VarlinkConnection *connection;
+
+        connection = calloc(1, sizeof(VarlinkConnection));
+        varlink_socket_init(&connection->socket);
+        STAILQ_INIT(&connection->pending);
+
+        *connectionp = connection;
+        return 0;
+}
+
+long varlink_connection_new_from_socket(VarlinkConnection **connectionp, int socket) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+
+        connection_new(&connection);
+        connection->socket.fd = socket;
+
+        *connectionp = connection;
+        connection = NULL;
+
+        return 0;
+}
+
 _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long r;
 
-        connection = calloc(1, sizeof(VarlinkConnection));
+        connection_new(&connection);
         connection->address = strdup(address);
-        varlink_socket_init(&connection->socket);
-        STAILQ_INIT(&connection->pending);
 
         r = varlink_socket_connect(&connection->socket, address);
         if (r < 0)

@@ -1,4 +1,5 @@
 #include "command.h"
+#include "connection.h"
 #include "error.h"
 #include "interface.h"
 #include "object.h"
@@ -8,6 +9,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/socket.h>
 
 static const struct option options[] = {
         { "help",    no_argument,       NULL, 'h' },
@@ -17,12 +19,73 @@ static const struct option options[] = {
 typedef struct {
         bool help;
 
+        char *host;
+        int port;
+
         const char *method;
         const char *parameters;
 } CallArguments;
 
+static CallArguments *call_arguments_free(CallArguments *arguments) {
+        free(arguments->host);
+        free(arguments);
+
+        return NULL;
+}
+
+static void call_arguments_freep(CallArguments **argumentsp) {
+        if (*argumentsp)
+                call_arguments_free(*argumentsp);
+}
+
+static long call_arguments_new(CallArguments **argumentsp) {
+        _cleanup_(call_arguments_freep) CallArguments *arguments = NULL;
+
+        arguments = calloc(1, sizeof(CallArguments));
+
+        *argumentsp = arguments;
+        arguments = NULL;
+
+        return 0;
+}
+
+static long call_parse_url(CallArguments *arguments, const char *url) {
+        /* varlink:// */
+        if (strncmp(url, "varlink://", 10) == 0) {
+                arguments->method = url + 10;
+
+                return 1;
+        }
+
+        /* ssh://[host][:port]/ */
+        if (strncmp(url, "ssh://", 6) == 0) {
+                char *s;
+                char *host;
+                int port;
+
+                s = strchr(url + 6, '/');
+                if (!s)
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+
+                arguments->host = strndup(url + 6, s - (url + 6));
+                arguments->method = s + 1;
+
+                /* Extract optional port number */
+                if (sscanf(arguments->host, "%m[^:]:%d", &host, &port) == 2) {
+                        free(arguments->host);
+                        arguments->host = host;
+                        arguments->port = port;
+                }
+
+                return 1;
+        }
+
+        return 0;
+}
+
 static long call_parse_arguments(int argc, char **argv, CallArguments *arguments) {
         int c;
+        long r;
 
         while ((c = getopt_long(argc, argv, ":a:fh", options, NULL)) >= 0) {
                 switch (c) {
@@ -41,7 +104,15 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        arguments->method = argv[optind];
+
+        r = call_parse_url(arguments, argv[optind]);
+        if (r < 0)
+                return -CLI_ERROR_INVALID_ARGUMENT;
+
+        /* Not a URL */
+        if (r == 0)
+                arguments->method = argv[optind];
+
         arguments->parameters = argv[optind + 1];
 
         return 0;
@@ -83,8 +154,67 @@ static void reply_callback(VarlinkConnection *connection,
                 varlink_connection_close(connection);
 }
 
+static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *arguments) {
+        int sp[2];
+        pid_t pid;
+        long r;
+
+        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
+                return -CLI_ERROR_PANIC;
+
+
+        pid = fork();
+        if (pid < 0) {
+                close(sp[0]);
+                close(sp[1]);
+                return -CLI_ERROR_PANIC;
+        }
+
+        if (pid == 0) {
+                const char *arg[9];
+                long i = 0;
+                char port[8];
+
+                arg[i++] = "ssh";
+                arg[i++] = "-xT";
+
+                /* Add custom port number */
+                if (arguments->port > 0) {
+                        arg[i++] = "-p";
+
+                        sprintf(port, "%d", arguments->port);
+                        arg[i++] = port;
+                }
+
+                arg[i++] = "--";
+                arg[i++] = arguments->host;
+                arg[i++] = "varlink";
+                arg[i++] = "bridge";
+                arg[i] = NULL;
+
+                close(sp[0]);
+
+                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
+                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
+                        return -CLI_ERROR_PANIC;
+
+                close(sp[1]);
+
+                execvp(arg[0], (char **) arg);
+                _exit(EXIT_FAILURE);
+        }
+
+        close(sp[1]);
+
+        r = varlink_connection_new_from_socket(connectionp, sp[0]);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
+        return 0;
+}
+
 static long call_run(Cli *cli, int argc, char **argv) {
-        CallArguments arguments = { 0 };
+        _cleanup_(call_arguments_freep) CallArguments *arguments = NULL;
         _cleanup_(freep) char *address = NULL;
         const char *method = NULL;
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
@@ -94,7 +224,9 @@ static long call_run(Cli *cli, int argc, char **argv) {
         long error = 0;
         long r;
 
-        r = call_parse_arguments(argc, argv, &arguments);
+        call_arguments_new(&arguments);
+
+        r = call_parse_arguments(argc, argv, arguments);
         switch (r) {
                 case 0:
                         break;
@@ -105,7 +237,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                         return CLI_ERROR_PANIC;
         }
 
-        if (arguments.help) {
+        if (arguments->help) {
                 printf("Usage: %s call [ADDRESS/]INTERFACE.METHOD [ARGUMENTS]\n",
                        program_invocation_short_name);
                 printf("\n");
@@ -115,10 +247,10 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return EXIT_SUCCESS;
         }
 
-        if (!arguments.parameters) {
-                arguments.parameters = "{}";
+        if (!arguments->parameters) {
+                arguments->parameters = "{}";
 
-        } else if (strcmp(arguments.parameters, "-") == 0) {
+        } else if (strcmp(arguments->parameters, "-") == 0) {
                 unsigned long buffer_size = 0;
                 unsigned long size = 0;
 
@@ -137,16 +269,16 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
                 buffer[size] = '\0';
 
-                arguments.parameters = buffer;
+                arguments->parameters = buffer;
         }
 
-        r = varlink_object_new_from_json(&parameters, arguments.parameters);
+        r = varlink_object_new_from_json(&parameters, arguments->parameters);
         if (r < 0) {
                 fprintf(stderr, "Unable to parse input parameters (must be valid JSON)\n");
                 return CLI_ERROR_INVALID_JSON;
         }
 
-        r  = cli_split_address(arguments.method, &address, &method);
+        r  = cli_split_address(arguments->method, &address, &method);
         if (r < 0)
                 return r;
 
@@ -159,12 +291,19 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0)
-                        return -r;
+                        return r;
         }
 
-        r = varlink_connection_new(&connection, address);
-        if (r < 0)
-                return -CLI_ERROR_PANIC;
+        if (arguments->host) {
+                r = connection_new_ssh(&connection, arguments);
+                if (r < 0)
+                        return -CLI_ERROR_PANIC;
+
+        } else {
+                r = varlink_connection_new(&connection, address);
+                if (r < 0)
+                        return -CLI_ERROR_PANIC;
+        }
 
         r = varlink_connection_call(connection, method, parameters, VARLINK_CALL_MORE, reply_callback, &error);
         if (r < 0)
@@ -178,7 +317,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
 }
 
 static long call_complete(Cli *cli, int argc, char **argv, const char *current) {
-        CallArguments arguments = { 0 };
+        CallArguments arguments = {};
         long r;
 
         r = call_parse_arguments(argc, argv, &arguments);
