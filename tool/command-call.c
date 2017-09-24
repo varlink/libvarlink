@@ -55,6 +55,8 @@ static long call_parse_url(CallArguments *arguments, const char *url) {
                 if (!strchr(url + 10, '/'))
                         return -CLI_ERROR_INVALID_ARGUMENT;
 
+                //FIXME: URL-decode slashes in unix path
+
                 arguments->method = url + 10;
 
                 return 1;
@@ -164,7 +166,6 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
 
         if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
                 return -CLI_ERROR_PANIC;
-
 
         pid = fork();
         if (pid < 0) {
