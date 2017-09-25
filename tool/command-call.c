@@ -226,7 +226,7 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
 
         r = varlink_connection_new_from_socket(connectionp, sp[0]);
         if (r < 0)
-                return r;
+                return -CLI_ERROR_CANNOT_CONNECT;
 
         return 0;
 }
@@ -306,7 +306,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
         r  = cli_split_address(arguments->method, &address, &method);
         if (r < 0) {
-                fprintf(stderr, "Unable to parse address: %s\n", varlink_error_string(-r));
+                fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
                 return -r;
         }
 
@@ -315,13 +315,13 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
                 r = varlink_interface_parse_qualified_name(method, &interface, NULL);
                 if (r < 0) {
-                        fprintf(stderr, "Unable to parse address: %s\n", varlink_error_string(-r));
+                        fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
                         return CLI_ERROR_INVALID_ARGUMENT;
                 }
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
-                        fprintf(stderr, "Unable to resolve interface: %s\n", varlink_error_string(-r));
+                        fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
                         return -r;
                 }
         }
@@ -329,7 +329,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
         if (arguments->host) {
                 r = connection_new_ssh(&connection, arguments);
                 if (r < 0) {
-                        fprintf(stderr, "Unable to connect with SSH: %s\n", varlink_error_string(-r));
+                        fprintf(stderr, "Unable to connect with SSH: %s\n", cli_error_string(-r));
                         return -r;
                 }
 
@@ -337,7 +337,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 r = varlink_connection_new(&connection, address);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                        return -r;
+                        return CLI_ERROR_CANNOT_CONNECT;
                 }
         }
 
@@ -349,18 +349,18 @@ static long call_run(Cli *cli, int argc, char **argv) {
                                     &error);
         if (r < 0) {
                 fprintf(stderr, "Unable to call: %s\n", varlink_error_string(-r));
-                return -r;
+                return CLI_ERROR_CALL_FAILED;
         }
 
         r = cli_process_all_events(cli, connection);
         if (r >= 0)
                 return EXIT_SUCCESS;
 
-        /* Do not expect a reply */
-        if (r == -VARLINK_ERROR_CONNECTION_CLOSED && (arguments->flags & VARLINK_CALL_ONEWAY))
+        /* CTRL-C */
+        if (r == -CLI_ERROR_CANCELED)
                 return EXIT_SUCCESS;
 
-        fprintf(stderr, "Unable to process events: %s\n", varlink_error_string(-r));
+        fprintf(stderr, "Unable to process events: %s\n", cli_error_string(-r));
         return -r;
 }
 

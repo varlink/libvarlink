@@ -26,6 +26,7 @@ static const char *error_strings[] = {
         [CLI_ERROR_REMOTE_ERROR] = "RemoteError",
         [CLI_ERROR_CALL_FAILED] = "CallFailed",
         [CLI_ERROR_INVALID_MESSAGE] = "InvalidMessage",
+        [CLI_ERROR_CONNECTION_CLOSED] = "ConnectionClosed",
 };
 
 static const struct option cli_options[] = {
@@ -267,8 +268,16 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
 
                 } else if (ev.data.ptr == connection) {
                         r = varlink_connection_process_events(connection, ev.events);
-                        if (r < 0)
-                                return r;
+                        switch (r) {
+                                case 0:
+                                        break;
+
+                                case -VARLINK_ERROR_CONNECTION_CLOSED:
+                                        return -CLI_ERROR_CONNECTION_CLOSED;
+
+                                default:
+                                        return -CLI_ERROR_PANIC;
+                        }
 
                         if (varlink_connection_is_closed(connection))
                                 break;
