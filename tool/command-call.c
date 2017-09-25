@@ -184,12 +184,18 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
         }
 
         if (pid == 0) {
-                const char *arg[9];
+                const char *arg[11];
                 long i = 0;
                 char port[8];
 
                 arg[i++] = "ssh";
+
+                /* Disable X11 and pseudo-terminal */
                 arg[i++] = "-xT";
+
+                /* Disable passphrase/password querying */
+                arg[i++] = "-o";
+                arg[i++] = "BatchMode=yes";
 
                 /* Add custom port number */
                 if (arguments->port > 0) {
