@@ -206,7 +206,6 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 uint64_t flags;
                 const char *dot;
                 _cleanup_(freep) char *interface = NULL;
-                _cleanup_(freep) char *address = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
@@ -233,17 +232,32 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
 
                 interface = strndup(method, dot - method);
 
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0)
-                        return -CLI_ERROR_PANIC;
+                /* Forward org.varlink.service.GetInfo to org.varlink.resolver.GetInfo */
+                if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
+                        r = varlink_connection_new(&connection, cli->resolver);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
 
-                r = varlink_connection_new(&connection, address);
-                if (r < 0)
-                        return -CLI_ERROR_PANIC;
+                        r = varlink_connection_call(connection, "org.varlink.resolver.GetInfo", parameters, flags, reply_callback, bridge);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
 
-                r = varlink_connection_call(connection, method, parameters, flags, reply_callback, bridge);
-                if (r < 0)
-                        return -CLI_ERROR_PANIC;
+                } else {
+                        _cleanup_(freep) char *address = NULL;
+
+                        r = cli_resolve(cli, interface, &address);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                        r = varlink_connection_new(&connection, address);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                        r = varlink_connection_call(connection, method, parameters, flags, reply_callback, bridge);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                }
 
                 r = cli_process_all_events(cli, connection);
                 if (r < 0)
