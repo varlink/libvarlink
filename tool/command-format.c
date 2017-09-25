@@ -46,7 +46,6 @@ static long format_run(Cli *cli, int argc, char **argv) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
         _cleanup_(fclosep) FILE *in_file = NULL;
-        _cleanup_(fclosep) FILE *out_file = NULL;
         _cleanup_(freep) char *in = NULL;
         _cleanup_(freep) char *out = NULL;
         long r;
@@ -85,7 +84,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
 
         r = read_file(in_file, &in);
         if (r < 0) {
-                fprintf(stderr, "Error reading %s: %s\n", in_filename, strerror(errno));
+                fprintf(stderr, "Error reading %s: %s\n", in_filename, strerror(-r));
                 return -CLI_ERROR_PANIC;
         }
 
@@ -99,7 +98,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         }
 
         r = varlink_interface_write_description(interface, &out,
-                                                0, 72,
+                                                0,
                                                 NULL, NULL,
                                                 NULL, NULL,
                                                 NULL, NULL,

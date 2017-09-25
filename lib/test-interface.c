@@ -227,8 +227,12 @@ static void test_writer(void) {
                         assert(false);
                 }
 
-                assert(varlink_interface_write_description(interface, &output, 0, 72,
-                                                           NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) == 0);
+                assert(varlink_interface_write_description(interface, &output,
+                                                           0,
+                                                           NULL, NULL,
+                                                           NULL, NULL,
+                                                           NULL, NULL,
+                                                           NULL, NULL) == 0);
 
                 if (strcmp(output, string) != 0) {
                         for (unsigned long i = 0; ; i += 1) {

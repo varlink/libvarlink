@@ -57,7 +57,7 @@ VarlinkMethod *varlink_interface_get_method(VarlinkInterface *interface, const c
 VarlinkType *varlink_interface_get_type(VarlinkInterface *interface, const char *name);
 long varlink_interface_write_description(VarlinkInterface *interface,
                                          char **stringp,
-                                         long indent, long width,
+                                         long indent,
                                          const char *comment_pre, const char *comment_post,
                                          const char *keyword_pre, const char *keyword_post,
                                          const char *method_pre, const char *method_post,

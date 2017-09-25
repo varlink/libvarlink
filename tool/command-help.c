@@ -38,15 +38,11 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
 
         r  = varlink_interface_write_description(interface,
                                                  &string,
-                                                 0, 72 - 2,
-                                                 terminal_color(TERMINAL_BLUE),
-                                                 terminal_color(TERMINAL_NORMAL),
-                                                 terminal_color(TERMINAL_MAGENTA),
-                                                 terminal_color(TERMINAL_NORMAL),
-                                                 terminal_color(TERMINAL_GREEN),
-                                                 terminal_color(TERMINAL_NORMAL),
-                                                 terminal_color(TERMINAL_CYAN),
-                                                 terminal_color(TERMINAL_NORMAL));
+                                                 0,
+                                                 terminal_color(TERMINAL_BLUE), terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_MAGENTA), terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_GREEN), terminal_color(TERMINAL_NORMAL),
+                                                 terminal_color(TERMINAL_CYAN), terminal_color(TERMINAL_NORMAL));
         if (r < 0)
                 return r;
 
