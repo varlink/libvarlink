@@ -96,11 +96,14 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
-                                break;
+                                return 0;
+
                         case '?':
                                 return -CLI_ERROR_INVALID_ARGUMENT;
+
                         case ':':
                                 return -CLI_ERROR_MISSING_ARGUMENT;
+
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
@@ -108,7 +111,6 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
 
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
-
 
         r = call_parse_url(arguments, argv[optind]);
         if (r < 0)
