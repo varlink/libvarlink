@@ -217,7 +217,8 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
                     dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
                         return -CLI_ERROR_PANIC;
 
-                close(sp[1]);
+                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
+                        close(sp[1]);
 
                 execvp(arg[0], (char **) arg);
                 _exit(EXIT_FAILURE);
