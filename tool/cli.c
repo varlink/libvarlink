@@ -32,6 +32,7 @@ static const char *error_strings[] = {
 static const struct option cli_options[] = {
         { "help",     no_argument,       NULL, 'h' },
         { "resolver", required_argument, NULL, 'R' },
+        { "timeout",  required_argument, NULL, 't' },
         { "version",  no_argument,       NULL, 'V' },
         {}
 };
@@ -40,6 +41,7 @@ typedef struct {
         bool help;
         bool version;
         const char *resolver;
+        long timeout;
 
         const char *command;
         int remaining_argc;
@@ -61,8 +63,8 @@ long cli_new(Cli **mp) {
         sigset_t mask;
 
         cli = calloc(1, sizeof(Cli));
-
         cli->resolver = "/run/org.varlink.resolver";
+        cli->timeout = -1;
 
         cli->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
         if (cli->epoll_fd < 0)
@@ -112,7 +114,7 @@ long cli_resolve(Cli *cli, const char *interface, char **addressp) {
         const char *address;
         long r;
 
-        /* don't resolve the resolver */
+        /* Don't resolve the resolver */
         if (strcmp(interface, "org.varlink.resolver") == 0) {
                 *addressp = strdup(cli->resolver);
                 return 0;
@@ -235,7 +237,7 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
         for (;;) {
                 struct epoll_event ev;
 
-                r = epoll_wait(cli->epoll_fd, &ev, 1, -1);
+                r = epoll_wait(cli->epoll_fd, &ev, 1, cli->timeout);
                 if (r < 0) {
                         if (errno == EINTR)
                                 continue;
@@ -310,10 +312,14 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
 
         opterr = 0;
 
-        while ((c = getopt_long(argc, argv, "+:hR:V", cli_options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "+:ht:R:V", cli_options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
+                                break;
+
+                        case 't':
+                                arguments->timeout = strtoul(optarg, NULL, 0) * 1000;
                                 break;
 
                         case 'R':
@@ -336,17 +342,17 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
         }
 
         arguments->command = argv[optind];
-
         arguments->remaining_argc = argc - optind;
         arguments->remaining_argv = argv + optind;
-
         optind = 0;
 
         return 0;
 }
 
 long cli_run(Cli *cli, int argc, char **argv) {
-        CliArguments arguments = {};
+        CliArguments arguments = {
+                .timeout = -1
+        };
         const CliCommand *command;
         long r;
 
@@ -357,10 +363,14 @@ long cli_run(Cli *cli, int argc, char **argv) {
         if (arguments.resolver)
                 cli->resolver = arguments.resolver;
 
+        if (arguments.timeout != -1)
+                cli->timeout = arguments.timeout;
+
         if (arguments.help) {
                 printf("Usage: %s COMMAND [OPTIONS]...\n", program_invocation_short_name);
                 printf("\n");
                 printf("  -h, --help             display this help text and exit\n");
+                printf("  -t, --timeout=SECONDS  time in seconds to wait for a reply\n");
                 printf("  -R, --resolver=ADDRESS address of the resolver\n");
                 printf("  -V, --version          output version information and exit\n");
                 printf("\n");
@@ -411,7 +421,9 @@ void cli_print_completion(const char *current, const char *format, ...) {
 }
 
 long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
-        CliArguments arguments = {};
+        CliArguments arguments = {
+                .timeout = -1
+        };
         int r;
 
         r = cli_parse_arguments(argc, argv, &arguments);
@@ -424,6 +436,9 @@ long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
 
         if (arguments.resolver)
                 cli->resolver = arguments.resolver;
+
+        if (arguments.timeout != -1)
+                cli->timeout = arguments.timeout;
 
         if (arguments.command) {
                 const CliCommand *command;

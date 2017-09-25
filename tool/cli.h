@@ -23,6 +23,7 @@ enum {
 
 typedef struct {
         const char *resolver;
+        long timeout;
 
         int epoll_fd;
         int signal_fd;
