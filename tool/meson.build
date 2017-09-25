@@ -6,7 +6,6 @@ varlink_sources = files('''
         command-bridge.c
         command-call.c
         command-complete.c
-        command-error.c
         command-format.c
         command-help.c
         command-info.c
