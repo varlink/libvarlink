@@ -23,7 +23,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
                                 printf("Display and resolve libvarlink error code and string.\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
-                                return EXIT_SUCCESS;
+                                return 0;
 
                         default:
                                 return -CLI_ERROR_PANIC;
@@ -38,7 +38,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
                 n = strtol(arg, &endptr, 0);
                 if (endptr[0] == '\0') {
                         printf("%s\n", varlink_error_string(n));
-                        return EXIT_SUCCESS;
+                        return 0;
                 }
 
                 for (long i = 1 ; i < CLI_ERROR_MAX; i += 1) {
@@ -46,7 +46,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
                                 continue;
 
                         printf("%li\n", i);
-                        return EXIT_SUCCESS;
+                        return 0;
                 }
 
                 return -CLI_ERROR_INVALID_ARGUMENT;
@@ -56,7 +56,7 @@ static long error_run(Cli *cli, int argc, char **argv) {
         for (long i = 1 ; i < VARLINK_ERROR_MAX; i += 1)
                 printf(" %3li %s\n", i, varlink_error_string(i));
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 static long error_complete(Cli *cli, int argc, char **argv, const char *current) {

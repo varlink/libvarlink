@@ -372,12 +372,12 @@ long cli_run(Cli *cli, int argc, char **argv) {
                 for (long i = 1 ; i < CLI_ERROR_MAX; i += 1)
                         printf(" %3li %s\n", i, cli_error_string(i));
                 printf("\n");
-                return EXIT_SUCCESS;
+                return 0;
         }
 
         if (arguments.version) {
                 printf(VERSION "\n");
-                return EXIT_SUCCESS;
+                return 0;
         }
 
         if (arguments.command == NULL) {

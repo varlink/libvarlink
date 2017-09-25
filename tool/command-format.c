@@ -62,7 +62,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
                                 printf("  -o, --output=FILENAME  output to FILENAME instead of stdout\n");
-                                return EXIT_SUCCESS;
+                                return 0;
 
                         case 'o':
                                 out_filename = optarg;
@@ -71,21 +71,21 @@ static long format_run(Cli *cli, int argc, char **argv) {
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
                                         program_invocation_short_name);
-                                return EXIT_FAILURE;
+                                return -CLI_ERROR_INVALID_ARGUMENT;
                 }
         }
 
         in_filename = argv[optind];
         if (!in_filename) {
                 fprintf(stderr, "Usage: %s [OPTIONS]... FILE\n", program_invocation_short_name);
-                return EXIT_FAILURE;
+                return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
         if (strcmp(in_filename, "-") != 0) {
                 in_file = fopen(in_filename, "r");
                 if (!in_file) {
                         fprintf(stderr, "Error opening %s for reading: %s\n", in_filename, strerror(errno));
-                        return EXIT_FAILURE;
+                        return -CLI_ERROR_PANIC;
                 }
         } else {
                 in_file = stdin;
@@ -94,7 +94,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         r = read_file(in_file, &in);
         if (r < 0) {
                 fprintf(stderr, "Error reading %s: %s\n", in_filename, strerror(errno));
-                return EXIT_FAILURE;
+                return -CLI_ERROR_PANIC;
         }
 
         r = varlink_interface_new(&interface, in, &scanner);
@@ -103,7 +103,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
                         in_filename,
                         scanner->line_nr, scanner->error.pos_nr,
                         scanner_error_string(scanner->error.no), scanner->error.identifier ?: "");
-                return EXIT_FAILURE;
+                return -CLI_ERROR_PANIC;
         }
 
         r = varlink_interface_write_description(interface, &out,
@@ -114,26 +114,25 @@ static long format_run(Cli *cli, int argc, char **argv) {
                                                 NULL, NULL);
         if (r < 0) {
                 fprintf(stderr, "Error writing interface: %s", strerror(-r));
-                return EXIT_FAILURE;
+                return -CLI_ERROR_PANIC;
         }
 
         if (out_filename && strcmp(out_filename, "-") != 0) {
                 out_file = fopen(out_filename, "w");
                 if (!out_file) {
                         fprintf(stderr, "Error opening %s for writing: %s\n", out_filename, strerror(errno));
-                        return EXIT_FAILURE;
+                        return -CLI_ERROR_PANIC;
                 }
-        } else {
+        } else
                 out_file = stdout;
-        }
 
         r = fwrite(out, 1, strlen(out), out_file);
         if (r == 0) {
                 fprintf(stderr, "Error writing interface: %s\n", strerror(-r));
-                return EXIT_FAILURE;
+                return -CLI_ERROR_PANIC;
         }
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 static long format_complete(Cli *cli, int argc, char **argv, const char *current) {

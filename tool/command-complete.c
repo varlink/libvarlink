@@ -20,7 +20,7 @@ static long complete_run(Cli *cli, int argc, char **argv) {
                 printf("\n");
                 printf("  -h, --help             display this help text and exit\n");
                 printf("\n");
-                return EXIT_SUCCESS;
+                return 0;
         }
 
         argindex = strtoul(argv[1], &endptr, 0);
@@ -43,7 +43,7 @@ static long complete_run(Cli *cli, int argc, char **argv) {
 
         cli_complete(cli, argc, argv, current);
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 const CliCommand command_complete = {

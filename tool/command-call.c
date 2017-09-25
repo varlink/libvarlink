@@ -251,15 +251,15 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
                 case -CLI_ERROR_MISSING_ARGUMENT:
                         fprintf(stderr, "Missing argument, INTERFACE.METHOD [ARGUMENTS] expected\n");
-                        return CLI_ERROR_MISSING_ARGUMENT;
+                        return -CLI_ERROR_MISSING_ARGUMENT;
 
                 case -CLI_ERROR_INVALID_ARGUMENT:
                         fprintf(stderr, "Invalid argument, INTERFACE.METHOD [ARGUMENTS] expected\n");
-                        return CLI_ERROR_INVALID_ARGUMENT;
+                        return -CLI_ERROR_INVALID_ARGUMENT;
 
                 default:
                         fprintf(stderr, "Unhandled exception.\n");
-                        return CLI_ERROR_PANIC;
+                        return -CLI_ERROR_PANIC;
         }
 
         if (arguments->help) {
@@ -270,7 +270,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 printf("  -h, --help             display this help text and exit\n");
                 printf("  -m, --more             wait for multiple method returns if supported\n");
                 printf("  -o, --oneway           do not request a reply\n");
-                return EXIT_SUCCESS;
+                return 0;
         }
 
         if (!arguments->parameters) {
@@ -301,13 +301,13 @@ static long call_run(Cli *cli, int argc, char **argv) {
         r = varlink_object_new_from_json(&parameters, arguments->parameters);
         if (r < 0) {
                 fprintf(stderr, "Unable to parse input parameters, must be valid JSON\n");
-                return CLI_ERROR_INVALID_JSON;
+                return -CLI_ERROR_INVALID_JSON;
         }
 
         r  = cli_split_address(arguments->method, &address, &method);
         if (r < 0) {
                 fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                return -r;
+                return r;
         }
 
         if (!address) {
@@ -316,13 +316,13 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 r = varlink_interface_parse_qualified_name(method, &interface, NULL);
                 if (r < 0) {
                         fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                        return CLI_ERROR_INVALID_ARGUMENT;
+                        return -CLI_ERROR_INVALID_ARGUMENT;
                 }
 
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
                         fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
-                        return -r;
+                        return r;
                 }
         }
 
@@ -330,14 +330,14 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 r = connection_new_ssh(&connection, arguments);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect with SSH: %s\n", cli_error_string(-r));
-                        return -r;
+                        return r;
                 }
 
         } else {
                 r = varlink_connection_new(&connection, address);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                        return CLI_ERROR_CANNOT_CONNECT;
+                        return -CLI_ERROR_CANNOT_CONNECT;
                 }
         }
 
@@ -349,19 +349,19 @@ static long call_run(Cli *cli, int argc, char **argv) {
                                     &error);
         if (r < 0) {
                 fprintf(stderr, "Unable to call: %s\n", varlink_error_string(-r));
-                return CLI_ERROR_CALL_FAILED;
+                return -CLI_ERROR_CALL_FAILED;
         }
 
         r = cli_process_all_events(cli, connection);
         if (r >= 0)
-                return EXIT_SUCCESS;
+                return 0;
 
         /* CTRL-C */
         if (r == -CLI_ERROR_CANCELED)
-                return EXIT_SUCCESS;
+                return 0;
 
         fprintf(stderr, "Unable to process events: %s\n", cli_error_string(-r));
-        return -r;
+        return r;
 }
 
 static long call_complete(Cli *cli, int argc, char **argv, const char *current) {

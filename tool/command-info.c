@@ -86,26 +86,26 @@ static long info_run(Cli *cli, int argc, char **argv) {
                                 printf("Prints information about the service running at ADDRESS.\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
-                                return EXIT_SUCCESS;
+                                return 0;
 
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
                                         program_invocation_short_name);
-                                return EXIT_FAILURE;
+                                return -CLI_ERROR_INVALID_ARGUMENT;
                 }
         }
 
         address = argv[optind];
         if (!address) {
                 fprintf(stderr, "Usage: %s info ADDRESS\n", program_invocation_short_name);
-                return EXIT_FAILURE;
+                return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
         r = print_service(cli, address);
         if (r < 0)
-                return EXIT_FAILURE;
+                return r;
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 static long info_complete(Cli *cli, int argc, char **argv, const char *current) {

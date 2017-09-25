@@ -26,7 +26,6 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
 
         if (error) {
                 printf("Error: %s\n", error);
-
                 return 0;
         }
 
@@ -74,18 +73,18 @@ static long help_run(Cli *cli, int argc, char **argv) {
                                 printf("Prints information about INTERFACE.\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
-                                return EXIT_SUCCESS;
+                                return 0;
 
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
                                         program_invocation_short_name);
-                                return EXIT_FAILURE;
+                                return -CLI_ERROR_INVALID_ARGUMENT;
                 }
         }
 
         if (!argv[optind]) {
                 fprintf(stderr, "Usage: %s help [ADDRESS/]INTERFACE\n", program_invocation_short_name);
-                return EXIT_FAILURE;
+                return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
         cli_split_address(argv[optind], &address, &interface);
@@ -94,15 +93,15 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 r = cli_resolve(cli, interface, &address);
                 if (r < 0) {
                         fprintf(stderr, "Error resolving interface %s\n", interface);
-                        return CLI_ERROR_CANNOT_RESOLVE;
+                        return -CLI_ERROR_CANNOT_RESOLVE;
                 }
         }
 
         r = help_interface(cli, address, interface);
         if (r < 0)
-                return EXIT_FAILURE;
+                return r;
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 static long help_complete(Cli *cli, int argc, char **argv, const char *current) {

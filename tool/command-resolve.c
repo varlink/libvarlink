@@ -26,7 +26,7 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
                                 printf("Resolve INTERFACE to the varlink address that implements it.\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
-                                return EXIT_SUCCESS;
+                                return 0;
 
                         default:
                                 return -CLI_ERROR_PANIC;
@@ -36,19 +36,18 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
         interface = argv[optind];
         if (!interface) {
                 fprintf(stderr, "Error: INTERFACE expected\n");
-
-                return EXIT_FAILURE;
+                return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
         r = cli_resolve(cli, interface, &address);
         if (r < 0) {
                 fprintf(stderr, "Error resolving interface %s\n", interface);
-                return CLI_ERROR_CANNOT_RESOLVE;
+                return -CLI_ERROR_CANNOT_RESOLVE;
         }
 
         printf("%s\n", address);
 
-        return EXIT_SUCCESS;
+        return 0;
 }
 
 const CliCommand command_resolve = {
