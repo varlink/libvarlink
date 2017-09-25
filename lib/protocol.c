@@ -44,15 +44,15 @@ long varlink_protocol_unpack_call(VarlinkObject *call,
 
         r = varlink_object_get_object(call, "parameters", &parameters);
         if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         r = varlink_object_get_bool(call, "more", &more);
         if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         r = varlink_object_get_bool(call, "oneway", &oneway);
         if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         *methodp = strdup(method);
 
@@ -107,11 +107,11 @@ long varlink_protocol_unpack_reply(VarlinkObject *reply,
 
         r = varlink_object_get_object(reply, "parameters", &parameters);
         if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         r = varlink_object_get_bool(reply, "continues", &continues);
         if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         *errorp = error ? strdup(error) : NULL;
 

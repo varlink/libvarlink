@@ -416,7 +416,7 @@ long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
 
         r = cli_parse_arguments(argc, argv, &arguments);
         if (r < 0) {
-                if (r == CLI_ERROR_INVALID_ARGUMENT)
+                if (r == -CLI_ERROR_INVALID_ARGUMENT)
                         return 0;
 
                 return -CLI_ERROR_PANIC;
@@ -471,11 +471,11 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
                 return -r;
 
         if (error)
-                return CLI_ERROR_CALL_FAILED;
+                return -CLI_ERROR_CALL_FAILED;
 
         r = varlink_object_get_array(out, "interfaces", &interfaces);
         if (r < 0)
-                return CLI_ERROR_INVALID_MESSAGE;
+                return -CLI_ERROR_INVALID_MESSAGE;
 
         n_interfaces = varlink_array_get_n_elements(interfaces);
         for (long i = 0; i < n_interfaces; i += 1) {
@@ -503,11 +503,11 @@ long cli_complete_addresses(Cli *cli, const char *current) {
                 return -r;
 
         if (error)
-                return CLI_ERROR_CALL_FAILED;
+                return -CLI_ERROR_CALL_FAILED;
 
         r = varlink_object_get_array(out, "interfaces", &interfaces);
         if (r < 0)
-                return CLI_ERROR_INVALID_MESSAGE;
+                return -CLI_ERROR_INVALID_MESSAGE;
 
         n_interfaces = varlink_array_get_n_elements(interfaces);
         for (long i = 0; i < n_interfaces; i += 1) {

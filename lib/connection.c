@@ -132,7 +132,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
                 if ((flags & VARLINK_REPLY_CONTINUES) && !(callback->call_flags & VARLINK_CALL_MORE))
-                        return VARLINK_ERROR_INVALID_MESSAGE;
+                        return -VARLINK_ERROR_INVALID_MESSAGE;
 
                 callback->func(connection, error, parameters, flags, callback->userdata);
 

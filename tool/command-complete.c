@@ -13,7 +13,7 @@ static long complete_run(Cli *cli, int argc, char **argv) {
         const char *current = NULL;
 
         if (argc < 3)
-                return CLI_ERROR_MISSING_ARGUMENT;
+                return -CLI_ERROR_MISSING_ARGUMENT;
 
         if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
                 printf("Usage: %s complete INDEX -- ARGUMENTS\n", program_invocation_short_name);
@@ -25,16 +25,16 @@ static long complete_run(Cli *cli, int argc, char **argv) {
 
         argindex = strtoul(argv[1], &endptr, 0);
         if (endptr == argv[1] || endptr[0] != '\0')
-                return CLI_ERROR_INVALID_ARGUMENT;
+                return -CLI_ERROR_INVALID_ARGUMENT;
 
         if (strcmp(argv[2], "--") != 0)
-                return CLI_ERROR_INVALID_ARGUMENT;
+                return -CLI_ERROR_INVALID_ARGUMENT;
 
         argc -= 3;
         argv += 3;
 
         if (argindex == 0 || argindex > argc)
-                return CLI_ERROR_INVALID_ARGUMENT;
+                return -CLI_ERROR_INVALID_ARGUMENT;
 
         /* don't care about arguments after the one that shall be completed */
         current = argv[argindex] ?: "",

@@ -169,10 +169,10 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {
                 return length;
 
         if (length >= CONNECTION_BUFFER_SIZE - 1)
-                return VARLINK_ERROR_INVALID_MESSAGE;
+                return -VARLINK_ERROR_INVALID_MESSAGE;
 
         if (socket->out_end + length + 1 >= CONNECTION_BUFFER_SIZE)
-                return VARLINK_ERROR_SENDING_MESSAGE;
+                return -VARLINK_ERROR_SENDING_MESSAGE;
 
         memcpy(socket->out + socket->out_end, json, length + 1);
         socket->out_end += length + 1;
