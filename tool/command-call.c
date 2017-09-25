@@ -14,7 +14,6 @@
 static const struct option options[] = {
         { "help",    no_argument,       NULL, 'h' },
         { "more",    no_argument,       NULL, 'm' },
-        { "oneway",  no_argument,       NULL, 'o' },
         {}
 };
 
@@ -96,7 +95,7 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         int c;
         long r;
 
-        while ((c = getopt_long(argc, argv, ":a:fhmo", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, ":a:fhm", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
@@ -104,10 +103,6 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
 
                         case 'm':
                                 arguments->flags |= VARLINK_CALL_MORE;
-                                continue;
-
-                        case 'o':
-                                arguments->flags |= VARLINK_CALL_ONEWAY;
                                 continue;
 
                         case '?':
@@ -269,7 +264,6 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 printf("\n");
                 printf("  -h, --help             display this help text and exit\n");
                 printf("  -m, --more             wait for multiple method returns if supported\n");
-                printf("  -o, --oneway           do not request a reply\n");
                 return 0;
         }
 
