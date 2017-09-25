@@ -311,22 +311,6 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return r;
         }
 
-        if (!address) {
-                _cleanup_(freep) char *interface = NULL;
-
-                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-                }
-
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
-                        return r;
-                }
-        }
-
         if (arguments->host) {
                 r = connection_new_ssh(&connection, arguments);
                 if (r < 0) {
@@ -335,6 +319,22 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 }
 
         } else {
+                if (!address) {
+                        _cleanup_(freep) char *interface = NULL;
+
+                        r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+                        if (r < 0) {
+                                fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+                        }
+
+                        r = cli_resolve(cli, interface, &address);
+                        if (r < 0) {
+                                fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
+                                return r;
+                        }
+                }
+
                 r = varlink_connection_new(&connection, address);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
