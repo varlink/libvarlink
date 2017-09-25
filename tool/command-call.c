@@ -22,15 +22,16 @@ typedef struct {
 
         uint64_t flags;
 
-        char *host;
+        bool ssh;
+        char *address;
         int port;
-
-        const char *method;
+        char *method;
         const char *parameters;
 } CallArguments;
 
 static CallArguments *call_arguments_free(CallArguments *arguments) {
-        free(arguments->host);
+        free(arguments->address);
+        free(arguments->method);
         free(arguments);
 
         return NULL;
@@ -53,40 +54,69 @@ static long call_arguments_new(CallArguments **argumentsp) {
 }
 
 static long call_parse_url(CallArguments *arguments, const char *url) {
-        /* varlink:// */
+        /* varlink://[ADDRESS]/INTERFACE.METHOD */
         if (strncmp(url, "varlink://", 10) == 0) {
-                if (!strchr(url + 10, '/'))
+                char *s;
+
+                s = strchr(url + 10, '/');
+                if (!s)
                         return -CLI_ERROR_INVALID_ARGUMENT;
 
                 //FIXME: URL-decode slashes in unix path
 
-                arguments->method = url + 10;
+                if (s - (url + 10) > 0)
+                        arguments->address = strndup(url + 10, s - (url + 10));
 
-                return 1;
+                if (s[1] != '\0')
+                        arguments->method = strdup(s + 1);
+
+                return 0;
         }
 
-        /* ssh://[host][:port]/ */
+        /* ssh://HOST[:PORT]/INTERFACE.METHOD */
         if (strncmp(url, "ssh://", 6) == 0) {
                 char *s;
                 char *host;
-                int port;
+                unsigned int port;
 
                 s = strchr(url + 6, '/');
                 if (!s)
                         return -CLI_ERROR_INVALID_ARGUMENT;
 
-                arguments->host = strndup(url + 6, s - (url + 6));
-                arguments->method = s + 1;
+                arguments->ssh = true;
+                arguments->address = strndup(url + 6, s - (url + 6));
+
+                if (s[1] != '\0')
+                        arguments->method = strdup(s + 1);
 
                 /* Extract optional port number */
-                if (sscanf(arguments->host, "%m[^:]:%d", &host, &port) == 2) {
-                        free(arguments->host);
-                        arguments->host = host;
+                if (sscanf(arguments->address, "%m[^:]:%d", &host, &port) == 2) {
+                        free(arguments->address);
+                        arguments->address = host;
                         arguments->port = port;
                 }
 
-                return 1;
+                return 0;
         }
+
+        /* ADDRESS/INTERFACE.METHOD */
+        {
+                char *s;
+
+                s = strrchr(url, '/');
+                if (s) {
+                        if (s - url > 0)
+                                arguments->address = strndup(url, s - url);
+
+                        if (s[1] != '\0')
+                                arguments->method = strdup(s + 1);
+
+                        return 0;
+                }
+        }
+
+        /* INTERFACE.METHOD */
+        arguments->method = strdup(url);
 
         return 0;
 }
@@ -122,10 +152,6 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         r = call_parse_url(arguments, argv[optind]);
         if (r < 0)
                 return -CLI_ERROR_INVALID_ARGUMENT;
-
-        /* Not a URL */
-        if (r == 0)
-                arguments->method = argv[optind];
 
         arguments->parameters = argv[optind + 1];
 
@@ -168,7 +194,7 @@ static void reply_callback(VarlinkConnection *connection,
                 varlink_connection_close(connection);
 }
 
-static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *arguments) {
+static long connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port) {
         int sp[2];
         pid_t pid;
         long r;
@@ -186,7 +212,7 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
         if (pid == 0) {
                 const char *arg[11];
                 long i = 0;
-                char port[8];
+                char portno[8];
 
                 arg[i++] = "ssh";
 
@@ -198,15 +224,15 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
                 arg[i++] = "BatchMode=yes";
 
                 /* Add custom port number */
-                if (arguments->port > 0) {
+                if (port > 0) {
                         arg[i++] = "-p";
 
-                        sprintf(port, "%d", arguments->port);
-                        arg[i++] = port;
+                        sprintf(portno, "%d", port);
+                        arg[i++] = portno;
                 }
 
                 arg[i++] = "--";
-                arg[i++] = arguments->host;
+                arg[i++] = host;
                 arg[i++] = "varlink";
                 arg[i++] = "bridge";
                 arg[i] = NULL;
@@ -235,8 +261,6 @@ static long connection_new_ssh(VarlinkConnection **connectionp, CallArguments *a
 
 static long call_run(Cli *cli, int argc, char **argv) {
         _cleanup_(call_arguments_freep) CallArguments *arguments = NULL;
-        _cleanup_(freep) char *address = NULL;
-        const char *method = NULL;
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(freep) char *buffer = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
@@ -305,34 +329,34 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_INVALID_JSON;
         }
 
-        r  = cli_split_address(arguments->method, &address, &method);
-        if (r < 0) {
-                fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                return r;
-        }
-
-        if (arguments->host) {
-                r = connection_new_ssh(&connection, arguments);
+        if (arguments->ssh) {
+                r = connection_new_ssh(&connection, arguments->address, arguments->port);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect with SSH: %s\n", cli_error_string(-r));
                         return r;
                 }
 
+        } else if (arguments->address) {
+                r = varlink_connection_new(&connection, arguments->address);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                        return -CLI_ERROR_CANNOT_CONNECT;
+                }
+
         } else {
-                if (!address) {
-                        _cleanup_(freep) char *interface = NULL;
+                _cleanup_(freep) char *address = NULL;
+                _cleanup_(freep) char *interface = NULL;
 
-                        r = varlink_interface_parse_qualified_name(method, &interface, NULL);
-                        if (r < 0) {
-                                fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-                        }
+                r = varlink_interface_parse_qualified_name(arguments->method, &interface, NULL);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+                }
 
-                        r = cli_resolve(cli, interface, &address);
-                        if (r < 0) {
-                                fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
-                                return r;
-                        }
+                r = cli_resolve(cli, interface, &address);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
+                        return r;
                 }
 
                 r = varlink_connection_new(&connection, address);
@@ -343,7 +367,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
         }
 
         r = varlink_connection_call(connection,
-                                    method,
+                                    arguments->method,
                                     parameters,
                                     arguments->flags,
                                     reply_callback,
