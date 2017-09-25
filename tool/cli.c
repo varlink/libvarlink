@@ -264,10 +264,11 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
                                 default:
                                         return -CLI_ERROR_PANIC;
                         }
+
                 } else if (ev.data.ptr == connection) {
                         r = varlink_connection_process_events(connection, ev.events);
                         if (r < 0)
-                                return -CLI_ERROR_PANIC;
+                                return r;
 
                         if (varlink_connection_is_closed(connection))
                                 break;
@@ -278,6 +279,7 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
                                       connection);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
+
                 } else
                         return -CLI_ERROR_PANIC;
         }

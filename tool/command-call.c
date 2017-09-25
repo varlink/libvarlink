@@ -13,11 +13,15 @@
 
 static const struct option options[] = {
         { "help",    no_argument,       NULL, 'h' },
+        { "more",    no_argument,       NULL, 'm' },
+        { "oneway",  no_argument,       NULL, 'o' },
         {}
 };
 
 typedef struct {
         bool help;
+
+        uint64_t flags;
 
         char *host;
         int port;
@@ -92,11 +96,19 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         int c;
         long r;
 
-        while ((c = getopt_long(argc, argv, ":a:fh", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, ":a:fhmo", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
                                 return 0;
+
+                        case 'm':
+                                arguments->flags |= VARLINK_CALL_MORE;
+                                continue;
+
+                        case 'o':
+                                arguments->flags |= VARLINK_CALL_ONEWAY;
+                                continue;
 
                         case '?':
                                 return -CLI_ERROR_INVALID_ARGUMENT;
@@ -256,6 +268,8 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 printf("Call METHOD on INTERFACE at ADDRESS. ARGUMENTS must be valid JSON.\n");
                 printf("\n");
                 printf("  -h, --help             display this help text and exit\n");
+                printf("  -m, --more             wait for multiple method returns if supported\n");
+                printf("  -o, --oneway           do not request a reply\n");
                 return EXIT_SUCCESS;
         }
 
@@ -327,19 +341,27 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        r = varlink_connection_call(connection, method, parameters, VARLINK_CALL_MORE, reply_callback, &error);
+        r = varlink_connection_call(connection,
+                                    method,
+                                    parameters,
+                                    arguments->flags,
+                                    reply_callback,
+                                    &error);
         if (r < 0) {
                 fprintf(stderr, "Unable to call: %s\n", varlink_error_string(-r));
                 return -r;
         }
 
         r = cli_process_all_events(cli, connection);
-        if (r < 0) {
-                fprintf(stderr, "Unable to process events: %s\n", varlink_error_string(-r));
-                return -r;
-        }
+        if (r >= 0)
+                return EXIT_SUCCESS;
 
-        return EXIT_SUCCESS;
+        /* Do not expect a reply */
+        if (r == -VARLINK_ERROR_CONNECTION_CLOSED && (arguments->flags & VARLINK_CALL_ONEWAY))
+                return EXIT_SUCCESS;
+
+        fprintf(stderr, "Unable to process events: %s\n", varlink_error_string(-r));
+        return -r;
 }
 
 static long call_complete(Cli *cli, int argc, char **argv, const char *current) {
