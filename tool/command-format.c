@@ -39,12 +39,10 @@ static long read_file(FILE *file, char **contentsp) {
 static long format_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help",   no_argument,       NULL, 'h' },
-                { "output", required_argument, NULL, 'o' },
                 {}
         };
         int c;
         const char *in_filename = NULL;
-        const char *out_filename = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
         _cleanup_(fclosep) FILE *in_file = NULL;
@@ -61,12 +59,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
                                 printf("Format a varlink service file.\n");
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
-                                printf("  -o, --output=FILENAME  output to FILENAME instead of stdout\n");
                                 return 0;
-
-                        case 'o':
-                                out_filename = optarg;
-                                break;
 
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
@@ -87,9 +80,8 @@ static long format_run(Cli *cli, int argc, char **argv) {
                         fprintf(stderr, "Error opening %s for reading: %s\n", in_filename, strerror(errno));
                         return -CLI_ERROR_PANIC;
                 }
-        } else {
+        } else
                 in_file = stdin;
-        }
 
         r = read_file(in_file, &in);
         if (r < 0) {
@@ -117,20 +109,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_PANIC;
         }
 
-        if (out_filename && strcmp(out_filename, "-") != 0) {
-                out_file = fopen(out_filename, "w");
-                if (!out_file) {
-                        fprintf(stderr, "Error opening %s for writing: %s\n", out_filename, strerror(errno));
-                        return -CLI_ERROR_PANIC;
-                }
-        } else
-                out_file = stdout;
-
-        r = fwrite(out, 1, strlen(out), out_file);
-        if (r == 0) {
-                fprintf(stderr, "Error writing interface: %s\n", strerror(-r));
-                return -CLI_ERROR_PANIC;
-        }
+        printf("%s", out);
 
         return 0;
 }
