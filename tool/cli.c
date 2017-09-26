@@ -167,10 +167,14 @@ long cli_call(Cli *cli,
               char **errorp,
               VarlinkObject **outp) {
         _cleanup_(freep) char *address = NULL;
-        const char *method = NULL;
+        _cleanup_(freep) char *method = NULL;
         long r;
 
-        r  = cli_split_address(method_identifier, &address, &method);
+        r = cli_parse_url(method_identifier,
+                          NULL,
+                          &address,
+                          NULL,
+                          &method);
         if (r < 0)
                 return r;
 
@@ -542,8 +546,8 @@ long cli_complete_addresses(Cli *cli, const char *current) {
 
 long cli_complete_methods(Cli *cli, const char *current) {
         _cleanup_(freep) char *address = NULL;
+        _cleanup_(freep) char *method = NULL;
         _cleanup_(freep) char *interface_name = NULL;
-        const char *method = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
@@ -551,7 +555,11 @@ long cli_complete_methods(Cli *cli, const char *current) {
         const char *description = NULL;
         long r;
 
-        r = cli_split_address(current, &address, &method);
+        r = cli_parse_url(current,
+                          NULL,
+                          &address,
+                          NULL,
+                          &method);
         if (r < 0)
                 return -r;
 
@@ -596,24 +604,6 @@ long cli_complete_methods(Cli *cli, const char *current) {
 
                 cli_print_completion(current, "%s.%s", interface_name, member->name);
         }
-
-        return 0;
-}
-
-long cli_split_address(const char *identifier,
-                       char **addressp,
-                       const char **methodp) {
-        const char *p;
-
-        p = strrchr(identifier, '/');
-        if (!p) {
-                *addressp = NULL;
-                *methodp = identifier;
-                return 0;
-        }
-
-        *addressp = p - identifier > 0 ? strndup(identifier, p - identifier) : NULL;
-        *methodp = p + 1;
 
         return 0;
 }

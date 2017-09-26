@@ -57,7 +57,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 {}
         };
         _cleanup_(freep) char *address = NULL;
-        const char *interface = NULL;
+        _cleanup_(freep) char *interface = NULL;
         int c;
         long r;
 
@@ -83,7 +83,13 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        cli_split_address(argv[optind], &address, &interface);
+        r = cli_parse_url(argv[optind],
+                          NULL,
+                          &address,
+                          NULL,
+                          &interface);
+        if (r < 0)
+                return r;
 
         if (!address) {
                 r = cli_resolve(cli, interface, &address);
