@@ -454,18 +454,23 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 
 long varlink_interface_parse_qualified_name(const char *qualified_name,
                                             char **interfacep,
-                                            char **namep) {
+                                            char **methodp) {
         const char *dot;
 
         dot = strrchr(qualified_name, '.');
         if (!dot)
                 return -VARLINK_ERROR_INVALID_METHOD;
 
-        if (interfacep)
-                *interfacep = strndup(qualified_name, dot - qualified_name);
+        if (dot[1] >= 'A' && dot[1] <= 'Z') {
+                if (interfacep)
+                        *interfacep = strndup(qualified_name, dot - qualified_name);
 
-        if (namep)
-                *namep = strdup(dot + 1);
+                if (methodp)
+                        *methodp = strdup(dot + 1);
+
+        } else
+                if (interfacep)
+                        *interfacep = strdup(qualified_name);
 
         return 0;
 }

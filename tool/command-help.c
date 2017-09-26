@@ -8,9 +8,10 @@
 #include <getopt.h>
 #include <string.h>
 
-static long help_interface(Cli *cli, const char *address, const char *name) {
+static long help_interface(Cli *cli,
+                           VarlinkConnection *connection,
+                           const char *name) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
@@ -20,10 +21,6 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
 
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
-
-        r = varlink_connection_new(&connection, address);
-        if (r < 0)
-                return -CLI_ERROR_PANIC;
 
         r = cli_call(cli,
                      connection,
@@ -67,7 +64,10 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 { "help",    no_argument,       NULL, 'h' },
                 {}
         };
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        bool ssh;
         _cleanup_(freep) char *address = NULL;
+        unsigned int port;
         _cleanup_(freep) char *interface = NULL;
         int c;
         long r;
@@ -95,22 +95,23 @@ static long help_run(Cli *cli, int argc, char **argv) {
         }
 
         r = cli_parse_url(argv[optind],
-                          NULL,
+                          &ssh,
                           &address,
-                          NULL,
+                          &port,
                           &interface);
         if (r < 0)
                 return r;
 
-        if (!address) {
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0) {
-                        fprintf(stderr, "Error resolving interface %s\n", interface);
-                        return -CLI_ERROR_CANNOT_RESOLVE;
-                }
-        }
+        r = cli_connect(cli,
+                        &connection,
+                        ssh,
+                        address,
+                        port,
+                        interface);
+        if (r < 0)
+                return r;
 
-        r = help_interface(cli, address, interface);
+        r = help_interface(cli, connection, interface);
         if (r < 0)
                 return r;
 
