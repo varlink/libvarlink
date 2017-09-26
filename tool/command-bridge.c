@@ -238,7 +238,37 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
-                        r = varlink_connection_call(connection, "org.varlink.resolver.GetInfo", parameters, flags, reply_callback, bridge);
+                        r = varlink_connection_call(connection,
+                                                    "org.varlink.resolver.GetInfo",
+                                                    parameters,
+                                                    flags,
+                                                    reply_callback,
+                                                    bridge);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                } else if (strcmp(method, "org.varlink.service.GetInterfaceDescription") == 0) {
+                        _cleanup_(freep) char *address = NULL;
+                        const char *interf;
+
+                        r = varlink_object_get_string(parameters, "interface", &interf);
+                        if (r < 0)
+                                return -CLI_ERROR_MISSING_ARGUMENT;
+
+                        r = cli_resolve(cli, interf, &address);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                        r = varlink_connection_new(&connection, address);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                        r = varlink_connection_call(connection,
+                                                    "org.varlink.service.GetInterfaceDescription",
+                                                    parameters,
+                                                    flags,
+                                                    reply_callback,
+                                                    bridge);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
@@ -253,7 +283,12 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
-                        r = varlink_connection_call(connection, method, parameters, flags, reply_callback, bridge);
+                        r = varlink_connection_call(connection,
+                                                    method,
+                                                    parameters,
+                                                    flags,
+                                                    reply_callback,
+                                                    bridge);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
