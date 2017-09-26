@@ -24,7 +24,7 @@ typedef struct {
 
         bool ssh;
         char *address;
-        int port;
+        unsigned int port;
         char *method;
         const char *parameters;
 } CallArguments;
@@ -49,111 +49,6 @@ static long call_arguments_new(CallArguments **argumentsp) {
 
         *argumentsp = arguments;
         arguments = NULL;
-
-        return 0;
-}
-
-static long url_decode(char **outp, const char *in, unsigned long len) {
-        _cleanup_(freep) char *out = NULL;
-        unsigned long j = 0;
-
-        out = malloc(len);
-
-        for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
-                if (in[i] == '%') {
-                        unsigned int hex;
-
-                        if (i + 3 >= len)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        if (sscanf(in + i + 1, "%02x", &hex) != 1)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        out[j] = hex;
-                        j += 1;
-                        i += 2;
-
-                        continue;
-                }
-
-                out[j] = in[i];
-                j += 1;
-        }
-
-        out[j] = '\0';
-        *outp = out;
-        out = NULL;
-
-        return j;
-}
-
-static long call_parse_url(CallArguments *arguments, const char *url) {
-        long r;
-
-        /* varlink://[ADDRESS]/INTERFACE.METHOD */
-        if (strncmp(url, "varlink://", 10) == 0) {
-                char *s;
-
-                s = strchr(url + 10, '/');
-                if (!s)
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-
-                if (s - (url + 10) > 0) {
-                        r = url_decode(&arguments->address, url + 10, s - (url + 10));
-                        if (r < 0)
-                                return r;
-                }
-
-                if (s[1] != '\0')
-                        arguments->method = strdup(s + 1);
-
-                return 0;
-        }
-
-        /* ssh://HOST[:PORT]/INTERFACE.METHOD */
-        if (strncmp(url, "ssh://", 6) == 0) {
-                char *s;
-                char *host;
-                unsigned int port;
-
-                s = strchr(url + 6, '/');
-                if (!s)
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-
-                arguments->ssh = true;
-                arguments->address = strndup(url + 6, s - (url + 6));
-
-                if (s[1] != '\0')
-                        arguments->method = strdup(s + 1);
-
-                /* Extract optional port number */
-                if (sscanf(arguments->address, "%m[^:]:%d", &host, &port) == 2) {
-                        free(arguments->address);
-                        arguments->address = host;
-                        arguments->port = port;
-                }
-
-                return 0;
-        }
-
-        /* ADDRESS/INTERFACE.METHOD */
-        {
-                char *s;
-
-                s = strrchr(url, '/');
-                if (s) {
-                        if (s - url > 0)
-                                arguments->address = strndup(url, s - url);
-
-                        if (s[1] != '\0')
-                                arguments->method = strdup(s + 1);
-
-                        return 0;
-                }
-        }
-
-        /* INTERFACE.METHOD */
-        arguments->method = strdup(url);
 
         return 0;
 }
@@ -186,9 +81,13 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        r = call_parse_url(arguments, argv[optind]);
+        r = cli_parse_url(argv[optind],
+                          &arguments->ssh,
+                          &arguments->address,
+                          &arguments->port,
+                          &arguments->method);
         if (r < 0)
-                return -CLI_ERROR_INVALID_ARGUMENT;
+                return r;
 
         arguments->parameters = argv[optind + 1];
 
@@ -229,71 +128,6 @@ static void reply_callback(VarlinkConnection *connection,
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
                 varlink_connection_close(connection);
-}
-
-static long connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port) {
-        int sp[2];
-        pid_t pid;
-        long r;
-
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
-                return -CLI_ERROR_PANIC;
-
-        pid = fork();
-        if (pid < 0) {
-                close(sp[0]);
-                close(sp[1]);
-                return -CLI_ERROR_PANIC;
-        }
-
-        if (pid == 0) {
-                const char *arg[11];
-                long i = 0;
-                char portno[8];
-
-                arg[i++] = "ssh";
-
-                /* Disable X11 and pseudo-terminal */
-                arg[i++] = "-xT";
-
-                /* Disable passphrase/password querying */
-                arg[i++] = "-o";
-                arg[i++] = "BatchMode=yes";
-
-                /* Add custom port number */
-                if (port > 0) {
-                        arg[i++] = "-p";
-
-                        sprintf(portno, "%d", port);
-                        arg[i++] = portno;
-                }
-
-                arg[i++] = "--";
-                arg[i++] = host;
-                arg[i++] = "varlink";
-                arg[i++] = "bridge";
-                arg[i] = NULL;
-
-                close(sp[0]);
-
-                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
-                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
-                        return -CLI_ERROR_PANIC;
-
-                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
-                        close(sp[1]);
-
-                execvp(arg[0], (char **) arg);
-                _exit(EXIT_FAILURE);
-        }
-
-        close(sp[1]);
-
-        r = varlink_connection_new_from_socket(connectionp, sp[0]);
-        if (r < 0)
-                return -CLI_ERROR_CANNOT_CONNECT;
-
-        return 0;
 }
 
 static long call_run(Cli *cli, int argc, char **argv) {
@@ -372,7 +206,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
         }
 
         if (arguments->ssh) {
-                r = connection_new_ssh(&connection, arguments->address, arguments->port);
+                r = cli_connection_new_ssh(&connection, arguments->address, arguments->port);
                 if (r < 0) {
                         fprintf(stderr, "Unable to connect with SSH: %s\n", cli_error_string(-r));
                         return r;

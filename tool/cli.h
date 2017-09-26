@@ -51,3 +51,10 @@ __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
 
 long cli_split_address(const char *identifier, char **addressp, const char **methodp);
+long cli_parse_url(const char *url,
+                   bool *sshp,
+                   char **addressp,
+                   unsigned int *portp,
+                   char **methodp);
+
+long cli_connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port);
