@@ -29,20 +29,24 @@ static long help_interface(Cli *cli,
                      0,
                      &error,
                      &out);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to call method: %s\n", cli_error_string(-r));
                 return r;
+        }
 
         if (error) {
-                printf("Error: %s\n", error);
+                fprintf(stderr, "Encountered error: %s\n", error);
                 return 0;
         }
 
         if (varlink_object_get_string(out, "description", &description) < 0)
-                return -CLI_ERROR_CALL_FAILED;
+                return -CLI_ERROR_INVALID_MESSAGE;
 
         r = varlink_interface_new(&interface, description, NULL);
-        if (r < 0)
-                return -CLI_ERROR_PANIC;
+        if (r < 0) {
+                fprintf(stderr, "Unable to call read interface description: %s\n", varlink_error_string(-r));
+                return -CLI_ERROR_INVALID_MESSAGE;
+        }
 
         r  = varlink_interface_write_description(interface,
                                                  &string,
@@ -51,8 +55,10 @@ static long help_interface(Cli *cli,
                                                  terminal_color(TERMINAL_MAGENTA), terminal_color(TERMINAL_NORMAL),
                                                  terminal_color(TERMINAL_GREEN), terminal_color(TERMINAL_NORMAL),
                                                  terminal_color(TERMINAL_CYAN), terminal_color(TERMINAL_NORMAL));
-        if (r < 0)
-                return r;
+        if (r < 0) {
+                fprintf(stderr, "Unable to call method: %s\n", cli_error_string(-r));
+                return -CLI_ERROR_INVALID_JSON;
+        }
 
         printf("%s\n", string);
 
@@ -100,8 +106,15 @@ static long help_run(Cli *cli, int argc, char **argv) {
                           &address,
                           &port,
                           &interface);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
                 return r;
+        }
+
+        if (!interface) {
+                fprintf(stderr, "Unable to parse INTERFACE\n");
+                return -CLI_ERROR_INVALID_ARGUMENT;
+        }
 
         r = cli_connect(cli,
                         &connection,
@@ -109,8 +122,10 @@ static long help_run(Cli *cli, int argc, char **argv) {
                         address,
                         port,
                         interface);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
                 return r;
+        }
 
         r = help_interface(cli, connection, interface);
         if (r < 0)
