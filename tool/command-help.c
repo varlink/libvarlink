@@ -10,6 +10,7 @@
 
 static long help_interface(Cli *cli, const char *address, const char *name) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
@@ -20,7 +21,17 @@ static long help_interface(Cli *cli, const char *address, const char *name) {
         varlink_object_new(&parameters);
         varlink_object_set_string(parameters, "interface", name);
 
-        r = cli_call_on_address(cli, address, "org.varlink.service.GetInterfaceDescription", parameters, &error, &out);
+        r = varlink_connection_new(&connection, address);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
+        r = cli_call(cli,
+                     connection,
+                     "org.varlink.service.GetInterfaceDescription",
+                     parameters,
+                     0,
+                     &error,
+                     &out);
         if (r < 0)
                 return r;
 

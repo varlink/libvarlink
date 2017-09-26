@@ -34,9 +34,8 @@ const char *cli_error_string(long error);
 long cli_new(Cli **clip);
 Cli *cli_free(Cli *cli);
 void cli_freep(Cli **clip);
+
 long cli_resolve(Cli *cli, const char *interface, char **addressp);
-long cli_call_on_address(Cli *cli, const char *address, const char *method, VarlinkObject *parameters,
-                         char **errorp, VarlinkObject **outp);
 long cli_process_all_events(Cli *cli, VarlinkConnection *connection);
 long cli_run(Cli *cli, int argc, char **argv);
 long cli_complete(Cli *cli, int argc, char **argv, const char *current);
@@ -45,7 +44,6 @@ long cli_complete_options(Cli *cli, const struct option *options, const char *cu
 long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot);
 long cli_complete_addresses(Cli *cli, const char *current);
 long cli_complete_methods(Cli *cli, const char *current);
-
 __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
 
@@ -54,10 +52,16 @@ long cli_parse_url(const char *url,
                    char **addressp,
                    unsigned int *portp,
                    char **methodp);
-
 long cli_connect(Cli *cli,
                  VarlinkConnection **connectionp,
                  bool ssh,
                  const char *address,
                  unsigned int port,
                  const char *method);
+long cli_call(Cli *cli,
+              VarlinkConnection *connection,
+              const char *method,
+              VarlinkObject *parameters,
+              uint64_t flags,
+              char **errorp,
+              VarlinkObject **outp);

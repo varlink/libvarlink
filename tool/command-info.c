@@ -8,6 +8,7 @@
 #include <string.h>
 
 static long print_service(Cli *cli, const char *address) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *str;
@@ -15,7 +16,17 @@ static long print_service(Cli *cli, const char *address) {
         unsigned long n_interfaces;
         long r;
 
-        r = cli_call_on_address(cli, address, "org.varlink.service.GetInfo", NULL, &error, &info);
+        r = varlink_connection_new(&connection, address);
+        if (r < 0)
+                return -CLI_ERROR_PANIC;
+
+        r = cli_call(cli,
+                     connection,
+                     "org.varlink.service.GetInfo",
+                     NULL,
+                     0,
+                     &error,
+                     &info);
         if (r < 0)
                 return r;
 
