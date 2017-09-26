@@ -53,7 +53,43 @@ static long call_arguments_new(CallArguments **argumentsp) {
         return 0;
 }
 
+static long url_decode(char **outp, const char *in, unsigned long len) {
+        _cleanup_(freep) char *out = NULL;
+        unsigned long j = 0;
+
+        out = malloc(len);
+
+        for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
+                if (in[i] == '%') {
+                        unsigned int hex;
+
+                        if (i + 3 >= len)
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+
+                        if (sscanf(in + i + 1, "%02x", &hex) != 1)
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+
+                        out[j] = hex;
+                        j += 1;
+                        i += 2;
+
+                        continue;
+                }
+
+                out[j] = in[i];
+                j += 1;
+        }
+
+        out[j] = '\0';
+        *outp = out;
+        out = NULL;
+
+        return j;
+}
+
 static long call_parse_url(CallArguments *arguments, const char *url) {
+        long r;
+
         /* varlink://[ADDRESS]/INTERFACE.METHOD */
         if (strncmp(url, "varlink://", 10) == 0) {
                 char *s;
@@ -62,10 +98,11 @@ static long call_parse_url(CallArguments *arguments, const char *url) {
                 if (!s)
                         return -CLI_ERROR_INVALID_ARGUMENT;
 
-                //FIXME: URL-decode slashes in unix path
-
-                if (s - (url + 10) > 0)
-                        arguments->address = strndup(url + 10, s - (url + 10));
+                if (s - (url + 10) > 0) {
+                        r = url_decode(&arguments->address, url + 10, s - (url + 10));
+                        if (r < 0)
+                                return r;
+                }
 
                 if (s[1] != '\0')
                         arguments->method = strdup(s + 1);
@@ -296,6 +333,11 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 printf("  -h, --help             display this help text and exit\n");
                 printf("  -m, --more             wait for multiple method returns if supported\n");
                 return 0;
+        }
+
+        if (!arguments->method) {
+                fprintf(stderr, "Unable determine method to call\n");
+                return -CLI_ERROR_INVALID_ARGUMENT;
         }
 
         if (!arguments->parameters) {
