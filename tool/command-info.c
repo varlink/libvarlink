@@ -25,8 +25,10 @@ static long print_service(Cli *cli, const char *url) {
                           &address,
                           &port,
                           NULL);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
                 return r;
+        }
 
         r = cli_connect(cli,
                         &connection,
@@ -34,8 +36,10 @@ static long print_service(Cli *cli, const char *url) {
                         address,
                         port,
                         NULL);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
                 return r;
+        }
 
         r = cli_call(cli,
                      connection,
@@ -44,12 +48,13 @@ static long print_service(Cli *cli, const char *url) {
                      0,
                      &error,
                      &info);
-        if (r < 0)
+        if (r < 0) {
+                fprintf(stderr, "Unable to call method: %s\n", cli_error_string(-r));
                 return r;
+        }
 
         if (error) {
-                fprintf(stderr, "Error: %s\n", error);
-
+                fprintf(stderr, "Encountered call error: %s\n", error);
                 return -CLI_ERROR_REMOTE_ERROR;
         }
 
@@ -77,8 +82,10 @@ static long print_service(Cli *cli, const char *url) {
                        TERMINAL_NORMAL,
                        str);
 
-        if (varlink_object_get_array(info, "interfaces", &interfaces) < 0)
-                return -CLI_ERROR_CALL_FAILED;
+        if (varlink_object_get_array(info, "interfaces", &interfaces) < 0) {
+                fprintf(stderr, "Unable to parse reply\n");
+                return -CLI_ERROR_INVALID_MESSAGE;
+        }
 
         printf("%sInterfaces:%s\n",
                terminal_color(TERMINAL_BOLD),
@@ -88,8 +95,10 @@ static long print_service(Cli *cli, const char *url) {
         for (unsigned long i = 0; i < n_interfaces; i += 1) {
                 const char *interface;
 
-                if (varlink_array_get_string(interfaces, i, &interface) < 0)
-                        return -CLI_ERROR_CALL_FAILED;
+                if (varlink_array_get_string(interfaces, i, &interface) < 0) {
+                        fprintf(stderr, "Unable to parse reply\n");
+                        return -CLI_ERROR_INVALID_MESSAGE;
+                }
 
                 printf("  %s\n", interface);
         }

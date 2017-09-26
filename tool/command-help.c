@@ -35,8 +35,8 @@ static long help_interface(Cli *cli,
         }
 
         if (error) {
-                fprintf(stderr, "Encountered error: %s\n", error);
-                return 0;
+                fprintf(stderr, "Encountered call error: %s\n", error);
+                return -CLI_ERROR_REMOTE_ERROR;
         }
 
         if (varlink_object_get_string(out, "description", &description) < 0)
