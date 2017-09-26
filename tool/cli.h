@@ -48,6 +48,7 @@ __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
 
 long cli_parse_url(const char *url,
+                   bool address_only,
                    bool *sshp,
                    char **addressp,
                    unsigned int *portp,

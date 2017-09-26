@@ -95,6 +95,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
         }
 
         r = cli_parse_url(argv[optind],
+                          false,
                           &ssh,
                           &address,
                           &port,

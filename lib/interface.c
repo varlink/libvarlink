@@ -462,15 +462,25 @@ long varlink_interface_parse_qualified_name(const char *qualified_name,
                 return -VARLINK_ERROR_INVALID_METHOD;
 
         if (dot[1] >= 'A' && dot[1] <= 'Z') {
+                /* Split interface and method */
                 if (interfacep)
                         *interfacep = strndup(qualified_name, dot - qualified_name);
 
                 if (methodp)
                         *methodp = strdup(dot + 1);
 
-        } else
-                if (interfacep)
-                        *interfacep = strdup(qualified_name);
+        } else {
+                /* Interface only */
+                if (dot[1] == '\0') {
+                        /* Remove trailing dot */
+                        if (interfacep)
+                                *interfacep = strndup(qualified_name, dot - qualified_name);
+
+                } else {
+                        if (interfacep)
+                                *interfacep = strdup(qualified_name);
+                }
+        }
 
         return 0;
 }

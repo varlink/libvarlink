@@ -7,7 +7,10 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(Cli *cli, const char *address) {
+static long print_service(Cli *cli, const char *url) {
+        bool ssh;
+        _cleanup_(freep) char *address = NULL;
+        unsigned int port;
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
@@ -16,9 +19,23 @@ static long print_service(Cli *cli, const char *address) {
         unsigned long n_interfaces;
         long r;
 
-        r = varlink_connection_new(&connection, address);
+        r = cli_parse_url(url,
+                          true,
+                          &ssh,
+                          &address,
+                          &port,
+                          NULL);
         if (r < 0)
-                return -CLI_ERROR_PANIC;
+                return r;
+
+        r = cli_connect(cli,
+                        &connection,
+                        ssh,
+                        address,
+                        port,
+                        NULL);
+        if (r < 0)
+                return r;
 
         r = cli_call(cli,
                      connection,
@@ -69,9 +86,11 @@ static long print_service(Cli *cli, const char *address) {
 
         n_interfaces = varlink_array_get_n_elements(interfaces);
         for (unsigned long i = 0; i < n_interfaces; i += 1) {
-                const char *interface = NULL;
+                const char *interface;
 
-                varlink_array_get_string(interfaces, i, &interface);
+                if (varlink_array_get_string(interfaces, i, &interface) < 0)
+                        return -CLI_ERROR_CALL_FAILED;
+
                 printf("  %s\n", interface);
         }
 

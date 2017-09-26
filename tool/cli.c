@@ -584,11 +584,9 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
 
         n_interfaces = varlink_array_get_n_elements(interfaces);
         for (long i = 0; i < n_interfaces; i += 1) {
-                VarlinkObject *entry;
                 const char *interface;
 
-                varlink_array_get_object(interfaces, i, &entry);
-                varlink_object_get_string(entry, "interface", &interface);
+                varlink_array_get_string(interfaces, i, &interface);
 
                 cli_print_completion(current, "%s%s", interface, end_with_dot ? "." : "");
         }
@@ -652,6 +650,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
         long r;
 
         r = cli_parse_url(current,
+                          false,
                           NULL,
                           &address,
                           NULL,
@@ -742,6 +741,7 @@ static long url_decode(char **outp, const char *in, unsigned long len) {
 }
 
 long cli_parse_url(const char *url,
+                   bool address_only,
                    bool *sshp,
                    char **addressp,
                    unsigned int *portp,
@@ -786,6 +786,10 @@ long cli_parse_url(const char *url,
                         address = h;
                         port = p;
                 }
+
+        } else if (address_only) {
+                /* ADDRESS */
+                address = strdup(url);
 
         } else if (strchr(url, '/')) {
                 char *s;

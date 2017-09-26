@@ -82,6 +82,7 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
         r = cli_parse_url(argv[optind],
+                          false,
                           &arguments->ssh,
                           &arguments->address,
                           &arguments->port,
