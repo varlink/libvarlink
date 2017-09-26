@@ -26,7 +26,7 @@ static long print_service(Cli *cli, const char *url) {
                           &port,
                           NULL);
         if (r < 0) {
-                fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
+                fprintf(stderr, "Unable to parse ADDRESS\n");
                 return r;
         }
 

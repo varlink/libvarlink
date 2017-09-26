@@ -763,8 +763,12 @@ long cli_parse_url(const char *url,
                                 return r;
                 }
 
-                if (s[1] != '\0')
+                if (s[0] == '/' && s[1] != '\0') {
+                        if (address_only)
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+
                         method = strdup(s + 1);
+                }
 
         } else if (strncmp(url, "ssh://", 6) == 0) {
                 char *s;
@@ -777,8 +781,12 @@ long cli_parse_url(const char *url,
                 s = strchrnul(url + 6, '/');
                 address = strndup(url + 6, s - (url + 6));
 
-                if (s[1] != '\0')
+                if (s[0] == '/' && s[1] != '\0') {
+                        if (address_only)
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+
                         method = strdup(s + 1);
+                }
 
                 /* Extract optional port number */
                 if (sscanf(address, "%m[^:]:%d", &h, &p) == 2) {
