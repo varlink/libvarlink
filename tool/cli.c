@@ -109,10 +109,10 @@ void cli_freep(Cli **mp) {
 }
 
 static long cli_call(Cli *cli,
-              const char *method_identifier,
-              VarlinkObject *parameters,
-              char **errorp,
-              VarlinkObject **outp) {
+                     const char *method_identifier,
+                     VarlinkObject *parameters,
+                     char **errorp,
+                     VarlinkObject **outp) {
         _cleanup_(freep) char *address = NULL;
         _cleanup_(freep) char *method = NULL;
         long r;
@@ -191,6 +191,98 @@ static void reply_callback(VarlinkConnection *connection,
         reply->parameters = varlink_object_ref(parameters);
 
         varlink_connection_close(connection);
+}
+
+static long cli_connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port) {
+        int sp[2];
+        pid_t pid;
+        long r;
+
+        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
+                return -CLI_ERROR_PANIC;
+
+        pid = fork();
+        if (pid < 0) {
+                close(sp[0]);
+                close(sp[1]);
+                return -CLI_ERROR_PANIC;
+        }
+
+        if (pid == 0) {
+                const char *arg[11];
+                long i = 0;
+
+                arg[i++] = "ssh";
+
+                /* Disable X11 and pseudo-terminal */
+                arg[i++] = "-xT";
+
+                /* Disable passphrase/password querying */
+                arg[i++] = "-o";
+                arg[i++] = "BatchMode=yes";
+
+                /* Add custom port number */
+                if (port > 0) {
+                        char p[8];
+
+                        sprintf(p, "%d", port);
+                        arg[i++] = "-p";
+                        arg[i++] = p;
+                }
+
+                arg[i++] = "--";
+                arg[i++] = host;
+                arg[i++] = "varlink";
+                arg[i++] = "bridge";
+                arg[i] = NULL;
+
+                close(sp[0]);
+
+                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
+                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
+                        return -CLI_ERROR_PANIC;
+
+                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
+                        close(sp[1]);
+
+                execvp(arg[0], (char **) arg);
+                _exit(EXIT_FAILURE);
+        }
+
+        close(sp[1]);
+
+        r = varlink_connection_new_from_socket(connectionp, sp[0]);
+        if (r < 0)
+                return -CLI_ERROR_CANNOT_CONNECT;
+
+        return 0;
+}
+
+long cli_connect(Cli *cli,
+                 VarlinkConnection **connectionp,
+                 bool ssh,
+                 const char *address,
+                 unsigned int port,
+                 const char *method) {
+        _cleanup_(freep) char *addr = NULL;
+        _cleanup_(freep) char *interface = NULL;
+        long r;
+
+        if (ssh)
+                return cli_connection_new_ssh(connectionp, address, port);
+
+        if (address)
+                return varlink_connection_new(connectionp, address);
+
+        r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+        if (r < 0)
+                return r;
+
+        r = cli_resolve(cli, interface, &addr);
+        if (r < 0)
+                return r;
+
+        return varlink_connection_new(connectionp, addr);
 }
 
 long cli_call_on_address(Cli *cli,
@@ -719,71 +811,6 @@ long cli_parse_url(const char *url,
                 *methodp = method;
                 method = NULL;
         }
-
-        return 0;
-}
-
-long cli_connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port) {
-        int sp[2];
-        pid_t pid;
-        long r;
-
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
-                return -CLI_ERROR_PANIC;
-
-        pid = fork();
-        if (pid < 0) {
-                close(sp[0]);
-                close(sp[1]);
-                return -CLI_ERROR_PANIC;
-        }
-
-        if (pid == 0) {
-                const char *arg[11];
-                long i = 0;
-
-                arg[i++] = "ssh";
-
-                /* Disable X11 and pseudo-terminal */
-                arg[i++] = "-xT";
-
-                /* Disable passphrase/password querying */
-                arg[i++] = "-o";
-                arg[i++] = "BatchMode=yes";
-
-                /* Add custom port number */
-                if (port > 0) {
-                        char p[8];
-
-                        sprintf(p, "%d", port);
-                        arg[i++] = "-p";
-                        arg[i++] = p;
-                }
-
-                arg[i++] = "--";
-                arg[i++] = host;
-                arg[i++] = "varlink";
-                arg[i++] = "bridge";
-                arg[i] = NULL;
-
-                close(sp[0]);
-
-                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
-                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
-                        return -CLI_ERROR_PANIC;
-
-                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
-                        close(sp[1]);
-
-                execvp(arg[0], (char **) arg);
-                _exit(EXIT_FAILURE);
-        }
-
-        close(sp[1]);
-
-        r = varlink_connection_new_from_socket(connectionp, sp[0]);
-        if (r < 0)
-                return -CLI_ERROR_CANNOT_CONNECT;
 
         return 0;
 }

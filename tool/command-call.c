@@ -205,41 +205,15 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_INVALID_JSON;
         }
 
-        if (arguments->ssh) {
-                r = cli_connection_new_ssh(&connection, arguments->address, arguments->port);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to connect with SSH: %s\n", cli_error_string(-r));
-                        return r;
-                }
-
-        } else if (arguments->address) {
-                r = varlink_connection_new(&connection, arguments->address);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                        return -CLI_ERROR_CANNOT_CONNECT;
-                }
-
-        } else {
-                _cleanup_(freep) char *address = NULL;
-                _cleanup_(freep) char *interface = NULL;
-
-                r = varlink_interface_parse_qualified_name(arguments->method, &interface, NULL);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to parse address: %s\n", cli_error_string(-r));
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-                }
-
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to resolve interface: %s\n", cli_error_string(-r));
-                        return r;
-                }
-
-                r = varlink_connection_new(&connection, address);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                        return -CLI_ERROR_CANNOT_CONNECT;
-                }
+        r = cli_connect(cli,
+                        &connection,
+                        arguments->ssh,
+                        arguments->address,
+                        arguments->port,
+                        arguments->method);
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                return -CLI_ERROR_CANNOT_CONNECT;
         }
 
         r = varlink_connection_call(connection,

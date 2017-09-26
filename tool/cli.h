@@ -55,4 +55,9 @@ long cli_parse_url(const char *url,
                    unsigned int *portp,
                    char **methodp);
 
-long cli_connection_new_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port);
+long cli_connect(Cli *cli,
+                 VarlinkConnection **connectionp,
+                 bool ssh,
+                 const char *address,
+                 unsigned int port,
+                 const char *method);
