@@ -35,7 +35,6 @@ long cli_new(Cli **clip);
 Cli *cli_free(Cli *cli);
 void cli_freep(Cli **clip);
 long cli_resolve(Cli *cli, const char *interface, char **addressp);
-long cli_call(Cli *cli, const char *method, VarlinkObject *parameters, char **errorp, VarlinkObject **outp);
 long cli_call_on_address(Cli *cli, const char *address, const char *method, VarlinkObject *parameters,
                          char **errorp, VarlinkObject **outp);
 long cli_process_all_events(Cli *cli, VarlinkConnection *connection);

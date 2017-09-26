@@ -108,6 +108,38 @@ void cli_freep(Cli **mp) {
                 cli_free(*mp);
 }
 
+static long cli_call(Cli *cli,
+              const char *method_identifier,
+              VarlinkObject *parameters,
+              char **errorp,
+              VarlinkObject **outp) {
+        _cleanup_(freep) char *address = NULL;
+        _cleanup_(freep) char *method = NULL;
+        long r;
+
+        r = cli_parse_url(method_identifier,
+                          NULL,
+                          &address,
+                          NULL,
+                          &method);
+        if (r < 0)
+                return r;
+
+        if (!address) {
+                _cleanup_(freep) char *interface = NULL;
+
+                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+                if (r < 0)
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+
+                r = cli_resolve(cli, interface, &address);
+                if (r < 0)
+                        return -CLI_ERROR_CANNOT_RESOLVE;
+        }
+
+        return cli_call_on_address(cli, address, method, parameters, errorp, outp);
+}
+
 long cli_resolve(Cli *cli, const char *interface, char **addressp) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
@@ -159,38 +191,6 @@ static void reply_callback(VarlinkConnection *connection,
         reply->parameters = varlink_object_ref(parameters);
 
         varlink_connection_close(connection);
-}
-
-long cli_call(Cli *cli,
-              const char *method_identifier,
-              VarlinkObject *parameters,
-              char **errorp,
-              VarlinkObject **outp) {
-        _cleanup_(freep) char *address = NULL;
-        _cleanup_(freep) char *method = NULL;
-        long r;
-
-        r = cli_parse_url(method_identifier,
-                          NULL,
-                          &address,
-                          NULL,
-                          &method);
-        if (r < 0)
-                return r;
-
-        if (!address) {
-                _cleanup_(freep) char *interface = NULL;
-
-                r = varlink_interface_parse_qualified_name(method, &interface, NULL);
-                if (r < 0)
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-
-                r = cli_resolve(cli, interface, &address);
-                if (r < 0)
-                        return -CLI_ERROR_CANNOT_RESOLVE;
-        }
-
-        return cli_call_on_address(cli, address, method, parameters, errorp, outp);
 }
 
 long cli_call_on_address(Cli *cli,
