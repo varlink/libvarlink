@@ -105,7 +105,7 @@ static void reply_callback(VarlinkConnection *connection,
         long r;
 
         if (error) {
-                fprintf(stderr, "Error: %s\n", error);
+                fprintf(stderr, "Call failed with error: %s\n", error);
                 *errorp = CLI_ERROR_REMOTE_ERROR;
                 varlink_connection_close(connection);
                 return;
@@ -119,7 +119,7 @@ static void reply_callback(VarlinkConnection *connection,
                                           terminal_color(TERMINAL_MAGENTA),
                                           terminal_color(TERMINAL_NORMAL));
         if (r < 0) {
-                fprintf(stderr, "Error: InvalidJson\n");
+                fprintf(stderr, "Unable to read message: %s\n", varlink_error_string(-r));
                 *errorp = CLI_ERROR_INVALID_JSON;
                 varlink_connection_close(connection);
                 return;
