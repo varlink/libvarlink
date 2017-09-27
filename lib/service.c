@@ -284,7 +284,10 @@ static long varlink_service_method_callback(VarlinkService *service,
         VarlinkMethod *method;
         long r;
 
-        r = varlink_interface_parse_qualified_name(call->method, &interface_name, &method_name);
+        r = varlink_interface_parse_qualified_name(call->method,
+                                                   true,
+                                                   &interface_name,
+                                                   &method_name);
         if (r < 0)
                 return varlink_call_reply_invalid_parameter(call, call->method);
 

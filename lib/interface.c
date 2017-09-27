@@ -68,7 +68,10 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                                 _cleanup_(freep) char *interface_name = NULL;
                                 _cleanup_(freep) char *type_name = NULL;
 
-                                if (varlink_interface_parse_qualified_name(type->alias, &interface_name, &type_name) < 0)
+                                if (varlink_interface_parse_qualified_name(type->alias,
+                                                                           true,
+                                                                           &interface_name,
+                                                                           &type_name) < 0)
                                         return false;
 
                                 /* Remove our own prefix */
@@ -453,13 +456,14 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 }
 
 long varlink_interface_parse_qualified_name(const char *qualified_name,
+                                            bool require_method,
                                             char **interfacep,
                                             char **methodp) {
         const char *dot;
 
         dot = strrchr(qualified_name, '.');
         if (!dot)
-                return -VARLINK_ERROR_INVALID_METHOD;
+                return -VARLINK_ERROR_INVALID_INTERFACE;
 
         if (dot[1] >= 'A' && dot[1] <= 'Z') {
                 /* Split interface and method */
@@ -469,17 +473,21 @@ long varlink_interface_parse_qualified_name(const char *qualified_name,
                 if (methodp)
                         *methodp = strdup(dot + 1);
 
-        } else {
-                /* Interface only */
-                if (dot[1] == '\0') {
-                        /* Remove trailing dot */
-                        if (interfacep)
-                                *interfacep = strndup(qualified_name, dot - qualified_name);
+                return 0;
+        }
 
-                } else {
-                        if (interfacep)
-                                *interfacep = strdup(qualified_name);
-                }
+        if (require_method)
+                return -VARLINK_ERROR_INVALID_METHOD;
+
+        /* Interface only */
+        if (dot[1] == '\0') {
+                /* Remove trailing dot */
+                if (interfacep)
+                        *interfacep = strndup(qualified_name, dot - qualified_name);
+
+        } else {
+                if (interfacep)
+                        *interfacep = strdup(qualified_name);
         }
 
         return 0;

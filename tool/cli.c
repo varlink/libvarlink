@@ -290,7 +290,10 @@ long cli_connect(Cli *cli,
         if (address)
                 return varlink_connection_new(connectionp, address);
 
-        r = varlink_interface_parse_qualified_name(method, &interface, NULL);
+        r = varlink_interface_parse_qualified_name(method,
+                                                   false,
+                                                   &interface,
+                                                   NULL);
         if (r < 0)
                 return r;
 
@@ -658,7 +661,10 @@ long cli_complete_methods(Cli *cli, const char *current) {
         if (r < 0)
                 return r;
 
-        r = varlink_interface_parse_qualified_name(method, &interface_name, NULL);
+        r = varlink_interface_parse_qualified_name(method,
+                                                   false,
+                                                   &interface_name,
+                                                   NULL);
         if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 

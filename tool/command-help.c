@@ -35,7 +35,7 @@ static long help_interface(Cli *cli,
         }
 
         if (error) {
-                fprintf(stderr, "Encountered call error: %s\n", error);
+                fprintf(stderr, "Call failed with error: %s\n", error);
                 return -CLI_ERROR_REMOTE_ERROR;
         }
 

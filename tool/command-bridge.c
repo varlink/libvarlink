@@ -203,10 +203,9 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         while (bridge->status == 0) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;
-                uint64_t flags;
-                const char *dot;
-                _cleanup_(freep) char *interface = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
+                uint64_t flags;
+                _cleanup_(freep) char *interface = NULL;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
                 r = varlink_stream_read(&bridge->in, &call);
@@ -226,11 +225,14 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
 
-                dot = strrchr(method, '.');
-                if (!dot)
+                r = varlink_interface_parse_qualified_name(method,
+                                                           true,
+                                                           &interface,
+                                                           NULL);
+                if (r < 0) {
+                        bridge_reply(bridge, "org.varlink.service.InvalidParameter", NULL, 0);
                         return -CLI_ERROR_INVALID_MESSAGE;
-
-                interface = strndup(method, dot - method);
+                }
 
                 /* Forward org.varlink.service.GetInfo to org.varlink.resolver.GetInfo */
                 if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
@@ -256,8 +258,10 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                 return -CLI_ERROR_MISSING_ARGUMENT;
 
                         r = cli_resolve(cli, interf, &address);
-                        if (r < 0)
+                        if (r < 0) {
+                                bridge_reply(bridge, "org.varlink.service.InterfaceNotFound", NULL, 0);
                                 return -CLI_ERROR_PANIC;
+                        }
 
                         r = varlink_connection_new(&connection, address);
                         if (r < 0)
@@ -276,8 +280,10 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         _cleanup_(freep) char *address = NULL;
 
                         r = cli_resolve(cli, interface, &address);
-                        if (r < 0)
+                        if (r < 0) {
+                                bridge_reply(bridge, "org.varlink.service.InterfaceNotFound", NULL, 0);
                                 return -CLI_ERROR_PANIC;
+                        }
 
                         r = varlink_connection_new(&connection, address);
                         if (r < 0)
