@@ -61,18 +61,9 @@ static long bridge_reply(Bridge *bridge,
         _cleanup_(freep) char *json = NULL;
         long r;
 
-        r = varlink_object_new(&message);
+        r = varlink_protocol_pack_reply(error, parameters, flags, &message);
         if (r < 0)
                 return -CLI_ERROR_PANIC;
-
-        if (error)
-                varlink_object_set_string(message, "error", error);
-
-        if (parameters)
-                varlink_object_set_object(message, "parameters", parameters);
-
-        if (flags & VARLINK_REPLY_CONTINUES)
-                varlink_object_set_bool(message, "continues", true);
 
         r = varlink_object_to_json(message, &json);
         if (r < 0)
