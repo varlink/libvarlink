@@ -121,6 +121,7 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
 long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message) {
         _cleanup_(freep) char *json = NULL;
         long length;
+        long r;
 
         length = varlink_object_to_pretty_json(message, &json, -1, NULL, NULL, NULL, NULL);
         if (length < 0)
@@ -135,6 +136,10 @@ long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message) {
         memcpy(stream->out + stream->out_end, json, length + 1);
         stream->out_end += length + 1;
 
-        return 0;
-}
+        r = varlink_stream_flush(stream);
+        if (r < 0)
+                return r;
 
+        /* return 1 when flush() wrote the whole message */
+        return r == 0 ? 1 : 0;
+}

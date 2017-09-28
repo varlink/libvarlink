@@ -206,7 +206,11 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
 
         connection->events |= EPOLLOUT;
 
-        return varlink_stream_write(&connection->stream, call);
+        r = varlink_stream_write(&connection->stream, call);
+        if (r < 0)
+                return r;
+
+        return 0;
 }
 
 _public_ void varlink_connection_set_close_callback(VarlinkConnection *connection,

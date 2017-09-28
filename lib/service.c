@@ -608,7 +608,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (!(call->connection->events & EPOLLOUT)) {
+        if (r == 0 && !(call->connection->events & EPOLLOUT)) {
                 call->connection->events |= EPOLLOUT;
 
                 if (epoll_mod(call->service->epoll_fd,
@@ -643,7 +643,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (!(call->connection->events & EPOLLOUT)) {
+        if (r == 0 && !(call->connection->events & EPOLLOUT)) {
                 call->connection->events |= EPOLLOUT;
 
                 if (epoll_mod(call->service->epoll_fd,
