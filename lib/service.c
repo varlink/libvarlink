@@ -53,6 +53,7 @@ struct VarlinkCall {
 
 struct ServiceConnection {
         VarlinkSocket socket;
+        int events;
         pid_t pid;
         uid_t uid;
         gid_t gid;
@@ -494,16 +495,16 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                                                 int events) {
         long r;
 
-        r = varlink_socket_dispatch(&connection->socket, events);
-        if (r < 0)
-                return r;
+        connection->events = 0;
 
-        /*
-         * If we're in a call and the other side has lost interest,
-         * close the connection.
-         */
-        if (connection->socket.hup && connection->call)
-                return service_connection_close(service, connection);
+        if (events & EPOLLOUT) {
+                r = varlink_socket_flush(&connection->socket);
+                if (r < 0)
+                        return r;
+
+                if (r > 0)
+                        connection->events |= EPOLLOUT;
+        }
 
         while (connection->call == NULL) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
@@ -528,10 +529,13 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                         return service_connection_close(service, connection);
         }
 
-        if (epoll_mod(service->epoll_fd,
-                      connection->socket.fd,
-                      varlink_socket_get_events(&connection->socket),
-                      connection) < 0)
+        if (!connection->stream.hup)
+                connection->events |= EPOLLIN;
+
+        if (connection->events == 0)
+                return service_connection_close(service, connection);
+
+        if (epoll_mod(service->epoll_fd, connection->stream.fd, connection->events, connection) < 0)
                 return -VARLINK_ERROR_PANIC;
 
         return 0;
@@ -603,11 +607,15 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (epoll_mod(call->service->epoll_fd,
-                      call->connection->socket.fd,
-                      EPOLLOUT,
-                      call->connection) < 0)
-                return -VARLINK_ERROR_PANIC;
+        if (!(call->connection->events & EPOLLOUT)) {
+                call->connection->events |= EPOLLOUT;
+
+                if (epoll_mod(call->service->epoll_fd,
+                              call->connection->socket.fd,
+                              call->connection->events,
+                              call->connection) < 0)
+                        return -VARLINK_ERROR_PANIC;
+        }
 
         if (flags & VARLINK_REPLY_CONTINUES)
                 return 0;
@@ -633,6 +641,16 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         r = varlink_socket_write(&call->connection->socket, message);
         if (r < 0)
                 return r;
+
+        if (!(call->connection->events & EPOLLOUT)) {
+                call->connection->events |= EPOLLOUT;
+
+                if (epoll_mod(call->service->epoll_fd,
+                              call->connection->socket.fd,
+                              call->connection->events,
+                              call->connection) < 0)
+                        return -VARLINK_ERROR_PANIC;
+        }
 
         call->connection->call = varlink_call_unref(call);
 

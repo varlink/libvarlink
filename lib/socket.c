@@ -5,7 +5,6 @@
 
 #include <errno.h>
 #include <string.h>
-#include <sys/epoll.h>
 #include <unistd.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
@@ -70,11 +69,47 @@ static void move_rest(uint8_t **bufferp, unsigned long *startp, unsigned long *e
         *endp = rest;
 }
 
-long varlink_socket_dispatch(VarlinkSocket *socket, int events) {
-        if (events & EPOLLIN) {
-                long n;
+long varlink_socket_flush(VarlinkSocket *socket) {
+        long n;
+
+        n = write(socket->fd,
+                  socket->out + socket->out_start,
+                  socket->out_end - socket->out_start);
+
+        switch (n) {
+                case -1:
+                        if (errno != EAGAIN)
+                                return -VARLINK_ERROR_SENDING_MESSAGE;
+                        break;
+                default:
+                        socket->out_start += n;
+                        break;
+        }
+
+        move_rest(&socket->out, &socket->out_start, &socket->out_end);
+
+        return socket->out_end - socket->out_start;
+}
+
+long varlink_socket_read(VarlinkSocket *socket, VarlinkObject **messagep) {
+        for (;;) {
+                uint8_t *nul;
+                long r, n;
+
+                nul = memchr(&socket->in[socket->in_start], 0, socket->in_end - socket->in_start);
+                if (nul) {
+                        r = varlink_object_new_from_json(messagep, (const char *)&socket->in[socket->in_start]);
+                        if (r < 0)
+                                return r;
+
+                        socket->in_start = (nul + 1) - socket->in;
+                        return 1;
+                }
 
                 move_rest(&socket->in, &socket->in_start, &socket->in_end);
+
+                if (socket->in_end == CONNECTION_BUFFER_SIZE)
+                        return -VARLINK_ERROR_INVALID_MESSAGE;
 
                 n = read(socket->fd,
                          socket->in + socket->in_end,
@@ -82,79 +117,24 @@ long varlink_socket_dispatch(VarlinkSocket *socket, int events) {
 
                 switch (n) {
                         case -1:
-                                if (errno != EAGAIN)
-                                        return -VARLINK_ERROR_RECEIVING_MESSAGE;
-                                break;
+                                if (errno == EAGAIN)
+                                        return 0;
+
+                                return -VARLINK_ERROR_RECEIVING_MESSAGE;
+
                         case 0:
                                 socket->hup = true;
-                                break;
+                                *messagep = NULL;
+                                return 0;
+
                         default:
                                 socket->in_end += n;
                                 break;
                 }
         }
 
-        if (events & EPOLLOUT) {
-                long n;
-
-                n = write(socket->fd,
-                          socket->out + socket->out_start,
-                          socket->out_end - socket->out_start);
-
-                switch (n) {
-                        case -1:
-                                if (errno != EAGAIN)
-                                        return -VARLINK_ERROR_SENDING_MESSAGE;
-                                break;
-                        default:
-                                socket->out_start += n;
-                                break;
-                }
-
-                move_rest(&socket->out, &socket->out_start, &socket->out_end);
-        }
-
-        return 0;
-}
-
-int varlink_socket_get_events(VarlinkSocket *socket) {
-        int events = 0;
-
-        if (socket->fd < 0)
-                return 0;
-
-        if (socket->in_end < CONNECTION_BUFFER_SIZE && !socket->hup)
-                events |= EPOLLIN;
-
-        if (socket->out_start < socket->out_end)
-                events |= EPOLLOUT;
-
-        return events;
-}
-
-long varlink_socket_read(VarlinkSocket *socket, VarlinkObject **messagep) {
-        uint8_t *base;
-        uint8_t *nul;
-        long r;
-
-        base = socket->in + socket->in_start;
-        nul = memchr(base, 0, socket->in_end - socket->in_start);
-        if (!nul) {
-                *messagep = NULL;
-
-                if (socket->in_start == socket->in_end && socket->hup)
-                        return -VARLINK_ERROR_CONNECTION_CLOSED;
-
-                return 0;
-        }
-
-        r = varlink_object_new_from_json(messagep, (const char *)base);
-        if (r < 0)
-                return r;
-
-        socket->in_start += nul - base + 1; /* 1 for the \0 */
-
-        return 0;
+        /* should not be reached */
+        return -VARLINK_ERROR_PANIC;
 }
 
 long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {

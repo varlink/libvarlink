@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/queue.h>
 #include <unistd.h>
 
@@ -29,6 +30,7 @@ struct VarlinkConnection {
         char *address;
 
         VarlinkSocket socket;
+        int events;
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
 
@@ -36,11 +38,12 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
-static long connection_new(VarlinkConnection **connectionp) {
+static long connection_new(VarlinkConnection **connectionp, int fd) {
         VarlinkConnection *connection;
 
         connection = calloc(1, sizeof(VarlinkConnection));
-        varlink_socket_init(&connection->socket);
+        varlink_socket_init(&connection->socket, fd);
+        connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
 
         *connectionp = connection;
@@ -50,8 +53,7 @@ static long connection_new(VarlinkConnection **connectionp) {
 long varlink_connection_new_from_socket(VarlinkConnection **connectionp, int socket) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
-        connection_new(&connection);
-        connection->socket.fd = socket;
+        connection_new(&connection, socket);
 
         *connectionp = connection;
         connection = NULL;
@@ -63,14 +65,12 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long r;
 
-        connection_new(&connection);
-        connection->address = strdup(address);
-
         r = varlink_connect(address);
         if (r < 0)
                 return r; /* CannotConnect or InvalidAddress */
 
-        varlink_socket_init(&connection->socket, (int)r);
+        connection_new(&connection, (int)r);
+        connection->address = strdup(address);
 
         *connectionp = connection;
         connection = NULL;
@@ -106,9 +106,16 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
         if (connection->socket.fd < 0)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
-        r = varlink_socket_dispatch(&connection->socket, events);
-        if (r < 0)
-                return r;
+        connection->events = EPOLLIN;
+
+        if (events & EPOLLOUT) {
+                r = varlink_socket_flush(&connection->socket);
+                if (r < 0)
+                        return r;
+
+                if (r > 0)
+                        connection->events |= EPOLLOUT;
+        }
 
         /* Check if the socket is valid, because a callback might have closed the connection */
         while (connection->socket.fd >= 0) {
@@ -148,7 +155,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
 }
 
 _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
-        return varlink_socket_get_events(&connection->socket);
+        return connection->events;
 }
 
 _public_ long varlink_connection_close(VarlinkConnection *connection) {
@@ -195,6 +202,8 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 callback->userdata = userdata;
                 STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
         }
+
+        connection->events |= EPOLLOUT;
 
         return varlink_socket_write(&connection->socket, call);
 }

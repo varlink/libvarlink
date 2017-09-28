@@ -21,11 +21,14 @@ struct VarlinkSocket {
 void varlink_socket_init(VarlinkSocket *socket, int fd);
 void varlink_socket_deinit(VarlinkSocket *socket);
 
-long varlink_socket_dispatch(VarlinkSocket *socket, int events);
-int varlink_socket_get_events(VarlinkSocket *socket);
-
 long varlink_socket_read(VarlinkSocket *socket, VarlinkObject **messagep);
 long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message);
+
+/*
+ * Flushes the write buffer. Returns the amount of bytes that are still
+ * in the buffer.
+ */
+long varlink_socket_flush(VarlinkSocket *socket);
 
 int varlink_connect(const char *address);
 int varlink_accept(const char *address, int listen_fd, pid_t *pidp, uid_t *uidp, gid_t *gidp);
