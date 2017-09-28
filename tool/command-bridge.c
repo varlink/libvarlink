@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
-#include <sys/epoll.h>
+#include <sys/poll.h>
 
 #define STREAM_BUFFER_SIZE (8 * 1024 * 1204)
 
@@ -132,6 +132,10 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         bridge_new(&bridge, cli);
 
         while (bridge->status == 0) {
+                struct pollfd pfd[] = {
+                        {.fd = cli->signal_fd, .events = POLLIN },
+                        {.fd = bridge->in.fd, .events = POLLIN }
+                };
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
@@ -139,14 +143,34 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 _cleanup_(freep) char *interface = NULL;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
+                for (;;) {
+                        r = poll(pfd, 2, -1);
+                        if (r < 0) {
+                                if (errno == EINTR)
+                                        continue;
+
+                                return -CLI_ERROR_PANIC;
+                        }
+
+                        break;
+                }
+
+                if (pfd[0].revents > 0) {
+                        bridge->status = -CLI_ERROR_CANCELED;
+                        break;
+                }
+
                 r = varlink_stream_read(&bridge->in, &call);
                 switch (r) {
                         case 0:
                                 return 0;
+
                         case 1:
                                 break;
+
                         case -VARLINK_ERROR_INVALID_MESSAGE:
                                 return -CLI_ERROR_INVALID_MESSAGE;
+
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
