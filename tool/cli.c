@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <sys/prctl.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
 
@@ -214,7 +215,7 @@ static long cli_connect_ssh(VarlinkConnection **connectionp, const char *host, u
         pid_t pid;
         long r;
 
-        if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK, 0, sp) < 0)
+        if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0, sp) < 0)
                 return -CLI_ERROR_PANIC;
 
         pid = fork();
@@ -260,6 +261,9 @@ static long cli_connect_ssh(VarlinkConnection **connectionp, const char *host, u
 
                 if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
                         close(sp[1]);
+
+                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+                        _exit(EXIT_FAILURE);
 
                 execvp(arg[0], (char **) arg);
                 _exit(EXIT_FAILURE);
