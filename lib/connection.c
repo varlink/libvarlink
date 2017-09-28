@@ -66,9 +66,11 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
         connection_new(&connection);
         connection->address = strdup(address);
 
-        r = varlink_socket_connect(&connection->socket, address);
+        r = varlink_connect(address);
         if (r < 0)
                 return r; /* CannotConnect or InvalidAddress */
+
+        varlink_socket_init(&connection->socket, (int)r);
 
         *connectionp = connection;
         connection = NULL;

@@ -53,6 +53,9 @@ struct VarlinkCall {
 
 struct ServiceConnection {
         VarlinkSocket socket;
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
         VarlinkCall *call;
 };
 
@@ -109,24 +112,24 @@ _public_ const char *varlink_call_get_method(VarlinkCall *call) {
 
 _public_ long varlink_call_get_credentials(VarlinkCall *call, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
         if (pidp) {
-                if (call->connection->socket.pid == (pid_t)-1)
+                if (call->connection->pid == (pid_t)-1)
                         return -VARLINK_ERROR_NOT_AVAILABLE;
 
-                *pidp = call->connection->socket.pid;
+                *pidp = call->connection->pid;
         }
 
         if (uidp) {
-                if (call->connection->socket.uid == (uid_t)-1)
+                if (call->connection->uid == (uid_t)-1)
                         return -VARLINK_ERROR_NOT_AVAILABLE;
 
-                *uidp = call->connection->socket.uid;
+                *uidp = call->connection->uid;
         }
 
         if (gidp) {
-                if (call->connection->socket.gid == (gid_t)-1)
+                if (call->connection->gid == (gid_t)-1)
                         return -VARLINK_ERROR_NOT_AVAILABLE;
 
-                *gidp = call->connection->socket.gid;
+                *gidp = call->connection->gid;
         }
 
         return 0;
@@ -465,13 +468,16 @@ static long varlink_service_accept(VarlinkService *service) {
         long r;
 
         connection = calloc(1, sizeof(ServiceConnection));
-        varlink_socket_init(&connection->socket);
 
-        r = varlink_socket_accept(&connection->socket,
-                                  service->address,
-                                  service->listen_fd);
+        r = varlink_accept(service->address,
+                           service->listen_fd,
+                           &connection->pid,
+                           &connection->uid,
+                           &connection->gid);
         if (r < 0)
                 return r; /* CannotAccept */
+
+        varlink_socket_init(&connection->socket, (int)r);
 
         r = epoll_add(service->epoll_fd, connection->socket.fd, EPOLLIN, connection);
         if (r < 0)

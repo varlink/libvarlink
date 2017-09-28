@@ -9,15 +9,14 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-long varlink_socket_connect_unix(VarlinkSocket *vsocket, const char *path) {
+int varlink_connect_unix(const char *path) {
         _cleanup_(closep) int fd = -1;
         struct sockaddr_un sa = {
                 .sun_family = AF_UNIX,
         };
         socklen_t sa_len;
         const int on = 1;
-
-        assert(vsocket->fd == -1);
+        int r;
 
         if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
                 return -VARLINK_ERROR_INVALID_ADDRESS;
@@ -39,19 +38,20 @@ long varlink_socket_connect_unix(VarlinkSocket *vsocket, const char *path) {
         if (connect(fd, &sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
-        vsocket->fd = fd;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }
 
-long varlink_socket_listen_unix(const char *path, int *fdp) {
+int varlink_listen_unix(const char *path) {
         _cleanup_(closep) int fd = -1;
         const int on = 1;
         struct sockaddr_un sa = {
                 .sun_family = AF_UNIX,
         };
         socklen_t sa_len;
+        int r;
 
         if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
                 return -VARLINK_ERROR_INVALID_ADDRESS;
@@ -81,21 +81,20 @@ long varlink_socket_listen_unix(const char *path, int *fdp) {
         if (listen(fd, SOMAXCONN) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        *fdp = fd;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }
 
-long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd) {
+int varlink_accept_unix(int listen_fd, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         struct sockaddr_un sa;
         socklen_t sa_len = sizeof(sa);
         struct ucred ucred;
         socklen_t ucred_len = sizeof(struct ucred);
-
-        assert(socket->fd == -1);
+        long r;
 
         fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (fd < 0)
@@ -115,12 +114,12 @@ long varlink_socket_accept_unix(VarlinkSocket *socket, int listen_fd) {
         if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
 
-        socket->pid = ucred.pid;
-        socket->uid = ucred.uid;
-        socket->gid = ucred.gid;
+        *pidp = ucred.pid;
+        *uidp = ucred.uid;
+        *gidp = ucred.gid;
 
-        socket->fd = fd;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }

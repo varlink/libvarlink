@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-long varlink_socket_connect_tcp(VarlinkSocket *vsocket, const char *address) {
+int varlink_connect_tcp(const char *address) {
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
         char *colon;
@@ -18,8 +18,7 @@ long varlink_socket_connect_tcp(VarlinkSocket *vsocket, const char *address) {
         struct sockaddr_in sa = {
                 .sin_family = AF_INET,
         };
-
-        assert(vsocket->fd == -1);
+        int r;
 
         colon = strrchr(address, ':');
         if (!colon)
@@ -42,13 +41,13 @@ long varlink_socket_connect_tcp(VarlinkSocket *vsocket, const char *address) {
         if (connect(fd, &sa, sizeof(sa)) < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
-        vsocket->fd = -1;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }
 
-long varlink_socket_listen_tcp(const char *address, int *fdp) {
+int varlink_listen_tcp(const char *address) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
@@ -57,6 +56,7 @@ long varlink_socket_listen_tcp(const char *address, int *fdp) {
                 .sin_family = AF_INET,
                 .sin_addr.s_addr = INADDR_ANY,
         };
+        int r;
 
         colon = strrchr(address, ':');
         if (!colon)
@@ -75,24 +75,23 @@ long varlink_socket_listen_tcp(const char *address, int *fdp) {
         if (listen(fd, SOMAXCONN) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        *fdp = fd;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }
 
-long varlink_socket_accept_tcp(VarlinkSocket *socket, int listen_fd) {
+int varlink_accept_tcp(int listen_fd) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
-
-        assert(socket->fd == -1);
+        int r;
 
         fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
 
-        socket->fd = fd;
+        r = fd;
         fd = -1;
 
-        return 0;
+        return r;
 }

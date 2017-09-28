@@ -29,11 +29,8 @@ static long varlink_address_get_type(const char *address) {
         }
 }
 
-void varlink_socket_init(VarlinkSocket *socket) {
-        socket->fd = -1;
-        socket->pid = (pid_t)-1;
-        socket->uid = (uid_t)-1;
-        socket->gid = (gid_t)-1;
+void varlink_socket_init(VarlinkSocket *socket, int fd) {
+        socket->fd = fd;
 
         socket->in = malloc(CONNECTION_BUFFER_SIZE);
         socket->in_start = 0;
@@ -180,28 +177,35 @@ long varlink_socket_write(VarlinkSocket *socket, VarlinkObject *message) {
         return 0;
 }
 
-long varlink_socket_connect(VarlinkSocket *socket, const char *address) {
+int varlink_connect(const char *address) {
         switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
-                        return varlink_socket_connect_unix(socket, address);
+                        return varlink_connect_unix(address);
 
                 case VARLINK_ADDRESS_TCP:
-                        return varlink_socket_connect_tcp(socket, address);
+                        return varlink_connect_tcp(address);
 
                 default:
                         return -VARLINK_ERROR_INVALID_ADDRESS;
         }
 }
 
-long varlink_socket_accept( VarlinkSocket *socket,
-                            const char *address,
-                            int listen_fd) {
+int varlink_accept(const char *address, int listen_fd, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
+        int fd;
+
         switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
-                        return varlink_socket_accept_unix(socket, listen_fd);
+                        return varlink_accept_unix(listen_fd, pidp, uidp, gidp);
 
                 case VARLINK_ADDRESS_TCP:
-                        return  varlink_socket_accept_tcp(socket, listen_fd);
+                        fd = varlink_accept_tcp(listen_fd);
+                        if (fd < 0)
+                                return fd;
+
+                        *pidp = (pid_t)-1;
+                        *uidp = (uid_t)-1;
+                        *gidp = (gid_t)-1;
+                        return fd;
 
                 default:
                         return -VARLINK_ERROR_PANIC;
@@ -211,7 +215,6 @@ long varlink_socket_accept( VarlinkSocket *socket,
 _public_ int varlink_listen(const char *address, char **pathp) {
         const char *path = NULL;
         int fd;
-        long r;
 
         switch (varlink_address_get_type(address)) {
                 case VARLINK_ADDRESS_UNIX:
@@ -219,11 +222,11 @@ _public_ int varlink_listen(const char *address, char **pathp) {
                         if (address[0] != '@')
                                 path = address;
 
-                        r = varlink_socket_listen_unix(address, &fd);
+                        fd = varlink_listen_unix(address);
                         break;
 
                 case VARLINK_ADDRESS_TCP:
-                        r = varlink_socket_listen_tcp(address, &fd);
+                        fd = varlink_listen_tcp(address);
                         break;
 
                 default:
@@ -231,8 +234,8 @@ _public_ int varlink_listen(const char *address, char **pathp) {
         }
 
         /* CannotListen or InvalidAddress */
-        if (r < 0)
-                return r;
+        if (fd < 0)
+                return fd;
 
         if (pathp)
                 *pathp = path ? strdup(path) : NULL;
