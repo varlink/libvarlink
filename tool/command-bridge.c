@@ -1,6 +1,7 @@
 #include "command.h"
 #include "interface.h"
 #include "protocol.h"
+#include "stream.h"
 #include "util.h"
 #include "varlink.h"
 
@@ -13,82 +14,12 @@
 #define STREAM_BUFFER_SIZE (8 * 1024 * 1204)
 
 typedef struct {
-        int fd;
-        uint8_t *buffer;
-        unsigned long start, end;
-        bool closed;
-} VarlinkStream;
-
-typedef struct {
         Cli *cli;
         long status;
         AVLTree *services;
         VarlinkObject *info;
         VarlinkStream in;
 } Bridge;
-
-static void varlink_stream_init(VarlinkStream *stream, int fd) {
-        stream->fd = fd;
-        stream->buffer = malloc(STREAM_BUFFER_SIZE);
-        stream->start = 0;
-        stream->end = 0;
-        stream->closed = false;
-}
-
-static void varlink_stream_deinit(VarlinkStream *stream) {
-        stream->fd = -1;
-        free(stream->buffer);
-        stream->start = 0;
-        stream->end = 0;
-        stream->closed = false;
-}
-
-static long varlink_stream_read(VarlinkStream *s, VarlinkObject **messagep) {
-        long r;
-
-        for (;;) {
-                uint8_t *nul;
-                long n;
-
-                nul = memchr(&s->buffer[s->start], 0, s->end - s->start);
-                if (nul) {
-                        r = varlink_object_new_from_json(messagep, (const char *)&s->buffer[s->start]);
-                        if (r < 0)
-                                return r;
-
-                        s->start = (nul + 1) - s->buffer;
-                        return 0;
-                }
-
-                n = s->end - s->start;
-                if (n > 0)
-                        s->buffer = memmove(s->buffer, s->buffer + s->start, n);
-
-                s->start = 0;
-                s->end = n;
-
-                if (s->end == STREAM_BUFFER_SIZE)
-                        return -VARLINK_ERROR_INVALID_MESSAGE;
-
-                n = read(s->fd, &s->buffer[s->end], STREAM_BUFFER_SIZE - s->end);
-                if (n < 0) {
-                        s->closed = true;
-                        return -VARLINK_ERROR_RECEIVING_MESSAGE;
-                }
-
-                if (n == 0) {
-                        s->closed = true;
-                        if (s->end != s->start)
-                                return -VARLINK_ERROR_INVALID_MESSAGE;
-                        break;
-                }
-
-                s->end += n;
-        }
-
-        *messagep = NULL;
-        return 0;
-}
 
 static void bridge_free(Bridge *bridge) {
         if (bridge->services)
@@ -211,15 +142,14 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 r = varlink_stream_read(&bridge->in, &call);
                 switch (r) {
                         case 0:
+                                return 0;
+                        case 1:
                                 break;
                         case -VARLINK_ERROR_INVALID_MESSAGE:
                                 return -CLI_ERROR_INVALID_MESSAGE;
                         default:
                                 return -CLI_ERROR_PANIC;
                 }
-
-                if (!call)
-                        break;
 
                 r = varlink_protocol_unpack_call(call, &method, &parameters, &flags);
                 if (r < 0)
