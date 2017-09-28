@@ -514,7 +514,7 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                 if (r < 0)
                         return service_connection_close(service, connection);
 
-                if (!message)
+                if (r == 0)
                         break;
 
                 r = varlink_call_new(&connection->call, service, connection, message);

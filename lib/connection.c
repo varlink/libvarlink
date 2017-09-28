@@ -130,7 +130,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                 if (r < 0)
                         return r;
 
-                if (!message)
+                if (r == 0)
                         return 0;
 
                 callback = STAILQ_FIRST(&connection->pending);
