@@ -214,7 +214,7 @@ static long cli_connect_ssh(VarlinkConnection **connectionp, const char *host, u
         pid_t pid;
         long r;
 
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sp) < 0)
+        if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK, 0, sp) < 0)
                 return -CLI_ERROR_PANIC;
 
         pid = fork();
