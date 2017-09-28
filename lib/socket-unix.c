@@ -1,5 +1,6 @@
 #include "socket.h"
 #include "util.h"
+#include "varlink.h"
 
 #include <assert.h>
 #include <stddef.h>

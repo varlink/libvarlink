@@ -24,6 +24,8 @@ libvarlink_sources = '''
         socket-unix.c
         service.c
         service.h
+        stream.c
+        stream.h
         type.h
         type.c
         util.c

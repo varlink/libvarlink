@@ -2,6 +2,7 @@
 #include "object.h"
 #include "protocol.h"
 #include "socket.h"
+#include "stream.h"
 #include "util.h"
 
 #include <errno.h>
@@ -29,7 +30,7 @@ struct ReplyCallback {
 struct VarlinkConnection {
         char *address;
 
-        VarlinkSocket socket;
+        VarlinkStream stream;
         int events;
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
@@ -42,7 +43,7 @@ static long connection_new(VarlinkConnection **connectionp, int fd) {
         VarlinkConnection *connection;
 
         connection = calloc(1, sizeof(VarlinkConnection));
-        varlink_socket_init(&connection->socket, fd);
+        varlink_stream_init(&connection->stream, fd);
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
 
@@ -50,10 +51,10 @@ static long connection_new(VarlinkConnection **connectionp, int fd) {
         return 0;
 }
 
-long varlink_connection_new_from_socket(VarlinkConnection **connectionp, int socket) {
+long varlink_connection_new_from_socket(VarlinkConnection **connectionp, int stream) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
-        connection_new(&connection, socket);
+        connection_new(&connection, stream);
 
         *connectionp = connection;
         connection = NULL;
@@ -79,7 +80,7 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
 }
 
 _public_ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection) {
-        if (connection->socket.fd >= 0)
+        if (connection->stream.fd >= 0)
                 varlink_connection_close(connection);
 
         while (!STAILQ_EMPTY(&connection->pending)) {
@@ -103,13 +104,13 @@ _public_ void varlink_connection_freep(VarlinkConnection **connectionp) {
 _public_ long varlink_connection_process_events(VarlinkConnection *connection, int events) {
         long r;
 
-        if (connection->socket.fd < 0)
+        if (connection->stream.fd < 0)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         connection->events = EPOLLIN;
 
         if (events & EPOLLOUT) {
-                r = varlink_socket_flush(&connection->socket);
+                r = varlink_stream_flush(&connection->stream);
                 if (r < 0)
                         return r;
 
@@ -117,15 +118,15 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                         connection->events |= EPOLLOUT;
         }
 
-        /* Check if the socket is valid, because a callback might have closed the connection */
-        while (connection->socket.fd >= 0) {
+        /* Check if the stream is valid, because a callback might have closed the connection */
+        while (connection->stream.fd >= 0) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
                 _cleanup_(freep) char *error = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 uint64_t flags = 0;
                 ReplyCallback *callback;
 
-                r = varlink_socket_read(&connection->socket, &message);
+                r = varlink_stream_read(&connection->stream, &message);
                 if (r < 0)
                         return r;
 
@@ -159,7 +160,7 @@ _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
 }
 
 _public_ long varlink_connection_close(VarlinkConnection *connection) {
-        varlink_socket_deinit(&connection->socket);
+        varlink_stream_deinit(&connection->stream);
 
         while (connection->closed_callback)
                 connection->closed_callback(connection, connection->closed_userdata);
@@ -168,11 +169,11 @@ _public_ long varlink_connection_close(VarlinkConnection *connection) {
 }
 
 _public_ bool varlink_connection_is_closed(VarlinkConnection *connection) {
-        return connection->socket.fd < 0;
+        return connection->stream.fd < 0;
 }
 
 _public_ int varlink_connection_get_fd(VarlinkConnection *connection) {
-        return connection->socket.fd;
+        return connection->stream.fd;
 }
 
 _public_ long varlink_connection_call(VarlinkConnection *connection,
@@ -185,7 +186,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         ReplyCallback *callback;
         long r;
 
-        if (connection->socket.fd < 0)
+        if (connection->stream.fd < 0)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
@@ -205,7 +206,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
 
         connection->events |= EPOLLOUT;
 
-        return varlink_socket_write(&connection->socket, call);
+        return varlink_stream_write(&connection->stream, call);
 }
 
 _public_ void varlink_connection_set_close_callback(VarlinkConnection *connection,
