@@ -1,4 +1,3 @@
-#include "connection.h"
 #include "object.h"
 #include "protocol.h"
 #include "socket.h"
@@ -39,38 +38,18 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
-static long connection_new(VarlinkConnection **connectionp, int fd) {
-        VarlinkConnection *connection;
+_public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        long fd;
+
+        fd = varlink_connect(address);
+        if (fd < 0)
+                return fd; /* CannotConnect or InvalidAddress */
 
         connection = calloc(1, sizeof(VarlinkConnection));
         varlink_stream_init(&connection->stream, fd);
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
-
-        *connectionp = connection;
-        return 0;
-}
-
-long varlink_connection_new_from_socket(VarlinkConnection **connectionp, int stream) {
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-
-        connection_new(&connection, stream);
-
-        *connectionp = connection;
-        connection = NULL;
-
-        return 0;
-}
-
-_public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        long r;
-
-        r = varlink_connect(address);
-        if (r < 0)
-                return r; /* CannotConnect or InvalidAddress */
-
-        connection_new(&connection, (int)r);
         connection->address = strdup(address);
 
         *connectionp = connection;

@@ -1,7 +1,6 @@
 #include "cli.h"
 
 #include "command.h"
-#include "connection.h"
 #include "interface.h"
 #include "util.h"
 

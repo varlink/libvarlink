@@ -1,5 +1,4 @@
 #include "command.h"
-#include "connection.h"
 #include "error.h"
 #include "interface.h"
 #include "object.h"
