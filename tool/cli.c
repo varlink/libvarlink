@@ -210,86 +210,13 @@ long cli_resolve(Cli *cli,
         return 0;
 }
 
-static long cli_connect_ssh(VarlinkConnection **connectionp, const char *host, unsigned int port) {
-        int sp[2];
-        pid_t pid;
-        long r;
-
-        if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0, sp) < 0)
-                return -CLI_ERROR_PANIC;
-
-        pid = fork();
-        if (pid < 0) {
-                close(sp[0]);
-                close(sp[1]);
-                return -CLI_ERROR_PANIC;
-        }
-
-        if (pid == 0) {
-                const char *arg[11];
-                long i = 0;
-
-                arg[i++] = "ssh";
-
-                /* Disable X11 and pseudo-terminal */
-                arg[i++] = "-xT";
-
-                /* Disable passphrase/password querying */
-                arg[i++] = "-o";
-                arg[i++] = "BatchMode=yes";
-
-                /* Add custom port number */
-                if (port > 0) {
-                        char p[8];
-
-                        sprintf(p, "%d", port);
-                        arg[i++] = "-p";
-                        arg[i++] = p;
-                }
-
-                arg[i++] = "--";
-                arg[i++] = host;
-                arg[i++] = "varlink";
-                arg[i++] = "bridge";
-                arg[i] = NULL;
-
-                close(sp[0]);
-
-                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
-                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
-                        return -CLI_ERROR_PANIC;
-
-                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
-                        close(sp[1]);
-
-                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
-                        _exit(EXIT_FAILURE);
-
-                execvp(arg[0], (char **) arg);
-                _exit(EXIT_FAILURE);
-        }
-
-        close(sp[1]);
-
-        r = varlink_connection_new_from_socket(connectionp, sp[0]);
-        if (r < 0)
-                return -CLI_ERROR_CANNOT_CONNECT;
-
-        return 0;
-}
-
 long cli_connect(Cli *cli,
                  VarlinkConnection **connectionp,
-                 bool ssh,
                  const char *address,
-                 unsigned int port,
                  const char *method) {
         _cleanup_(freep) char *addr = NULL;
         _cleanup_(freep) char *interface = NULL;
         long r;
-
-        if (ssh)
-                return cli_connect_ssh(connectionp, address, port);
 
         if (address)
                 return varlink_connection_new(connectionp, address);
@@ -656,14 +583,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
         const char *description = NULL;
         long r;
 
-        r = cli_parse_url(current,
-                          false,
-                          NULL,
-                          &address,
-                          NULL,
-                          &method);
-        if (r < 0)
-                return r;
+        string_rpartition(current, '/', &address, &method);
 
         r = varlink_interface_parse_qualified_name(method,
                                                    false,
@@ -672,12 +592,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
         if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 
-        r = cli_connect(cli,
-                        &connection,
-                        NULL,
-                        address,
-                        0,
-                        method);
+        r = cli_connect(cli, &connection, address, method);
         if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 
@@ -711,134 +626,6 @@ long cli_complete_methods(Cli *cli, const char *current) {
                         continue;
 
                 cli_print_completion(current, "%s.%s", interface_name, member->name);
-        }
-
-        return 0;
-}
-
-static long url_decode(char **outp, const char *in, unsigned long len) {
-        _cleanup_(freep) char *out = NULL;
-        unsigned long j = 0;
-
-        out = malloc(len);
-
-        for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
-                if (in[i] == '%') {
-                        unsigned int hex;
-
-                        if (i + 3 > len)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        if (sscanf(in + i + 1, "%02x", &hex) != 1)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        out[j] = hex;
-                        j += 1;
-                        i += 2;
-
-                        continue;
-                }
-
-                out[j] = in[i];
-                j += 1;
-        }
-
-        out[j] = '\0';
-        *outp = out;
-        out = NULL;
-
-        return j;
-}
-
-long cli_parse_url(const char *url,
-                   bool address_only,
-                   bool *sshp,
-                   char **addressp,
-                   unsigned int *portp,
-                   char **methodp) {
-        bool ssh = false;
-        _cleanup_(freep) char *address = NULL;
-        unsigned int port = 0;
-        _cleanup_(freep) char *method = NULL;
-        long r;
-
-        if (strncmp(url, "varlink://", 10) == 0) {
-                char *s;
-
-                /* varlink://[ADDRESS][/INTERFACE.METHOD] */
-                s = strchrnul(url + 10, '/');
-                if (s - (url + 10) > 0) {
-                        r = url_decode(&address, url + 10, s - (url + 10));
-                        if (r < 0)
-                                return r;
-                }
-
-                if (s[0] == '/' && s[1] != '\0') {
-                        if (address_only)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        method = strdup(s + 1);
-                }
-
-        } else if (strncmp(url, "ssh://", 6) == 0) {
-                char *s;
-                char *h;
-                unsigned int p;
-
-                /* ssh://HOST[:PORT][/INTERFACE.METHOD] */
-                ssh = true;
-
-                s = strchrnul(url + 6, '/');
-                address = strndup(url + 6, s - (url + 6));
-
-                if (s[0] == '/' && s[1] != '\0') {
-                        if (address_only)
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-
-                        method = strdup(s + 1);
-                }
-
-                /* Extract optional port number */
-                if (sscanf(address, "%m[^:]:%d", &h, &p) == 2) {
-                        free(address);
-                        address = h;
-                        port = p;
-                }
-
-        } else if (address_only) {
-                /* ADDRESS */
-                address = strdup(url);
-
-        } else if (strchr(url, '/')) {
-                char *s;
-
-                /* ADDRESS[/INTERFACE.METHOD] */
-                s = strrchr(url, '/');
-                if (s - url > 0)
-                        address = strndup(url, s - url);
-
-                if (s[1] != '\0')
-                        method = strdup(s + 1);
-
-        } else {
-                /* INTERFACE.METHOD */
-                method = strdup(url);
-        }
-
-        if (sshp)
-                *sshp = ssh;
-
-        if (addressp) {
-                *addressp = address;
-                address = NULL;
-        }
-
-        if (portp)
-                *portp = port;
-
-        if (methodp) {
-                *methodp = method;
-                method = NULL;
         }
 
         return 0;

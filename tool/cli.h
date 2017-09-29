@@ -47,17 +47,9 @@ long cli_complete_methods(Cli *cli, const char *current);
 __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
 
-long cli_parse_url(const char *url,
-                   bool address_only,
-                   bool *sshp,
-                   char **addressp,
-                   unsigned int *portp,
-                   char **methodp);
 long cli_connect(Cli *cli,
                  VarlinkConnection **connectionp,
-                 bool ssh,
                  const char *address,
-                 unsigned int port,
                  const char *method);
 long cli_call(Cli *cli,
               VarlinkConnection *connection,

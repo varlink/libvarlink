@@ -22,9 +22,7 @@ typedef struct {
 
         uint64_t flags;
 
-        bool ssh;
         char *address;
-        unsigned int port;
         char *method;
         const char *parameters;
 } CallArguments;
@@ -55,7 +53,6 @@ static long call_arguments_new(CallArguments **argumentsp) {
 
 static long call_parse_arguments(int argc, char **argv, CallArguments *arguments) {
         int c;
-        long r;
 
         while ((c = getopt_long(argc, argv, ":a:fhm", options, NULL)) >= 0) {
                 switch (c) {
@@ -81,14 +78,7 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        r = cli_parse_url(argv[optind],
-                          false,
-                          &arguments->ssh,
-                          &arguments->address,
-                          &arguments->port,
-                          &arguments->method);
-        if (r < 0)
-                return r;
+        string_rpartition(argv[optind], '/', &arguments->address, &arguments->method);
 
         arguments->parameters = argv[optind + 1];
 
@@ -208,9 +198,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
 
         r = cli_connect(cli,
                         &connection,
-                        arguments->ssh,
                         arguments->address,
-                        arguments->port,
                         arguments->method);
         if (r < 0) {
                 fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));

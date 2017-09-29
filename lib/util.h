@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define _cleanup_(_x) __attribute__((__cleanup__(_x)))
@@ -25,6 +26,28 @@ static inline void fclosep(FILE **fp) {
 int epoll_add(int epfd, int fd, int events, void *ptr);
 int epoll_mod(int epfd, int fd, int events, void *ptr);
 int epoll_del(int epfd, int fd);
+
+/*
+ * Like python's str.rpartition: Split a string at the last occurrence
+ * of a separator and return the parts before and after the separator.
+ * If the separator is not found, return NULL and the original string as
+ * before and after, respectively.
+ */
+static inline void string_rpartition(const char *string,
+                                     char separator,
+                                     char **beforep,
+                                     char **afterp) {
+        const char *p;
+
+        p = strrchr(string, separator);
+        if (p) {
+                *beforep = strndup(string, p - string);
+                *afterp = strdup(p + 1);
+        } else {
+                *beforep = NULL;
+                *afterp = strdup(string);
+        }
+}
 
 #define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
 #define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))

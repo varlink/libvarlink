@@ -1,0 +1,78 @@
+#include "socket.h"
+#include "varlink.h"
+#include "util.h"
+
+#include <stdio.h>
+#include <sys/prctl.h>
+#include <sys/signal.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+int varlink_connect_ssh(const char *address) {
+        _cleanup_(freep) char *host = NULL;
+        unsigned int port = 0;
+        int sp[2];
+        pid_t pid;
+
+        /* Extract optional port number */
+        if (sscanf(address, "%m[^:]:%d", &host, &port) < 1)
+                return -VARLINK_ERROR_INVALID_ADDRESS;
+
+        if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0, sp) < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        pid = fork();
+        if (pid < 0) {
+                close(sp[0]);
+                close(sp[1]);
+                return -VARLINK_ERROR_PANIC;
+        }
+
+        if (pid == 0) {
+                const char *arg[11];
+                long i = 0;
+
+                arg[i++] = "ssh";
+
+                /* Disable X11 and pseudo-terminal */
+                arg[i++] = "-xT";
+
+                /* Disable passphrase/password querying */
+                arg[i++] = "-o";
+                arg[i++] = "BatchMode=yes";
+
+                /* Add custom port number */
+                if (port > 0) {
+                        char p[8];
+
+                        sprintf(p, "%d", port);
+                        arg[i++] = "-p";
+                        arg[i++] = p;
+                }
+
+                arg[i++] = "--";
+                arg[i++] = host;
+                arg[i++] = "varlink";
+                arg[i++] = "bridge";
+                arg[i] = NULL;
+
+                close(sp[0]);
+
+                if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
+                    dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
+                        return -VARLINK_ERROR_PANIC;
+
+                if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
+                        close(sp[1]);
+
+                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+                        _exit(EXIT_FAILURE);
+
+                execvp(arg[0], (char **) arg);
+                _exit(EXIT_FAILURE);
+        }
+
+        close(sp[1]);
+
+        return sp[0];
+}

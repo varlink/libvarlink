@@ -1,4 +1,5 @@
 #include "command.h"
+#include "error.h"
 #include "terminal-colors.h"
 #include "util.h"
 
@@ -7,10 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(Cli *cli, const char *url) {
-        bool ssh;
-        _cleanup_(freep) char *address = NULL;
-        unsigned int port;
+static long print_service(Cli *cli, const char *address) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
@@ -19,25 +17,9 @@ static long print_service(Cli *cli, const char *url) {
         unsigned long n_interfaces;
         long r;
 
-        r = cli_parse_url(url,
-                          true,
-                          &ssh,
-                          &address,
-                          &port,
-                          NULL);
+        r = varlink_connection_new(&connection, address);
         if (r < 0) {
-                fprintf(stderr, "Unable to parse ADDRESS\n");
-                return r;
-        }
-
-        r = cli_connect(cli,
-                        &connection,
-                        ssh,
-                        address,
-                        port,
-                        NULL);
-        if (r < 0) {
-                fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
+                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
                 return r;
         }
 

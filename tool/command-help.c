@@ -71,9 +71,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 {}
         };
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        bool ssh;
         _cleanup_(freep) char *address = NULL;
-        unsigned int port;
         _cleanup_(freep) char *interface = NULL;
         int c;
         long r;
@@ -100,27 +98,11 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        r = cli_parse_url(argv[optind],
-                          false,
-                          &ssh,
-                          &address,
-                          &port,
-                          &interface);
-        if (r < 0) {
-                fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
-                return r;
-        }
-
-        if (!interface) {
-                fprintf(stderr, "Unable to parse INTERFACE\n");
-                return -CLI_ERROR_INVALID_ARGUMENT;
-        }
+        string_rpartition(argv[optind], '/', &address, &interface);
 
         r = cli_connect(cli,
                         &connection,
-                        ssh,
                         address,
-                        port,
                         interface);
         if (r < 0) {
                 fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
