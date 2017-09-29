@@ -204,11 +204,12 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
         }
 
-        connection->events |= EPOLLOUT;
-
         r = varlink_stream_write(&connection->stream, call);
         if (r < 0)
                 return r;
+
+        if (r == 0)
+                connection->events |= EPOLLOUT;
 
         return 0;
 }
