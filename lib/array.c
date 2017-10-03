@@ -1,6 +1,4 @@
-
 #include "array.h"
-
 #include "util.h"
 
 #include <string.h>
