@@ -20,7 +20,7 @@ libvarlink_sources = '''
         socket.c
         socket.h
         socket-ssh.c
-        socket-tcp.c
+        socket-ip.c
         socket-unix.c
         service.c
         service.h

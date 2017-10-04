@@ -65,7 +65,7 @@ long cli_new(Cli **mp) {
         sigset_t mask;
 
         cli = calloc(1, sizeof(Cli));
-        cli->resolver = "/run/org.varlink.resolver";
+        cli->resolver = "unix:/run/org.varlink.resolver";
         cli->timeout = -1;
 
         cli->epoll_fd = epoll_create1(EPOLL_CLOEXEC);

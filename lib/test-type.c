@@ -128,7 +128,7 @@ static void test_interface_type_add(void) {
                       "type One (one: string)\n"
                       "type Two (two: string)\n"
                       "type OneTwo (one: One, two: Two)\n";
-        assert(varlink_service_new(&service, "Varlink", "Test Service", "0.1", "http://", "@org.example.foo", -1) == 0);
+        assert(varlink_service_new(&service, "Varlink", "Test Service", "1", "http://example.com", "unix:@org.example.foo", -1) == 0);
         assert(varlink_service_add_interface(service, description, NULL) == 0);
 
         interface = varlink_service_get_interface_by_name(service, "foo.bar");
@@ -148,7 +148,7 @@ static void test_interface_type_lookup(void) {
 
         description = "interface foo.bar\n"
                       "type FooBar (foo: int, bar: string)\n";
-        assert(varlink_service_new(&service, "Varlink", "Test Service", "0.1", "http://", "@org.example.foo", -1) == 0);
+        assert(varlink_service_new(&service, "Varlink", "Test Service", "1", "http://example.com", "unix:@org.example.foo", -1) == 0);
         assert(varlink_service_add_interface(service, description, NULL) == 0);
 
         interface = varlink_service_get_interface_by_name(service, "foo.bar");

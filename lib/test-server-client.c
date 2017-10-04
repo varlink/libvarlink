@@ -117,13 +117,13 @@ int main(void) {
         Test test = {};
         VarlinkCall *later_call = NULL;
 
-        assert(varlink_service_new(&test.service, "Varlink", "Test Service", "0.1", "http://", "@test.socket", -1) == 0);
+        assert(varlink_service_new(&test.service, "Varlink", "Test Service", "1", "http://example.com", "unix:@test.socket", -1) == 0);
         assert(varlink_service_add_interface(test.service, interface,
                                              "Echo", org_varlink_example_Echo, NULL,
                                              "Later", org_varlink_example_Later, &later_call,
                                              NULL) == 0);
 
-        assert(varlink_connection_new(&test.connection, "@test.socket") == 0);
+        assert(varlink_connection_new(&test.connection, "unix:@test.socket") == 0);
 
         test.epoll_fd = epoll_create1(EPOLL_CLOEXEC);
         assert(test.epoll_fd > 0);

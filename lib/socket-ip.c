@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-int varlink_connect_tcp(const char *address) {
+int varlink_connect_ip(const char *address) {
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
         char *colon;
@@ -48,7 +48,7 @@ int varlink_connect_tcp(const char *address) {
         return r;
 }
 
-int varlink_listen_tcp(const char *address) {
+int varlink_listen_ip(const char *address) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
@@ -82,7 +82,7 @@ int varlink_listen_tcp(const char *address) {
         return r;
 }
 
-int varlink_accept_tcp(int listen_fd) {
+int varlink_accept_ip(int listen_fd) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         int r;

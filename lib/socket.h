@@ -9,8 +9,8 @@ int varlink_connect_unix(const char *path);
 int varlink_listen_unix(const char *path);
 int varlink_accept_unix(int listen_fd, pid_t *pidp, uid_t *uidp, gid_t *gidp);
 
-int varlink_connect_tcp(const char *address);
-int varlink_listen_tcp(const char *address);
-int varlink_accept_tcp(int listen_fd);
+int varlink_connect_ip(const char *address);
+int varlink_listen_ip(const char *address);
+int varlink_accept_ip(int listen_fd);
 
 int varlink_connect_ssh(const char *address);
