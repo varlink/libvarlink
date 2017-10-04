@@ -10,12 +10,15 @@
 
 int varlink_connect_ssh(const char *address) {
         _cleanup_(freep) char *host = NULL;
+        _cleanup_(freep) char *end = NULL;
         unsigned int port = 0;
         int sp[2];
         pid_t pid;
+        long r;
 
         /* Extract optional port number */
-        if (sscanf(address, "%m[^:]:%d", &host, &port) < 1)
+        r = sscanf(address, "%m[^:]:%d%ms", &host, &port, &end);
+        if (r < 1 || r > 2)
                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
         if (socketpair(AF_UNIX, SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC, 0, sp) < 0)
