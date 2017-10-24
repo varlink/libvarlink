@@ -41,13 +41,14 @@ struct VarlinkConnection {
 _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long fd;
+        pid_t pid = -1;
 
-        fd = varlink_connect(address);
+        fd = varlink_connect(address, &pid);
         if (fd < 0)
                 return fd; /* CannotConnect or InvalidAddress */
 
         connection = calloc(1, sizeof(VarlinkConnection));
-        varlink_stream_init(&connection->stream, fd);
+        varlink_stream_init(&connection->stream, fd, pid);
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
         connection->address = strdup(address);

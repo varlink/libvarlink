@@ -45,7 +45,7 @@ static long bridge_new(Bridge **bridgep, Cli *cli) {
         bridge = calloc(1, sizeof(Bridge));
         bridge->cli = cli;
 
-        varlink_stream_init(&bridge->in, STDIN_FILENO);
+        varlink_stream_init(&bridge->in, STDIN_FILENO, -1);
 
         *bridgep = bridge;
         bridge = NULL;
@@ -124,8 +124,8 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
 
         while (bridge->status == 0) {
                 struct pollfd pfd[] = {
-                        {.fd = cli->signal_fd, .events = POLLIN },
-                        {.fd = bridge->in.fd, .events = POLLIN }
+                        { .fd = cli->signal_fd, .events = POLLIN },
+                        { .fd = bridge->in.fd, .events = POLLIN }
                 };
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;

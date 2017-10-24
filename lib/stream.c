@@ -6,11 +6,14 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/signal.h>
+#include <sys/wait.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
 
-void varlink_stream_init(VarlinkStream *stream, int fd) {
+void varlink_stream_init(VarlinkStream *stream, int fd, pid_t pid) {
         stream->fd = fd;
+        stream->pid = pid;
 
         stream->in = malloc(CONNECTION_BUFFER_SIZE);
         stream->in_start = 0;
@@ -29,6 +32,9 @@ void varlink_stream_deinit(VarlinkStream *stream) {
 
         free(stream->in);
         free(stream->out);
+
+        if (stream->pid > 0 && kill(stream->pid, SIGTERM) >= 0)
+                waitpid(stream->pid, NULL, 0);
 
         memset(stream, 0, sizeof(VarlinkStream));
         stream->fd = -1;

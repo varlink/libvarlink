@@ -6,6 +6,7 @@
 #include <string.h>
 
 enum {
+        VARLINK_ADDRESS_EXEC,
         VARLINK_ADDRESS_IP,
         VARLINK_ADDRESS_SSH,
         VARLINK_ADDRESS_UNIX
@@ -15,13 +16,23 @@ static long varlink_address_parse(const char *address, char **destinationp) {
         _cleanup_(freep) char *destination = NULL;
         long type;
 
-        if (strncmp(address, "ssh://", 6) == 0) {
+        if (strncmp(address, "exec:", 5) == 0) {
+                type = VARLINK_ADDRESS_EXEC;
+                destination = strdup(address + 5);
+
+        } else if (strncmp(address, "ssh://", 6) == 0) {
                 type = VARLINK_ADDRESS_SSH;
                 destination = strdup(address + 6);
 
         } else if (strncmp(address, "unix:", 5) == 0) {
                 type = VARLINK_ADDRESS_UNIX;
-                destination = strdup(address + 5);
+
+                /*
+                 * An empty path asks the kernel to assign a unique
+                 * abstract address by autobinding.
+                 */
+                if (address[5] != '\0')
+                        destination = strdup(address + 5);
 
         } else {
                 type = VARLINK_ADDRESS_IP;
@@ -36,15 +47,18 @@ static long varlink_address_parse(const char *address, char **destinationp) {
         return type;
 }
 
-int varlink_connect(const char *address) {
+int varlink_connect(const char *address, pid_t *pidp) {
         _cleanup_(freep) char *destination = NULL;
 
         switch (varlink_address_parse(address, &destination)) {
+                case VARLINK_ADDRESS_EXEC:
+                        return varlink_connect_exec(destination, pidp);
+
                 case VARLINK_ADDRESS_IP:
                         return varlink_connect_ip(destination);
 
                 case VARLINK_ADDRESS_SSH:
-                        return varlink_connect_ssh(destination);
+                        return varlink_connect_ssh(destination, pidp);
 
                 case VARLINK_ADDRESS_UNIX:
                         return varlink_connect_unix(destination);
@@ -54,7 +68,10 @@ int varlink_connect(const char *address) {
         }
 }
 
-int varlink_accept(const char *address, int listen_fd, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
+int varlink_accept(const char *address,
+                   int listen_fd,
+                   mode_t mode,
+                   pid_t *pidp, uid_t *uidp, gid_t *gidp) {
         int fd;
 
         switch (varlink_address_parse(address, NULL)) {
@@ -69,7 +86,9 @@ int varlink_accept(const char *address, int listen_fd, pid_t *pidp, uid_t *uidp,
                         return fd;
 
                 case VARLINK_ADDRESS_UNIX:
-                        return varlink_accept_unix(listen_fd, pidp, uidp, gidp);
+                        return varlink_accept_unix(listen_fd,
+                                                   mode,
+                                                   pidp, uidp, gidp);
 
                 default:
                         return -VARLINK_ERROR_INVALID_ADDRESS;
@@ -88,14 +107,9 @@ _public_ int varlink_listen(const char *address, char **pathp) {
                         break;
 
                 case VARLINK_ADDRESS_UNIX:
-                        fd = varlink_listen_unix(destination);
+                        fd = varlink_listen_unix(destination, pathp);
                         if (fd < 0)
                                 return fd;
-
-                        if (pathp && destination[0] != '@') {
-                                *pathp = destination;
-                                destination = NULL;
-                        }
                         break;
 
                 default:

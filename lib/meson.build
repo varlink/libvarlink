@@ -17,13 +17,14 @@ libvarlink_sources = '''
         protocol.h
         scanner.c
         scanner.h
-        socket.c
-        socket.h
-        socket-ssh.c
-        socket-ip.c
-        socket-unix.c
         service.c
         service.h
+        socket.c
+        socket.h
+        socket-exec.c
+        socket-ip.c
+        socket-ssh.c
+        socket-unix.c
         stream.c
         stream.h
         type.h

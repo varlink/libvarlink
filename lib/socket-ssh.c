@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-int varlink_connect_ssh(const char *address) {
+int varlink_connect_ssh(const char *address, pid_t *pidp) {
         _cleanup_(freep) char *host = NULL;
         _cleanup_(freep) char *end = NULL;
         unsigned int port = 0;
@@ -61,6 +61,7 @@ int varlink_connect_ssh(const char *address) {
 
                 close(sp[0]);
 
+                /* Does not set CLOEXEC */
                 if (dup2(sp[1], STDIN_FILENO) != STDIN_FILENO ||
                     dup2(sp[1], STDOUT_FILENO) != STDOUT_FILENO)
                         return -VARLINK_ERROR_PANIC;
@@ -76,6 +77,9 @@ int varlink_connect_ssh(const char *address) {
         }
 
         close(sp[1]);
+
+        if (pidp)
+                *pidp = pid;
 
         return sp[0];
 }

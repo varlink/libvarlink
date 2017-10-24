@@ -63,6 +63,7 @@ global:
         varlink_service_new;
         varlink_service_new_raw;
         varlink_service_process_events;
+        varlink_service_set_credentials_mode;
 local:
        *;
 };

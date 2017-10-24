@@ -6,6 +6,7 @@ typedef struct VarlinkStream VarlinkStream;
 
 struct VarlinkStream {
         int fd;
+        pid_t pid;
 
         uint8_t *in;
         unsigned long in_start;
@@ -18,7 +19,7 @@ struct VarlinkStream {
         bool hup;
 };
 
-void varlink_stream_init(VarlinkStream *stream, int fd);
+void varlink_stream_init(VarlinkStream *stream, int fd, pid_t pid);
 void varlink_stream_deinit(VarlinkStream *stream);
 
 /*

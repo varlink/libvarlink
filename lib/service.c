@@ -30,6 +30,7 @@ struct VarlinkService {
         AVLTree *interfaces;
 
         int listen_fd;
+        mode_t mode;
         char *path_to_unlink;
         int epoll_fd;
 
@@ -310,6 +311,52 @@ static long varlink_service_method_callback(VarlinkService *service,
         return method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
 }
 
+_public_ long varlink_service_new_raw(VarlinkService **servicep,
+                                      const char *address,
+                                      int listen_fd,
+                                      VarlinkMethodCallback callback,
+                                      void *userdata) {
+        _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
+
+        service = calloc(1, sizeof(VarlinkService));
+        service->listen_fd = -1;
+        service->epoll_fd = -1;
+        service->mode = 0600;
+
+        service->address = strdup(address);
+        service->method_callback = callback;
+        service->method_callback_userdata = userdata;
+
+        avl_tree_new(&service->connections, connection_compare, (AVLFreeFunc)service_connection_free);
+
+        if (listen_fd < 0) {
+                _cleanup_(freep) char *path = NULL;
+
+                listen_fd = varlink_listen(address, &path);
+                if (listen_fd < 0)
+                        return listen_fd;
+
+                if (path && path[0] != '@') {
+                        service->path_to_unlink = path;
+                        path = NULL;
+                }
+        }
+
+        service->listen_fd = listen_fd;
+
+        service->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+        if (service->epoll_fd < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        if (epoll_add(service->epoll_fd, service->listen_fd, EPOLLIN, service) < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        *servicep = service;
+        service = NULL;
+
+        return 0;
+}
+
 _public_ long varlink_service_new(VarlinkService **servicep,
                                   const char *vendor,
                                   const char *product,
@@ -348,40 +395,8 @@ _public_ long varlink_service_new(VarlinkService **servicep,
         return 0;
 }
 
-_public_ long varlink_service_new_raw(VarlinkService **servicep,
-                                      const char *address,
-                                      int listen_fd,
-                                      VarlinkMethodCallback callback,
-                                      void *userdata) {
-        _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
-
-        service = calloc(1, sizeof(VarlinkService));
-        service->listen_fd = -1;
-        service->epoll_fd = -1;
-
-        service->address = strdup(address);
-        service->method_callback = callback;
-        service->method_callback_userdata = userdata;
-
-        avl_tree_new(&service->connections, connection_compare, (AVLFreeFunc)service_connection_free);
-
-        if (listen_fd < 0) {
-                listen_fd = varlink_listen(address, &service->path_to_unlink);
-                if (listen_fd < 0)
-                        return listen_fd;
-        }
-
-        service->listen_fd = listen_fd;
-
-        service->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-        if (service->epoll_fd < 0)
-                return -VARLINK_ERROR_PANIC;
-
-        if (epoll_add(service->epoll_fd, service->listen_fd, EPOLLIN, service) < 0)
-                return -VARLINK_ERROR_PANIC;
-
-        *servicep = service;
-        service = NULL;
+_public_ long varlink_service_set_credentials_mode(VarlinkService *service, mode_t mode) {
+        service->mode = mode;
 
         return 0;
 }
@@ -473,13 +488,14 @@ static long varlink_service_accept(VarlinkService *service) {
 
         r = varlink_accept(service->address,
                            service->listen_fd,
+                           service->mode,
                            &connection->pid,
                            &connection->uid,
                            &connection->gid);
         if (r < 0)
                 return r; /* CannotAccept */
 
-        varlink_stream_init(&connection->stream, (int)r);
+        varlink_stream_init(&connection->stream, (int)r, (pid_t)-1);
 
         r = epoll_add(service->epoll_fd, connection->stream.fd, EPOLLIN, connection);
         if (r < 0)

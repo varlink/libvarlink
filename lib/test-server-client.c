@@ -117,7 +117,10 @@ int main(void) {
         Test test = {};
         VarlinkCall *later_call = NULL;
 
-        assert(varlink_service_new(&test.service, "Varlink", "Test Service", "1", "http://example.com", "unix:@test.socket", -1) == 0);
+        assert(varlink_service_new(&test.service,
+                                   "Varlink", "Test Service", "1", "http://example.com",
+                                   "unix:@test.socket",
+                                   -1) == 0);
         assert(varlink_service_add_interface(test.service, interface,
                                              "Echo", org_varlink_example_Echo, NULL,
                                              "Later", org_varlink_example_Later, &later_call,

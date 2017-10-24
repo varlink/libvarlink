@@ -251,6 +251,15 @@ long varlink_service_new_raw(VarlinkService **servicep,
                              void *userdata);
 
 /*
+ * Set the mode which credentials to accept. Credentials are only
+ * available on UNIX sockets.
+ *   0600 is the default
+ *   0660 accepts connections which are in the same primary group
+ *   0666 disables any credentials checking
+ */
+long varlink_service_set_credentials_mode(VarlinkService *service, mode_t mode);
+
+/*
  * Destroys a VarlinkService, close all its connections and free all its
  * ressources.
  *
