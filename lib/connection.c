@@ -29,7 +29,7 @@ struct ReplyCallback {
 struct VarlinkConnection {
         char *address;
 
-        VarlinkStream stream;
+        VarlinkStream *stream;
         int events;
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
@@ -48,7 +48,7 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
                 return fd; /* CannotConnect or InvalidAddress */
 
         connection = calloc(1, sizeof(VarlinkConnection));
-        varlink_stream_init(&connection->stream, fd, pid);
+        varlink_stream_new(&connection->stream, fd, pid);
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
         connection->address = strdup(address);
@@ -60,7 +60,7 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
 }
 
 _public_ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection) {
-        if (connection->stream.fd >= 0)
+        if (connection->stream)
                 varlink_connection_close(connection);
 
         while (!STAILQ_EMPTY(&connection->pending)) {
@@ -84,13 +84,13 @@ _public_ void varlink_connection_freep(VarlinkConnection **connectionp) {
 _public_ long varlink_connection_process_events(VarlinkConnection *connection, int events) {
         long r;
 
-        if (connection->stream.fd < 0)
+        if (!connection->stream)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         connection->events = EPOLLIN;
 
         if (events & EPOLLOUT) {
-                r = varlink_stream_flush(&connection->stream);
+                r = varlink_stream_flush(connection->stream);
                 if (r < 0)
                         return r;
 
@@ -99,14 +99,14 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
         }
 
         /* Check if the stream is valid, because a callback might have closed the connection */
-        while (connection->stream.fd >= 0) {
+        while (connection->stream) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
                 _cleanup_(freep) char *error = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 uint64_t flags = 0;
                 ReplyCallback *callback;
 
-                r = varlink_stream_read(&connection->stream, &message);
+                r = varlink_stream_read(connection->stream, &message);
                 if (r < 0)
                         return r;
 
@@ -140,7 +140,7 @@ _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
 }
 
 _public_ long varlink_connection_close(VarlinkConnection *connection) {
-        varlink_stream_deinit(&connection->stream);
+        connection->stream = varlink_stream_free(connection->stream);
 
         while (connection->closed_callback)
                 connection->closed_callback(connection, connection->closed_userdata);
@@ -149,11 +149,14 @@ _public_ long varlink_connection_close(VarlinkConnection *connection) {
 }
 
 _public_ bool varlink_connection_is_closed(VarlinkConnection *connection) {
-        return connection->stream.fd < 0;
+        return connection->stream == NULL;
 }
 
 _public_ int varlink_connection_get_fd(VarlinkConnection *connection) {
-        return connection->stream.fd;
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return connection->stream->fd;
 }
 
 _public_ long varlink_connection_call(VarlinkConnection *connection,
@@ -166,7 +169,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         ReplyCallback *callback;
         long r;
 
-        if (connection->stream.fd < 0)
+        if (!connection->stream)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
@@ -184,7 +187,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
         }
 
-        r = varlink_stream_write(&connection->stream, call);
+        r = varlink_stream_write(connection->stream, call);
         if (r < 0)
                 return r;
 

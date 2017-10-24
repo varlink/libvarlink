@@ -18,7 +18,7 @@ typedef struct {
         long status;
         AVLTree *services;
         VarlinkObject *info;
-        VarlinkStream in;
+        VarlinkStream *in;
 } Bridge;
 
 static void bridge_free(Bridge *bridge) {
@@ -28,8 +28,7 @@ static void bridge_free(Bridge *bridge) {
         if (bridge->info)
                 varlink_object_unref(bridge->info);
 
-        varlink_stream_deinit(&bridge->in);
-
+        varlink_stream_free(bridge->in);
         free(bridge);
 }
 
@@ -45,7 +44,7 @@ static long bridge_new(Bridge **bridgep, Cli *cli) {
         bridge = calloc(1, sizeof(Bridge));
         bridge->cli = cli;
 
-        varlink_stream_init(&bridge->in, STDIN_FILENO, -1);
+        varlink_stream_new(&bridge->in, STDIN_FILENO, -1);
 
         *bridgep = bridge;
         bridge = NULL;
@@ -125,7 +124,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         while (bridge->status == 0) {
                 struct pollfd pfd[] = {
                         { .fd = cli->signal_fd, .events = POLLIN },
-                        { .fd = bridge->in.fd, .events = POLLIN }
+                        { .fd = bridge->in->fd, .events = POLLIN }
                 };
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;
@@ -151,7 +150,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                         break;
                 }
 
-                r = varlink_stream_read(&bridge->in, &call);
+                r = varlink_stream_read(bridge->in, &call);
                 switch (r) {
                         case 0:
                                 return 0;

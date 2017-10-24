@@ -11,7 +11,10 @@
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
 
-void varlink_stream_init(VarlinkStream *stream, int fd, pid_t pid) {
+long varlink_stream_new(VarlinkStream **streamp, int fd, pid_t pid) {
+        VarlinkStream *stream;
+
+        stream = calloc(1, sizeof(VarlinkStream));
         stream->fd = fd;
         stream->pid = pid;
 
@@ -24,9 +27,12 @@ void varlink_stream_init(VarlinkStream *stream, int fd, pid_t pid) {
         stream->out_end = 0;
 
         stream->hup = false;
+
+        *streamp = stream;
+        return 0;
 }
 
-void varlink_stream_deinit(VarlinkStream *stream) {
+VarlinkStream *varlink_stream_free(VarlinkStream *stream) {
         if (stream->fd >= 0)
                 close(stream->fd);
 
@@ -36,8 +42,8 @@ void varlink_stream_deinit(VarlinkStream *stream) {
         if (stream->pid > 0 && kill(stream->pid, SIGTERM) >= 0)
                 waitpid(stream->pid, NULL, 0);
 
-        memset(stream, 0, sizeof(VarlinkStream));
-        stream->fd = -1;
+        free(stream);
+        return NULL;
 }
 
 static void move_rest(uint8_t **bufferp, unsigned long *startp, unsigned long *endp) {

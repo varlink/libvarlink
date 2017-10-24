@@ -19,8 +19,8 @@ struct VarlinkStream {
         bool hup;
 };
 
-void varlink_stream_init(VarlinkStream *stream, int fd, pid_t pid);
-void varlink_stream_deinit(VarlinkStream *stream);
+long varlink_stream_new(VarlinkStream **streamp, int fd, pid_t pid);
+VarlinkStream *varlink_stream_free(VarlinkStream *stream);
 
 /*
  * Reads a message from the stream. If a full message is available,
