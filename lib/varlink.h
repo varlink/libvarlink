@@ -105,6 +105,12 @@ typedef void (*VarlinkReplyFunc)(VarlinkConnection *connection,
                                  VarlinkObject *parameters,
                                  uint64_t flags,
                                  void *userdata);
+
+/*
+ * Translate the error code into the error ID string
+ */
+const char *varlink_error_string(long error);
+
 /*
  * Create a new empty object.
  */

@@ -33,7 +33,7 @@ static const char *error_strings[] = {
         [VARLINK_ERROR_INVALID_TYPE] = "InvalidType",
 };
 
-const char *varlink_error_string(long error) {
+_public_ const char *varlink_error_string(long error) {
         if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
                 return "<invalid>";
 

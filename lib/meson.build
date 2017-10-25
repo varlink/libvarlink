@@ -8,7 +8,6 @@ libvarlink_sources = '''
         avltree.h
         connection.c
         error.c
-        error.h
         interface.c
         interface.h
         object.c
