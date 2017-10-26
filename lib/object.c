@@ -142,12 +142,12 @@ _public_ void varlink_object_unrefp(VarlinkObject **objectp) {
 }
 
 _public_ unsigned long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp) {
-        _cleanup_(freep) const char **names = NULL;
         unsigned long n_fields;
 
         n_fields = avl_tree_get_n_elements(object->fields);
 
         if (namesp) {
+                _cleanup_(freep) const char **names = NULL;
                 AVLTreeNode *node;
                 unsigned long i = 0;
 
@@ -373,7 +373,7 @@ long varlink_object_write_json(VarlinkObject *object,
                                const char *key_pre, const char *key_post,
                                const char *value_pre, const char *value_post) {
         unsigned long n_fields;
-        _cleanup_(freep) const char **field_names;
+        _cleanup_(freep) const char **field_names = NULL;
         long r;
 
         n_fields = varlink_object_get_field_names(object, &field_names);
