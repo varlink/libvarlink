@@ -45,14 +45,49 @@ int varlink_connect_unix(const char *path) {
         return r;
 }
 
-int varlink_listen_unix(const char *path, char **pathp) {
+static long parse_parameters(const char *address,
+                             char **pathp,
+                             mode_t *modep) {
+        char *parm;
+        _cleanup_(freep) char *path = NULL;
+        char *endptr;
+        mode_t mode = 0;
+
+        parm = strchr(address, ';');
+        if (!parm) {
+                *pathp = strdup(address);
+                return 0;
+        }
+
+        if (parm > address)
+                path = strndup(address, parm - address);
+
+        parm += 1;
+
+        if (strncmp(parm, "mode=", 5) != 0)
+                return -VARLINK_ERROR_INVALID_ADDRESS;
+
+        mode = strtoul(parm + 5, &endptr, 0);
+        if (endptr[0] != '\0')
+                return -VARLINK_ERROR_INVALID_ADDRESS;
+
+        *pathp = path;
+        path = NULL;
+
+        *modep = mode;
+
+        return 0;
+}
+
+int varlink_listen_unix(const char *address, char **pathp) {
         _cleanup_(closep) int fd = -1;
         const int on = 1;
+        _cleanup_(freep) char *path = NULL;
+        mode_t mode = 0;
         struct sockaddr_un sa = {
                 .sun_family = AF_UNIX,
         };
         socklen_t sa_len;
-        _cleanup_(freep) char *address = NULL;
         int r;
 
         fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
@@ -61,6 +96,10 @@ int varlink_listen_unix(const char *path, char **pathp) {
 
         if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
+
+        r = parse_parameters(address, &path, &mode);
+        if (r < 0)
+                return r;
 
         if (!path) {
                 /* UNIX autobind to kernel-assigned unique abstract address */
@@ -72,7 +111,7 @@ int varlink_listen_unix(const char *path, char **pathp) {
                         return -VARLINK_ERROR_CANNOT_LISTEN;
 
                 sa.sun_path[0] = '@';
-                address = strndup(sa.sun_path, sa_len - offsetof(struct sockaddr_un, sun_path));
+                path = strndup(sa.sun_path, sa_len - offsetof(struct sockaddr_un, sun_path));
 
         } else {
                 if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
@@ -91,22 +130,19 @@ int varlink_listen_unix(const char *path, char **pathp) {
                 if (bind(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
                         return -VARLINK_ERROR_CANNOT_LISTEN;
 
-                /*
-                 * File permissions are not set. Credentials are checked when incoming connections
-                 * are accepted, or by the service in every call individually.
-                 */
-                if (sa.sun_path[0] != '\0')
-                        chmod(sa.sun_path, 0666);
-
-                address = strdup(path);
+                path = strdup(path);
         }
+
+        if (mode > 0)
+                if (fchmod(fd, mode) < 0)
+                        return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (listen(fd, SOMAXCONN) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (pathp) {
-                *pathp = address;
-                address = NULL;
+                *pathp = path;
+                path = NULL;
         }
 
         r = fd;
@@ -115,36 +151,31 @@ int varlink_listen_unix(const char *path, char **pathp) {
         return r;
 }
 
-static bool check_credentials(mode_t mode, pid_t pid, uid_t uid, gid_t gid) {
+/* Incoming connections are checked against the credentials of the listen socket. */
+static bool check_credentials(mode_t listen_mode, uid_t listen_uid, gid_t listen_gid,
+                              uid_t connection_uid, gid_t connection_gid) {
         /* World-accessible */
-        if (mode & 0002)
+        if (listen_mode & 0002)
                 return true;
 
         /* Always accept connections from root */
-        if (uid == 0 || gid == 0)
+        if (connection_uid == 0 || connection_gid == 0)
                 return true;
 
         /* Always accept connnections from the same user */
-        if (uid == getuid())
-                return true;
-
-        /* Always accept connections from the parent process*/
-        if (pid == getppid())
+        if (connection_uid == listen_uid)
                 return true;
 
         /* Accept connections from the same primary group */
-        if ((mode & 00020) && gid == getgid())
+        if ((listen_mode & 00020) && connection_gid == listen_gid)
                 return true;
 
         return false;
 }
 
-int varlink_accept_unix(int listen_fd,
-                        mode_t mode,
-                        pid_t *pidp, uid_t *uidp, gid_t *gidp) {
+int varlink_accept_unix(int listen_fd) {
+        struct stat sb;
         _cleanup_(closep) int fd = -1;
-        struct sockaddr_un sa;
-        socklen_t sa_len = sizeof(sa);
         struct ucred ucred;
         socklen_t ucred_len = sizeof(struct ucred);
         long r;
@@ -153,18 +184,15 @@ int varlink_accept_unix(int listen_fd,
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
 
+        if (fstat(listen_fd, &sb) < 0)
+                return -VARLINK_ERROR_CANNOT_ACCEPT;
+
         if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len) < 0)
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
 
-        if (getsockname(listen_fd, &sa, &sa_len) < 0)
+        if (!check_credentials(sb.st_mode, sb.st_uid, sb.st_gid,
+                               ucred.uid, ucred.gid))
                 return -VARLINK_ERROR_CANNOT_ACCEPT;
-
-        if (!check_credentials(mode, ucred.pid, ucred.uid, ucred.gid))
-                return -VARLINK_ERROR_CANNOT_ACCEPT;
-
-        *pidp = ucred.pid;
-        *uidp = ucred.uid;
-        *gidp = ucred.gid;
 
         r = fd;
         fd = -1;

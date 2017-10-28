@@ -17,7 +17,6 @@ global:
         varlink_array_ref;
         varlink_array_unref;
         varlink_array_unrefp;
-        varlink_call_get_credentials;
         varlink_call_get_method;
         varlink_call_ref;
         varlink_call_reply;
@@ -64,7 +63,6 @@ global:
         varlink_service_new;
         varlink_service_new_raw;
         varlink_service_process_events;
-        varlink_service_set_credentials_mode;
 local:
        *;
 };

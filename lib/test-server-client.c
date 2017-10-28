@@ -40,14 +40,6 @@ static long org_varlink_example_Later(VarlinkService *service,
                                       uint64_t flags,
                                       void *userdata) {
         VarlinkCall **callp = userdata;
-        pid_t pid;
-        uid_t uid;
-        gid_t gid;
-
-        assert(varlink_call_get_credentials(call, &pid, &uid, &gid) == 0);
-        assert(pid == getpid());
-        assert(uid == getuid());
-        assert(gid == getgid());
 
         assert(*callp == NULL);
         *callp = varlink_call_ref(call);

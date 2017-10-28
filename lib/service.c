@@ -30,7 +30,6 @@ struct VarlinkService {
         AVLTree *interfaces;
 
         int listen_fd;
-        mode_t mode;
         char *path_to_unlink;
         int epoll_fd;
 
@@ -56,9 +55,6 @@ struct VarlinkCall {
 struct ServiceConnection {
         VarlinkStream *stream;
         int events;
-        pid_t pid;
-        uid_t uid;
-        gid_t gid;
         VarlinkCall *call;
 };
 
@@ -111,31 +107,6 @@ _public_ void varlink_call_unrefp(VarlinkCall **callp) {
 
 _public_ const char *varlink_call_get_method(VarlinkCall *call) {
         return call->method;
-}
-
-_public_ long varlink_call_get_credentials(VarlinkCall *call, pid_t *pidp, uid_t *uidp, gid_t *gidp) {
-        if (pidp) {
-                if (call->connection->pid == (pid_t)-1)
-                        return -VARLINK_ERROR_NOT_AVAILABLE;
-
-                *pidp = call->connection->pid;
-        }
-
-        if (uidp) {
-                if (call->connection->uid == (uid_t)-1)
-                        return -VARLINK_ERROR_NOT_AVAILABLE;
-
-                *uidp = call->connection->uid;
-        }
-
-        if (gidp) {
-                if (call->connection->gid == (gid_t)-1)
-                        return -VARLINK_ERROR_NOT_AVAILABLE;
-
-                *gidp = call->connection->gid;
-        }
-
-        return 0;
 }
 
 static long interface_compare(const void *key, void *value) {
@@ -321,7 +292,6 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
         service = calloc(1, sizeof(VarlinkService));
         service->listen_fd = -1;
         service->epoll_fd = -1;
-        service->mode = 0600;
 
         service->address = strdup(address);
         service->method_callback = callback;
@@ -391,12 +361,6 @@ _public_ long varlink_service_new(VarlinkService **servicep,
 
         *servicep = service;
         service = NULL;
-
-        return 0;
-}
-
-_public_ long varlink_service_set_credentials_mode(VarlinkService *service, mode_t mode) {
-        service->mode = mode;
 
         return 0;
 }
@@ -486,12 +450,7 @@ static long varlink_service_accept(VarlinkService *service) {
 
         connection = calloc(1, sizeof(ServiceConnection));
 
-        r = varlink_accept(service->address,
-                           service->listen_fd,
-                           service->mode,
-                           &connection->pid,
-                           &connection->uid,
-                           &connection->gid);
+        r = varlink_accept(service->address, service->listen_fd);
         if (r < 0)
                 return r; /* CannotAccept */
 

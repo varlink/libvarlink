@@ -68,27 +68,13 @@ int varlink_connect(const char *address, pid_t *pidp) {
         }
 }
 
-int varlink_accept(const char *address,
-                   int listen_fd,
-                   mode_t mode,
-                   pid_t *pidp, uid_t *uidp, gid_t *gidp) {
-        int fd;
-
+int varlink_accept(const char *address, int listen_fd) {
         switch (varlink_address_parse(address, NULL)) {
                 case VARLINK_ADDRESS_IP:
-                        fd = varlink_accept_ip(listen_fd);
-                        if (fd < 0)
-                                return fd;
-
-                        *pidp = (pid_t)-1;
-                        *uidp = (uid_t)-1;
-                        *gidp = (gid_t)-1;
-                        return fd;
+                        return varlink_accept_ip(listen_fd);
 
                 case VARLINK_ADDRESS_UNIX:
-                        return varlink_accept_unix(listen_fd,
-                                                   mode,
-                                                   pidp, uidp, gidp);
+                        return varlink_accept_unix(listen_fd);
 
                 default:
                         return -VARLINK_ERROR_INVALID_ADDRESS;

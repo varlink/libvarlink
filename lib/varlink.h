@@ -257,15 +257,6 @@ long varlink_service_new_raw(VarlinkService **servicep,
                              void *userdata);
 
 /*
- * Set the mode which credentials to accept. Credentials are only
- * available on UNIX sockets.
- *   0600 is the default
- *   0660 accepts connections which are in the same primary group
- *   0666 disables any credentials checking
- */
-long varlink_service_set_credentials_mode(VarlinkService *service, mode_t mode);
-
-/*
  * Destroys a VarlinkService, close all its connections and free all its
  * ressources.
  *
@@ -302,7 +293,7 @@ int varlink_service_get_fd(VarlinkService *service);
 
 /*
  * Create a listen file descriptor for a varlink address and return it.
- * If the address is for a unix domain socket in the file system, it's
+ * If the address is for a UNIX domain socket in the file system, it's
  * path will be returned in pathp and should be unlinked after closing
  * the socket.
  */
@@ -325,15 +316,6 @@ void varlink_call_unrefp(VarlinkCall **callp);
  * Get the fully-qualified method name for the current call.
  */
 const char *varlink_call_get_method(VarlinkCall *call);
-
-/*
- * Retreive the PID, uid, gid of the process which established
- * the connection for the current call.
- *
- * Error:
- *   VARLINK_ERROR_NOT_AVAILABLE
- */
-long varlink_call_get_credentials(VarlinkCall *call, pid_t *pidp, uid_t *uidp, gid_t *gidp);
 
 /*
  * Sets a function which is called when the client cancels a call (i.e.,
@@ -392,6 +374,9 @@ void varlink_connection_set_close_callback(VarlinkConnection *connection,
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
  * readable whenever there is a connection which gets ready to receice or send
  * data.
+ *
+ * UNIX domain socket connections carry UID, GID, PID credentials of the peer and
+ * can be retrieved with SO_PEERCRED.
  *
  * Returns the file descriptor or a negative VARLINK_ERROR.
  */

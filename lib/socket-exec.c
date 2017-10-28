@@ -13,7 +13,8 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
         _cleanup_(freep) char *path = NULL;
         pid_t pid;
 
-        fd = varlink_listen_unix(NULL, &path);
+        /* An empty path lets the kernel autobind a UNIX abstrace address. */
+        fd = varlink_listen_unix(";mode=0600", &path);
         if (fd < 0)
                 return -VARLINK_ERROR_PANIC;
 
