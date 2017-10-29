@@ -527,49 +527,6 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         return 0;
 }
 
-long cli_complete_addresses(Cli *cli, const char *current) {
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
-        _cleanup_(freep) char *error = NULL;
-        VarlinkArray *interfaces;
-        long n_interfaces;
-        long r;
-
-        r = varlink_connection_new(&connection, cli->resolver);
-        if (r < 0)
-                return r;
-
-        r = cli_call(cli,
-                     connection,
-                     "org.varlink.resolver.GetInfo",
-                     NULL,
-                     0,
-                     &error,
-                     &out);
-        if (r < 0)
-                return -r;
-
-        if (error)
-                return -CLI_ERROR_CALL_FAILED;
-
-        r = varlink_object_get_array(out, "interfaces", &interfaces);
-        if (r < 0)
-                return -CLI_ERROR_INVALID_MESSAGE;
-
-        n_interfaces = varlink_array_get_n_elements(interfaces);
-        for (long i = 0; i < n_interfaces; i += 1) {
-                VarlinkObject *entry;
-                const char *addr;
-
-                varlink_array_get_object(interfaces, i, &entry);
-                varlink_object_get_string(entry, "address", &addr);
-
-                cli_print_completion(current, "%s", addr);
-        }
-
-        return 0;
-}
-
 long cli_complete_methods(Cli *cli, const char *current) {
         _cleanup_(freep) char *address = NULL;
         _cleanup_(freep) char *method = NULL;

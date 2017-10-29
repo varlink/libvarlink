@@ -50,8 +50,16 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
         return 0;
 }
 
+static long resolve_complete(Cli *cli, int argc, char **argv, const char *current) {
+        if (argc != 1)
+                return 0;
+
+        return cli_complete_interfaces(cli, current, false);
+}
+
 const CliCommand command_resolve = {
         .name = "resolve",
         .info = "Resolve an interface name to a varlink address",
-        .run = resolve_run
+        .run = resolve_run,
+        .complete = resolve_complete
 };

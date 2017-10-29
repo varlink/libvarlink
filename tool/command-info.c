@@ -134,9 +134,15 @@ static long info_complete(Cli *cli, int argc, char **argv, const char *current) 
         DIR *dir;
         char *p;
 
+        if (argc != 1)
+                return 0;
+
         p = strrchr(current, '/');
         if (p) {
-                prefix = strndup(current, p - current + 1);
+                if (strncmp(current, "unix:", 5) != 0)
+                        return 0;
+
+                prefix = strndup(current + 5, p - current + 1 - 5);
                 dir = opendir(prefix);
         } else
                 dir = opendir(".");
@@ -149,11 +155,11 @@ static long info_complete(Cli *cli, int argc, char **argv, const char *current) 
 
                 switch (d->d_type) {
                         case DT_DIR:
-                                cli_print_completion(current, "%s%s/", prefix ?: "", d->d_name);
+                                cli_print_completion(current, "unix:%s%s/", prefix ?: "", d->d_name);
                                 break;
 
                         case DT_SOCK:
-                                cli_print_completion(current, "%s%s", prefix ?: "", d->d_name);
+                                cli_print_completion(current, "unix:%s%s", prefix ?: "", d->d_name);
                                 break;
                 }
         }

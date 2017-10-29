@@ -42,7 +42,6 @@ long cli_complete(Cli *cli, int argc, char **argv, const char *current);
 
 long cli_complete_options(Cli *cli, const struct option *options, const char *current);
 long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot);
-long cli_complete_addresses(Cli *cli, const char *current);
 long cli_complete_methods(Cli *cli, const char *current);
 __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);

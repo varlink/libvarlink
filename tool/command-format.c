@@ -118,6 +118,9 @@ static long format_complete(Cli *cli, int argc, char **argv, const char *current
         DIR *dir;
         char *p;
 
+        if (argc != 1)
+                return 0;
+
         p = strrchr(current, '/');
         if (p) {
                 prefix = strndup(current, p - current + 1);
