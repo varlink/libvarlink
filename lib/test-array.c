@@ -25,9 +25,9 @@ static void test_api(void) {
         assert(varlink_array_get_object(array, 0, &s) == -VARLINK_ERROR_INVALID_INDEX);
 
         assert(varlink_array_append_bool(array, true) == 0);
-        assert(varlink_array_append_int(array, 42) == -VARLINK_ERROR_TYPE_MISMATCH);
-        assert(varlink_array_append_float(array, 42) == -VARLINK_ERROR_TYPE_MISMATCH);
-        assert(varlink_array_append_string(array, "foo") == -VARLINK_ERROR_TYPE_MISMATCH);
+        assert(varlink_array_append_int(array, 42) == -VARLINK_ERROR_INVALID_TYPE);
+        assert(varlink_array_append_float(array, 42) == -VARLINK_ERROR_INVALID_TYPE);
+        assert(varlink_array_append_string(array, "foo") == -VARLINK_ERROR_INVALID_TYPE);
 
         assert(varlink_array_unref(array) == NULL);
 }

@@ -433,7 +433,7 @@ _public_ long varlink_service_add_interface(VarlinkService *service,
 
         r = avl_tree_insert(service->interfaces, interface->name, interface);
         if (r < 0)
-                return -VARLINK_ERROR_DUPLICATE_INTERFACE;
+                return -VARLINK_ERROR_INVALID_INTERFACE;
 
         interface = NULL;
 
@@ -610,10 +610,30 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
                                        const char *error,
                                        VarlinkObject *parameters) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
+        _cleanup_(freep) char *interface_name = NULL;
+        _cleanup_(freep) char *error_name = NULL;
+        VarlinkInterface *interface;
+        VarlinkInterfaceMember *member;
+        _cleanup_(freep) char *string = NULL;
         long r;
 
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
+
+        r = varlink_interface_parse_qualified_name(error,
+                                                   true,
+                                                   &interface_name,
+                                                   &error_name);
+        if (r < 0)
+                return r;
+
+        interface = avl_tree_find(call->service->interfaces, interface_name);
+        if (!interface)
+                return -VARLINK_ERROR_INTERFACE_NOT_FOUND;
+
+        member = avl_tree_find(interface->member_tree, error_name);
+        if (!member || member->type != VARLINK_MEMBER_ERROR)
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
         r = varlink_protocol_pack_reply(error, parameters, 0, &message);
         if (r < 0)

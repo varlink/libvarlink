@@ -178,7 +178,7 @@ _public_ long varlink_object_get_bool(VarlinkObject *object, const char *field_n
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
         if (field->kind != VARLINK_TYPE_BOOL)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *bp = field->value.b;
 
@@ -193,7 +193,7 @@ _public_ long varlink_object_get_int(VarlinkObject *object, const char *field_na
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
         if (field->kind != VARLINK_TYPE_INT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *ip = field->value.i;
 
@@ -212,7 +212,7 @@ _public_ long varlink_object_get_float(VarlinkObject *object, const char *field_
         else if (field->kind == VARLINK_TYPE_FLOAT)
                 *fp = field->value.f;
         else
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         return 0;
 }
@@ -225,7 +225,7 @@ _public_ long varlink_object_get_string(VarlinkObject *object, const char *field
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
         if (field->kind != VARLINK_TYPE_STRING)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *stringp = field->value.s;
 
@@ -240,7 +240,7 @@ _public_ long varlink_object_get_array(VarlinkObject *object, const char *field_
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
         if (field->kind != VARLINK_TYPE_ARRAY)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *arrayp = field->value.array;
 
@@ -256,7 +256,7 @@ _public_ long varlink_object_get_object(VarlinkObject *object, const char *field
 
         if (field->kind != VARLINK_TYPE_OBJECT &&
             field->kind != VARLINK_TYPE_FOREIGN_OBJECT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *nestedp = field->value.object;
 

@@ -456,9 +456,9 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 }
 
 long varlink_interface_parse_qualified_name(const char *qualified_name,
-                                            bool require_method,
+                                            bool require_member,
                                             char **interfacep,
-                                            char **methodp) {
+                                            char **memberp) {
         const char *dot;
 
         dot = strrchr(qualified_name, '.');
@@ -466,18 +466,18 @@ long varlink_interface_parse_qualified_name(const char *qualified_name,
                 return -VARLINK_ERROR_INVALID_INTERFACE;
 
         if (dot[1] >= 'A' && dot[1] <= 'Z') {
-                /* Split interface and method */
+                /* Split interface and member */
                 if (interfacep)
                         *interfacep = strndup(qualified_name, dot - qualified_name);
 
-                if (methodp)
-                        *methodp = strdup(dot + 1);
+                if (memberp)
+                        *memberp = strdup(dot + 1);
 
                 return 0;
         }
 
-        if (require_method)
-                return -VARLINK_ERROR_INVALID_METHOD;
+        if (require_member)
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
         /* Interface only */
         if (dot[1] == '\0') {

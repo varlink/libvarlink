@@ -116,7 +116,7 @@ _public_ long varlink_array_get_bool(VarlinkArray *array, unsigned long index, b
                 return -VARLINK_ERROR_INVALID_INDEX;
 
         if (array->element_kind != VARLINK_TYPE_BOOL)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *bp = array->elements[index].b;
 
@@ -128,7 +128,7 @@ _public_ long varlink_array_get_int(VarlinkArray *array, unsigned long index, in
                 return -VARLINK_ERROR_INVALID_INDEX;
 
         if (array->element_kind != VARLINK_TYPE_INT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *ip = array->elements[index].i;
 
@@ -140,7 +140,7 @@ _public_ long varlink_array_get_float(VarlinkArray *array, unsigned long index, 
                 return -VARLINK_ERROR_INVALID_INDEX;
 
         if (array->element_kind != VARLINK_TYPE_FLOAT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *fp = array->elements[index].f;
 
@@ -152,7 +152,7 @@ _public_ long varlink_array_get_string(VarlinkArray *array, unsigned long index,
                 return -VARLINK_ERROR_INVALID_INDEX;
 
         if (array->element_kind != VARLINK_TYPE_STRING)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *stringp = array->elements[index].s;
 
@@ -164,7 +164,7 @@ _public_ long varlink_array_get_array(VarlinkArray *array, unsigned long index, 
                 return -VARLINK_ERROR_INVALID_INDEX;
 
         if (array->element_kind != VARLINK_TYPE_ARRAY)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *elementp = array->elements[index].array;
 
@@ -177,7 +177,7 @@ _public_ long varlink_array_get_object(VarlinkArray *array, unsigned long index,
 
         if (array->element_kind != VARLINK_TYPE_OBJECT &&
             array->element_kind != VARLINK_TYPE_FOREIGN_OBJECT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         *objectp = array->elements[index].object;
 
@@ -202,7 +202,7 @@ _public_ long varlink_array_append_bool(VarlinkArray *array, bool b) {
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_BOOL;
         else if (array->element_kind != VARLINK_TYPE_BOOL)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->b = b;
@@ -219,7 +219,7 @@ _public_ long varlink_array_append_int(VarlinkArray *array, int64_t i) {
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_INT;
         else if (array->element_kind != VARLINK_TYPE_INT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->i = i;
@@ -236,7 +236,7 @@ _public_ long varlink_array_append_float(VarlinkArray *array, double f) {
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_FLOAT;
         else if (array->element_kind != VARLINK_TYPE_FLOAT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->f = f;
@@ -253,7 +253,7 @@ _public_ long varlink_array_append_string(VarlinkArray *array, const char *strin
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_STRING;
         else if (array->element_kind != VARLINK_TYPE_STRING)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->s = strdup(string);
@@ -270,7 +270,7 @@ _public_ long varlink_array_append_array(VarlinkArray *array, VarlinkArray *elem
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_ARRAY;
         else if (array->element_kind != VARLINK_TYPE_ARRAY)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->array = varlink_array_ref(element);
@@ -287,7 +287,7 @@ _public_ long varlink_array_append_object(VarlinkArray *array, VarlinkObject *ob
         if (array->n_elements == 0)
                 array->element_kind = VARLINK_TYPE_OBJECT;
         else if (array->element_kind != VARLINK_TYPE_OBJECT)
-                return -VARLINK_ERROR_TYPE_MISMATCH;
+                return -VARLINK_ERROR_INVALID_TYPE;
 
         v = array_append(array);
         v->object = varlink_object_ref(object);

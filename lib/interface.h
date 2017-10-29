@@ -65,7 +65,7 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 
 long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name);
 long varlink_interface_parse_qualified_name(const char *qualified_name,
-                                            bool require_method,
+                                            bool require_member,
                                             char **interfacep,
-                                            char **namep);
+                                            char **memberp);
 const char *varlink_interface_get_member_description(VarlinkInterface *interface, const char *name);
