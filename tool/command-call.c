@@ -53,7 +53,7 @@ static long call_arguments_new(CallArguments **argumentsp) {
 static long call_parse_arguments(int argc, char **argv, CallArguments *arguments) {
         int c;
 
-        while ((c = getopt_long(argc, argv, ":a:fhm", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, ":hm", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 arguments->help = true;

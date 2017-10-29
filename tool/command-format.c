@@ -50,7 +50,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         _cleanup_(freep) char *out = NULL;
         long r;
 
-        while ((c = getopt_long(argc, argv, "ho:", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s format [OPTIONS]... ARGUMENTS\n", program_invocation_short_name);

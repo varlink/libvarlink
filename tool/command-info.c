@@ -99,7 +99,7 @@ static long info_run(Cli *cli, int argc, char **argv) {
         int c;
         long r;
 
-        while ((c = getopt_long(argc, argv, "a:h", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
                 switch (c) {
                         case 'h':
                                 printf("Usage: %s info ADDRESS\n", program_invocation_short_name);
