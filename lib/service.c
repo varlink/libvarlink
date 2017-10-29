@@ -255,8 +255,8 @@ static long varlink_service_method_callback(VarlinkService *service,
                                             VarlinkObject *parameters,
                                             uint64_t flags,
                                             void *userdata) {
-        _cleanup_(freep) char *interface_name;
-        _cleanup_(freep) char *method_name;
+        _cleanup_(freep) char *interface_name =  NULL;
+        _cleanup_(freep) char *method_name = NULL;
         VarlinkInterface *interface;
         VarlinkMethod *method;
         long r;

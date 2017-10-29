@@ -10,41 +10,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-int varlink_connect_unix(const char *path) {
-        _cleanup_(closep) int fd = -1;
-        struct sockaddr_un sa = {
-                .sun_family = AF_UNIX,
-        };
-        socklen_t sa_len;
-        const int on = 1;
-        int r;
-
-        if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
-                return -VARLINK_ERROR_INVALID_ADDRESS;
-
-        fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
-        if (fd < 0)
-                return -VARLINK_ERROR_CANNOT_CONNECT;
-
-        if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0)
-                return -VARLINK_ERROR_CANNOT_CONNECT;
-
-        strcpy(sa.sun_path, path);
-        if (sa.sun_path[0] == '@') {
-                sa.sun_path[0] = '\0';
-                sa_len = strlen(path);
-        } else
-                sa_len = strlen(path) + 1;
-
-        if (connect(fd, &sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
-                return -VARLINK_ERROR_CANNOT_CONNECT;
-
-        r = fd;
-        fd = -1;
-
-        return r;
-}
-
 static long parse_parameters(const char *address,
                              char **pathp,
                              mode_t *modep) {
@@ -74,9 +39,50 @@ static long parse_parameters(const char *address,
         *pathp = path;
         path = NULL;
 
-        *modep = mode;
+        if (modep)
+                *modep = mode;
 
         return 0;
+}
+
+int varlink_connect_unix(const char *address) {
+        _cleanup_(freep) char *path = NULL;
+        _cleanup_(closep) int fd = -1;
+        struct sockaddr_un sa = {
+                .sun_family = AF_UNIX,
+        };
+        socklen_t sa_len;
+        const int on = 1;
+        int r;
+
+        r = parse_parameters(address, &path, NULL);
+        if (r < 0)
+                return r;
+
+        if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
+                return -VARLINK_ERROR_INVALID_ADDRESS;
+
+        fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        if (fd < 0)
+                return -VARLINK_ERROR_CANNOT_CONNECT;
+
+        if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0)
+                return -VARLINK_ERROR_CANNOT_CONNECT;
+
+        strcpy(sa.sun_path, path);
+        if (sa.sun_path[0] == '@') {
+                sa.sun_path[0] = '\0';
+                sa_len = strlen(path);
+        } else
+                sa_len = strlen(path) + 1;
+
+        if (connect(fd, &sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
+                return -VARLINK_ERROR_CANNOT_CONNECT;
+
+        r = fd;
+        fd = -1;
+
+        return r;
 }
 
 int varlink_listen_unix(const char *address, char **pathp) {
@@ -133,9 +139,21 @@ int varlink_listen_unix(const char *address, char **pathp) {
                 path = strdup(path);
         }
 
-        if (mode > 0)
+        if (mode > 0) {
+                /*
+                 * Set the filesystem permissions of the socket, access will be checked by
+                 * the kernel. Abstrace namespace sockets have no filesystem permissions. */
+                if (sa.sun_path[0] != '@')
+                        if (chmod(path, mode) < 0)
+                                return -VARLINK_ERROR_CANNOT_LISTEN;
+                /*
+                 * Store the desired permissions at the listen socket's inode. They will be
+                 * used to check inside the library when accepting connections. This also
+                 * applies to abstract namespace sockets, which have no filesystem permissions.
+                 */
                 if (fchmod(fd, mode) < 0)
                         return -VARLINK_ERROR_CANNOT_LISTEN;
+        }
 
         if (listen(fd, SOMAXCONN) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
