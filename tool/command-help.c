@@ -57,7 +57,7 @@ static long help_interface(Cli *cli,
                                                  terminal_color(TERMINAL_GREEN), terminal_color(TERMINAL_NORMAL),
                                                  terminal_color(TERMINAL_CYAN), terminal_color(TERMINAL_NORMAL));
         if (r < 0) {
-                fprintf(stderr, "Unable to call method: %s\n", cli_error_string(-r));
+                fprintf(stderr, "Unable to call method: %s\n", varlink_error_string(-r));
                 return -CLI_ERROR_INVALID_JSON;
         }
 

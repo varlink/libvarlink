@@ -145,7 +145,7 @@ long cli_call(Cli *cli,
                                     flags,
                                     reply_callback, &reply);
         if (r < 0)
-                return r;
+                return -CLI_ERROR_CALL_FAILED;
 
         r = cli_process_all_events(cli, connection);
         if (r < 0)

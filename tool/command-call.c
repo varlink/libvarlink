@@ -165,7 +165,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
         }
 
         if (!arguments->method) {
-                fprintf(stderr, "Unable determine method to call\n");
+                fprintf(stderr, "Missing method.\n");
                 return -CLI_ERROR_INVALID_ARGUMENT;
         }
 
@@ -204,7 +204,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                         arguments->address,
                         arguments->method);
         if (r < 0) {
-                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
                 return -CLI_ERROR_CANNOT_CONNECT;
         }
 
