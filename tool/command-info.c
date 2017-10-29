@@ -166,6 +166,9 @@ static long info_complete(Cli *cli, int argc, char **argv, const char *current) 
 
         closedir(dir);
 
+        /* Always add the root directory, the current one might be empty. */
+        cli_print_completion(current, "unix:/");
+
         return 0;
 }
 
