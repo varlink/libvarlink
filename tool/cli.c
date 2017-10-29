@@ -186,7 +186,7 @@ long cli_resolve(Cli *cli,
 
         r = varlink_connection_new(&connection, cli->resolver);
         if (r < 0)
-                return r;
+                return -CLI_ERROR_CANNOT_CONNECT;
 
         r = cli_call(cli,
                      connection,
@@ -218,8 +218,11 @@ long cli_connect(Cli *cli,
         _cleanup_(freep) char *interface = NULL;
         long r;
 
-        if (address)
-                return varlink_connection_new(connectionp, address);
+        if (address) {
+                r = varlink_connection_new(connectionp, address);
+                if (r < 0)
+                        return -CLI_ERROR_CANNOT_CONNECT;
+        }
 
         r = varlink_uri_split(method,
                               NULL,
@@ -236,7 +239,11 @@ long cli_connect(Cli *cli,
         if (r < 0)
                 return r;
 
-        return varlink_connection_new(connectionp, addr);
+        r = varlink_connection_new(connectionp, addr);
+        if (r < 0)
+                return -CLI_ERROR_CANNOT_CONNECT;
+
+        return 0;
 }
 
 long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
@@ -501,7 +508,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
 
         r = varlink_connection_new(&connection, cli->resolver);
         if (r < 0)
-                return r;
+                return -CLI_ERROR_CANNOT_CONNECT;
 
         r = cli_call(cli,
                      connection,
