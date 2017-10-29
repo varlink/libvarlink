@@ -210,7 +210,7 @@ int varlink_accept_unix(int listen_fd) {
 
         if (!check_credentials(sb.st_mode, sb.st_uid, sb.st_gid,
                                ucred.uid, ucred.gid))
-                return -VARLINK_ERROR_CANNOT_ACCEPT;
+                return -VARLINK_ERROR_ACCESS_DENIED;
 
         r = fd;
         fd = -1;

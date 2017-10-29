@@ -535,8 +535,13 @@ _public_ long varlink_service_process_events(VarlinkService *service) {
                                 return -VARLINK_ERROR_PANIC;
 
                         r = varlink_service_accept(service);
-                        if (r < 0)
-                                return r;
+                        switch (r) {
+                                case -VARLINK_ERROR_ACCESS_DENIED:
+                                        break;
+
+                                default:
+                                        return r;
+                        }
                 } else {
                         ServiceConnection *connection = ev.data.ptr;
 

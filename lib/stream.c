@@ -71,9 +71,18 @@ long varlink_stream_flush(VarlinkStream *stream) {
 
         switch (n) {
                 case -1:
-                        if (errno != EAGAIN)
-                                return -VARLINK_ERROR_SENDING_MESSAGE;
+                        switch (errno) {
+                                case EAGAIN:
+                                        break;
+
+                                case EPIPE:
+                                        return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+                                default:
+                                        return -VARLINK_ERROR_SENDING_MESSAGE;
+                        }
                         break;
+
                 default:
                         stream->out_start += n;
                         break;
@@ -110,10 +119,16 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
 
                 switch (n) {
                         case -1:
-                                if (errno == EAGAIN)
-                                        return 0;
+                                switch (errno) {
+                                        case EAGAIN:
+                                                return 0;
 
-                                return -VARLINK_ERROR_RECEIVING_MESSAGE;
+                                        case ECONNRESET:
+                                                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+                                        default:
+                                                return -VARLINK_ERROR_RECEIVING_MESSAGE;
+                                }
 
                         case 0:
                                 stream->hup = true;
