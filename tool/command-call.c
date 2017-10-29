@@ -164,35 +164,34 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_INVALID_ARGUMENT;
         }
 
-        if (!arguments->parameters) {
-                arguments->parameters = "{}";
+        if (arguments->parameters) {
+                if (strcmp(arguments->parameters, "-") == 0) {
+                        unsigned long buffer_size = 0;
+                        unsigned long size = 0;
 
-        } else if (strcmp(arguments->parameters, "-") == 0) {
-                unsigned long buffer_size = 0;
-                unsigned long size = 0;
+                        for (;;) {
+                                if (size == buffer_size) {
+                                        buffer_size = MAX(buffer_size * 2, 1024);
+                                        buffer = realloc(buffer, buffer_size);
+                                }
 
-                for (;;) {
-                        if (size == buffer_size) {
-                                buffer_size = MAX(buffer_size * 2, 1024);
-                                buffer = realloc(buffer, buffer_size);
+                                r = read(STDIN_FILENO, buffer + size, buffer_size - size);
+                                if (r <= 0)
+                                        break;
+
+                                size += r;
                         }
 
-                        r = read(STDIN_FILENO, buffer + size, buffer_size - size);
-                        if (r <= 0)
-                                break;
+                        buffer[size] = '\0';
 
-                        size += r;
+                        arguments->parameters = buffer;
                 }
 
-                buffer[size] = '\0';
-
-                arguments->parameters = buffer;
-        }
-
-        r = varlink_object_new_from_json(&parameters, arguments->parameters);
-        if (r < 0) {
-                fprintf(stderr, "Unable to parse input parameters, must be valid JSON\n");
-                return -CLI_ERROR_INVALID_JSON;
+                r = varlink_object_new_from_json(&parameters, arguments->parameters);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to parse input parameters, must be valid JSON\n");
+                        return -CLI_ERROR_INVALID_JSON;
+                }
         }
 
         r = cli_connect(cli,
