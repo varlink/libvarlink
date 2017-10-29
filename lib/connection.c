@@ -110,8 +110,13 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                 if (r < 0)
                         return r;
 
+                if (connection->stream->hup) {
+                        connection->stream = varlink_stream_free(connection->stream);
+                        return -VARLINK_ERROR_CONNECTION_CLOSED;
+                }
+
                 if (r == 0)
-                        return 0;
+                        break;
 
                 callback = STAILQ_FIRST(&connection->pending);
                 if (!callback)

@@ -76,6 +76,7 @@ long varlink_stream_flush(VarlinkStream *stream) {
                                         break;
 
                                 case EPIPE:
+                                        stream->hup = true;
                                         return -VARLINK_ERROR_CONNECTION_CLOSED;
 
                                 default:
@@ -121,14 +122,18 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
                         case -1:
                                 switch (errno) {
                                         case EAGAIN:
+                                                *messagep = NULL;
                                                 return 0;
 
                                         case ECONNRESET:
-                                                return -VARLINK_ERROR_CONNECTION_CLOSED;
+                                                stream->hup = true;
+                                                *messagep = NULL;
+                                                return 0;
 
                                         default:
                                                 return -VARLINK_ERROR_RECEIVING_MESSAGE;
                                 }
+                                break;
 
                         case 0:
                                 stream->hup = true;
