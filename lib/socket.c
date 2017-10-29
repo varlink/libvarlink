@@ -26,13 +26,7 @@ static long varlink_address_parse(const char *address, char **destinationp) {
 
         } else if (strncmp(address, "unix:", 5) == 0) {
                 type = VARLINK_ADDRESS_UNIX;
-
-                /*
-                 * An empty path asks the kernel to assign a unique
-                 * abstract address by autobinding.
-                 */
-                if (address[5] != '\0')
-                        destination = strdup(address + 5);
+                destination = strdup(address + 5);
 
         } else {
                 type = VARLINK_ADDRESS_IP;
