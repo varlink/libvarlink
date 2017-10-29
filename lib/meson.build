@@ -30,6 +30,8 @@ libvarlink_sources = '''
         type.c
         util.c
         util.h
+        uri.c
+        uri.h
         value.c
         value.h
         varlink.h

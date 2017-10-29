@@ -431,44 +431,6 @@ long varlink_interface_write_description(VarlinkInterface *interface,
         return 0;
 }
 
-long varlink_interface_parse_qualified_name(const char *qualified_name,
-                                            bool require_member,
-                                            char **interfacep,
-                                            char **memberp) {
-        const char *dot;
-
-        dot = strrchr(qualified_name, '.');
-        if (!dot)
-                return -VARLINK_ERROR_INVALID_INTERFACE;
-
-        if (dot[1] >= 'A' && dot[1] <= 'Z') {
-                /* Split interface and member */
-                if (interfacep)
-                        *interfacep = strndup(qualified_name, dot - qualified_name);
-
-                if (memberp)
-                        *memberp = strdup(dot + 1);
-
-                return 0;
-        }
-
-        if (require_member)
-                return -VARLINK_ERROR_INVALID_IDENTIFIER;
-
-        /* Interface only */
-        if (dot[1] == '\0') {
-                /* Remove trailing dot */
-                if (interfacep)
-                        *interfacep = strndup(qualified_name, dot - qualified_name);
-
-        } else {
-                if (interfacep)
-                        *interfacep = strdup(qualified_name);
-        }
-
-        return 0;
-}
-
 const char *varlink_interface_get_member_description(VarlinkInterface *interface, const char *name) {
         VarlinkInterfaceMember *member;
 

@@ -3,6 +3,7 @@
 #include "protocol.h"
 #include "stream.h"
 #include "util.h"
+#include "uri.h"
 #include "varlink.h"
 
 #include <errno.h>
@@ -169,11 +170,12 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
 
-                r = varlink_interface_parse_qualified_name(method,
-                                                           true,
-                                                           &interface,
-                                                           NULL);
-                if (r < 0) {
+                r = varlink_uri_split(method,
+                                      NULL,
+                                      NULL,
+                                      &interface,
+                                      NULL);
+                if (r < 0 || !interface) {
                         bridge_reply(bridge, "org.varlink.service.InvalidParameter", NULL, 0);
                         return -CLI_ERROR_INVALID_MESSAGE;
                 }

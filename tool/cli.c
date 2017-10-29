@@ -2,6 +2,7 @@
 
 #include "command.h"
 #include "interface.h"
+#include "uri.h"
 #include "util.h"
 
 #include <assert.h>
@@ -220,12 +221,16 @@ long cli_connect(Cli *cli,
         if (address)
                 return varlink_connection_new(connectionp, address);
 
-        r = varlink_interface_parse_qualified_name(method,
-                                                   false,
-                                                   &interface,
-                                                   NULL);
+        r = varlink_uri_split(method,
+                              NULL,
+                              NULL,
+                              &interface,
+                              NULL);
         if (r < 0)
                 return r;
+
+        if (!interface)
+                return -CLI_ERROR_CANNOT_CONNECT;
 
         r = cli_resolve(cli, interface, &addr);
         if (r < 0)
@@ -529,9 +534,9 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
 
 long cli_complete_methods(Cli *cli, const char *current) {
         _cleanup_(freep) char *address = NULL;
-        _cleanup_(freep) char *method = NULL;
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        _cleanup_(freep) char *method_name = NULL;
         _cleanup_(freep) char *interface_name = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
@@ -539,16 +544,15 @@ long cli_complete_methods(Cli *cli, const char *current) {
         const char *description = NULL;
         long r;
 
-        string_rpartition(current, '/', &address, &method);
-
-        r = varlink_interface_parse_qualified_name(method,
-                                                   false,
-                                                   &interface_name,
-                                                   NULL);
-        if (r < 0)
+        r = varlink_uri_split(current,
+                              &address,
+                              &method_name,
+                              &interface_name,
+                              NULL);
+        if (r < 0 || !interface_name)
                 return cli_complete_interfaces(cli, current, true);
 
-        r = cli_connect(cli, &connection, address, method);
+        r = cli_connect(cli, &connection, address, method_name);
         if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 

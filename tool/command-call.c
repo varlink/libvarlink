@@ -3,6 +3,7 @@
 #include "interface.h"
 #include "object.h"
 #include "terminal-colors.h"
+#include "uri.h"
 #include "util.h"
 
 #include <errno.h>
@@ -77,7 +78,11 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        string_rpartition(argv[optind], '/', &arguments->address, &arguments->method);
+        varlink_uri_split(argv[optind],
+                          &arguments->address,
+                          &arguments->method,
+                          NULL,
+                          NULL);
 
         arguments->parameters = argv[optind + 1];
 

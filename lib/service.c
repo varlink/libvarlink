@@ -5,6 +5,7 @@
 #include "protocol.h"
 #include "socket.h"
 #include "stream.h"
+#include "uri.h"
 #include "util.h"
 
 #include <assert.h>
@@ -261,11 +262,12 @@ static long varlink_service_method_callback(VarlinkService *service,
         VarlinkMethod *method;
         long r;
 
-        r = varlink_interface_parse_qualified_name(call->method,
-                                                   true,
-                                                   &interface_name,
-                                                   &method_name);
-        if (r < 0)
+        r = varlink_uri_split(call->method,
+                              NULL,
+                              NULL,
+                              &interface_name,
+                              &method_name);
+        if (r < 0 || !interface_name || !method_name)
                 return varlink_call_reply_invalid_parameter(call, call->method);
 
         interface = avl_tree_find(service->interfaces, interface_name);
@@ -620,11 +622,12 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_interface_parse_qualified_name(error,
-                                                   true,
-                                                   &interface_name,
-                                                   &error_name);
-        if (r < 0)
+        r = varlink_uri_split(error,
+                              NULL,
+                              NULL,
+                              &interface_name,
+                              &error_name);
+        if (r < 0 || !interface_name || !error_name)
                 return r;
 
         interface = avl_tree_find(call->service->interfaces, interface_name);

@@ -1,5 +1,6 @@
 #include "socket.h"
 #include "util.h"
+#include "uri.h"
 #include "varlink.h"
 
 #include <assert.h>
@@ -9,40 +10,6 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
-
-static long uri_percent_decode(char **outp, const char *in, unsigned long len) {
-        _cleanup_(freep) char *out = NULL;
-        unsigned long j = 0;
-
-        out = malloc(len + 1);
-
-        for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
-                if (in[i] == '%') {
-                        unsigned int hex;
-
-                        if (i + 3 > len)
-                                return -VARLINK_ERROR_INVALID_ADDRESS;
-
-                        if (sscanf(in + i + 1, "%02x", &hex) != 1)
-                                return -VARLINK_ERROR_INVALID_ADDRESS;
-
-                        out[j] = hex;
-                        j += 1;
-                        i += 2;
-
-                        continue;
-                }
-
-                out[j] = in[i];
-                j += 1;
-        }
-
-        out[j] = '\0';
-        *outp = out;
-        out = NULL;
-
-        return j;
-}
 
 static long parse_parameters(const char *address,
                              char **pathp,
@@ -56,7 +23,7 @@ static long parse_parameters(const char *address,
         /* An empty path asks the kernel to assign a unique abstract address by autobinding. */
         parm = strchr(address, ';');
         if (!parm) {
-                r = uri_percent_decode(pathp, address, strlen(address));
+                r = varlink_uri_percent_decode(pathp, address, strlen(address));
                 if (r < 0)
                         return r;
 
@@ -64,7 +31,7 @@ static long parse_parameters(const char *address,
         }
 
         if (parm > address) {
-                r = uri_percent_decode(&path, address, parm - address);
+                r = varlink_uri_percent_decode(&path, address, parm - address);
                 if (r < 0)
                         return r;
         }

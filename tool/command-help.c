@@ -2,6 +2,7 @@
 #include "interface.h"
 #include "object.h"
 #include "terminal-colors.h"
+#include "uri.h"
 #include "util.h"
 
 #include <errno.h>
@@ -98,7 +99,15 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        string_rpartition(argv[optind], '/', &address, &interface);
+        r = varlink_uri_split(argv[optind],
+                              &address,
+                              &interface,
+                              NULL,
+                              NULL);
+        if (r < 0) {
+                fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
+                return -CLI_ERROR_INVALID_ARGUMENT;
+        }
 
         r = cli_connect(cli,
                         &connection,
