@@ -21,15 +21,13 @@ typedef struct {
         bool help;
 
         uint64_t flags;
-
-        char *address;
-        char *method;
+        VarlinkURI *uri;
         const char *parameters;
 } CallArguments;
 
 static CallArguments *call_arguments_free(CallArguments *arguments) {
-        free(arguments->address);
-        free(arguments->method);
+        if (arguments->uri)
+                varlink_uri_free(arguments->uri);
         free(arguments);
 
         return NULL;
@@ -40,19 +38,12 @@ static void call_arguments_freep(CallArguments **argumentsp) {
                 call_arguments_free(*argumentsp);
 }
 
-static long call_arguments_new(CallArguments **argumentsp) {
+static long call_arguments_new(CallArguments **argumentsp, int argc, char **argv) {
         _cleanup_(call_arguments_freep) CallArguments *arguments = NULL;
+        int c;
+        long r;
 
         arguments = calloc(1, sizeof(CallArguments));
-
-        *argumentsp = arguments;
-        arguments = NULL;
-
-        return 0;
-}
-
-static long call_parse_arguments(int argc, char **argv, CallArguments *arguments) {
-        int c;
 
         while ((c = getopt_long(argc, argv, ":hm", options, NULL)) >= 0) {
                 switch (c) {
@@ -78,13 +69,14 @@ static long call_parse_arguments(int argc, char **argv, CallArguments *arguments
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        varlink_uri_split(argv[optind],
-                          &arguments->address,
-                          &arguments->method,
-                          NULL,
-                          NULL);
+        r = varlink_uri_new(&arguments->uri, argv[optind], true);
+        if (r < 0)
+                return -CLI_ERROR_INVALID_ARGUMENT;
 
         arguments->parameters = argv[optind + 1];
+
+        *argumentsp = arguments;
+        arguments = NULL;
 
         return 0;
 }
@@ -134,9 +126,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
         long error = 0;
         long r;
 
-        call_arguments_new(&arguments);
-
-        r = call_parse_arguments(argc, argv, arguments);
+        r = call_arguments_new(&arguments, argc, argv);
         switch (r) {
                 case 0:
                         break;
@@ -150,7 +140,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                         return -CLI_ERROR_INVALID_ARGUMENT;
 
                 default:
-                        fprintf(stderr, "Unhandled exception.\n");
+                        fprintf(stderr, "Unknown error.\n");
                         return -CLI_ERROR_PANIC;
         }
 
@@ -164,7 +154,7 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 return 0;
         }
 
-        if (!arguments->method) {
+        if (!arguments->uri->qualified_member) {
                 fprintf(stderr, "Missing method.\n");
                 return -CLI_ERROR_INVALID_ARGUMENT;
         }
@@ -199,17 +189,14 @@ static long call_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        r = cli_connect(cli,
-                        &connection,
-                        arguments->address,
-                        arguments->method);
+        r = cli_connect(cli, &connection, arguments->uri);
         if (r < 0) {
                 fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
                 return -CLI_ERROR_CANNOT_CONNECT;
         }
 
         r = varlink_connection_call(connection,
-                                    arguments->method,
+                                    arguments->uri->qualified_member,
                                     parameters,
                                     arguments->flags,
                                     reply_callback,
@@ -243,10 +230,10 @@ static long call_run(Cli *cli, int argc, char **argv) {
 }
 
 static long call_complete(Cli *cli, int argc, char **argv, const char *current) {
-        CallArguments arguments = {};
+        _cleanup_(call_arguments_freep) CallArguments *arguments = NULL;
         long r;
 
-        r = call_parse_arguments(argc, argv, &arguments);
+        r = call_arguments_new(&arguments, argc, argv);
         switch (r) {
                 case 0:
                 case -CLI_ERROR_INVALID_ARGUMENT:
@@ -260,10 +247,10 @@ static long call_complete(Cli *cli, int argc, char **argv, const char *current) 
         if (current[0] == '-')
                 return cli_complete_options(cli, options, current);
 
-        if (!arguments.method)
+        if (!arguments || !arguments->uri || !arguments->uri->qualified_member)
                 return cli_complete_methods(cli, current);
 
-        if (!arguments.parameters)
+        if (!arguments->parameters)
                 cli_print_completion(current, "'{}'");
 
         return 0;

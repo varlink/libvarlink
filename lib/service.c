@@ -1,9 +1,9 @@
 #include "service.h"
 
 #include "interface.h"
+#include "message.h"
 #include "object.h"
 #include "protocol.h"
-#include "socket.h"
 #include "stream.h"
 #include "uri.h"
 #include "util.h"
@@ -27,7 +27,8 @@ struct VarlinkService {
         char *product;
         char *version;
         char *url;
-        char *address;
+
+        VarlinkURI *uri;
         AVLTree *interfaces;
 
         int listen_fd;
@@ -71,7 +72,7 @@ static long varlink_call_new(VarlinkCall **callp,
         call->service = service;
         call->connection = connection;
 
-        r = varlink_protocol_unpack_call(message, &call->method, &call->parameters, &call->flags);
+        r = varlink_message_unpack_call(message, &call->method, &call->parameters, &call->flags);
         if (r < 0)
                 return r;
 
@@ -256,30 +257,25 @@ static long varlink_service_method_callback(VarlinkService *service,
                                             VarlinkObject *parameters,
                                             uint64_t flags,
                                             void *userdata) {
-        _cleanup_(freep) char *interface_name =  NULL;
-        _cleanup_(freep) char *method_name = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         VarlinkInterface *interface;
         VarlinkMethod *method;
         long r;
 
-        r = varlink_uri_split(call->method,
-                              NULL,
-                              NULL,
-                              &interface_name,
-                              &method_name);
-        if (r < 0 || !interface_name || !method_name)
+        r = varlink_uri_new(&uri, call->method, true);
+        if (r < 0 || !uri->member)
                 return varlink_call_reply_invalid_parameter(call, call->method);
 
-        interface = avl_tree_find(service->interfaces, interface_name);
+        interface = avl_tree_find(service->interfaces, uri->interface);
         if (!interface)
-                return varlink_call_reply_interface_not_found(call, interface_name);
+                return varlink_call_reply_interface_not_found(call, uri->interface);
 
-        method = varlink_interface_get_method(interface, method_name);
+        method = varlink_interface_get_method(interface, uri->member);
         if (!method)
-                return varlink_call_reply_method_not_found(call, method_name);
+                return varlink_call_reply_method_not_found(call, uri->member);
 
         if (!method->callback)
-                return varlink_call_reply_method_not_implemented(call, method_name);
+                return varlink_call_reply_method_not_implemented(call, uri->member);
 
         return method->callback(service, call, call->parameters, call->flags, method->callback_userdata);
 }
@@ -290,12 +286,16 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
                                       VarlinkMethodCallback callback,
                                       void *userdata) {
         _cleanup_(varlink_service_freep) VarlinkService *service = NULL;
+        long r;
 
         service = calloc(1, sizeof(VarlinkService));
         service->listen_fd = -1;
         service->epoll_fd = -1;
 
-        service->address = strdup(address);
+        r = varlink_uri_new(&service->uri, address, false);
+        if (r < 0)
+                return r;
+
         service->method_callback = callback;
         service->method_callback_userdata = userdata;
 
@@ -389,8 +389,7 @@ _public_ VarlinkService *varlink_service_free(VarlinkService *service) {
         free(service->product);
         free(service->version);
         free(service->url);
-
-        free(service->address);
+        varlink_uri_free(service->uri);
         free(service);
 
         return NULL;
@@ -452,7 +451,7 @@ static long varlink_service_accept(VarlinkService *service) {
 
         connection = calloc(1, sizeof(ServiceConnection));
 
-        r = varlink_accept(service->address, service->listen_fd);
+        r = varlink_protocol_accept(service->uri, service->listen_fd);
         if (r < 0)
                 return r; /* CannotAccept */
 
@@ -582,7 +581,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 return 0;
         }
 
-        r = varlink_protocol_pack_reply(NULL, parameters, flags, &message);
+        r = varlink_message_pack_reply(NULL, parameters, flags, &message);
         if (r < 0)
                 return r;
 
@@ -612,8 +611,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
                                        const char *error,
                                        VarlinkObject *parameters) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
-        _cleanup_(freep) char *interface_name = NULL;
-        _cleanup_(freep) char *error_name = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         VarlinkInterface *interface;
         VarlinkInterfaceMember *member;
         _cleanup_(freep) char *string = NULL;
@@ -622,23 +620,22 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_uri_split(error,
-                              NULL,
-                              NULL,
-                              &interface_name,
-                              &error_name);
-        if (r < 0 || !interface_name || !error_name)
+        r = varlink_uri_new(&uri, error, true);
+        if (r < 0)
                 return r;
 
-        interface = avl_tree_find(call->service->interfaces, interface_name);
+        if (!uri->member)
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+
+        interface = avl_tree_find(call->service->interfaces, uri->interface);
         if (!interface)
                 return -VARLINK_ERROR_INTERFACE_NOT_FOUND;
 
-        member = avl_tree_find(interface->member_tree, error_name);
+        member = avl_tree_find(interface->member_tree, uri->member);
         if (!member || member->type != VARLINK_MEMBER_ERROR)
                 return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
-        r = varlink_protocol_pack_reply(error, parameters, 0, &message);
+        r = varlink_message_pack_reply(error, parameters, 0, &message);
         if (r < 0)
                 return r;
 

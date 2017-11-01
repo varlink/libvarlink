@@ -1,5 +1,6 @@
 #include "cli.h"
 
+#include "connection.h"
 #include "command.h"
 #include "interface.h"
 #include "uri.h"
@@ -212,34 +213,19 @@ long cli_resolve(Cli *cli,
 
 long cli_connect(Cli *cli,
                  VarlinkConnection **connectionp,
-                 const char *address,
-                 const char *method) {
-        _cleanup_(freep) char *addr = NULL;
-        _cleanup_(freep) char *interface = NULL;
+                 VarlinkURI *uri) {
+        _cleanup_(freep) char *address = NULL;
         long r;
 
-        if (address) {
-                r = varlink_connection_new(connectionp, address);
-                if (r < 0)
-                        return -CLI_ERROR_CANNOT_CONNECT;
-        }
+        r = varlink_connection_new_from_uri(connectionp, uri);
+        if (r >= 0)
+                return 0;
 
-        r = varlink_uri_split(method,
-                              NULL,
-                              NULL,
-                              &interface,
-                              NULL);
+        r = cli_resolve(cli, uri->interface, &address);
         if (r < 0)
                 return r;
 
-        if (!interface)
-                return -CLI_ERROR_CANNOT_CONNECT;
-
-        r = cli_resolve(cli, interface, &addr);
-        if (r < 0)
-                return r;
-
-        r = varlink_connection_new(connectionp, addr);
+        r = varlink_connection_new(connectionp, address);
         if (r < 0)
                 return -CLI_ERROR_CANNOT_CONNECT;
 
@@ -532,7 +518,6 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
                 const char *interface;
 
                 varlink_array_get_string(interfaces, i, &interface);
-
                 cli_print_completion(current, "%s%s", interface, end_with_dot ? "." : "");
         }
 
@@ -540,9 +525,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
 }
 
 long cli_complete_methods(Cli *cli, const char *current) {
-        _cleanup_(freep) char *address = NULL;
-        _cleanup_(freep) char *method_name = NULL;
-        _cleanup_(freep) char *interface_name = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
@@ -551,20 +534,16 @@ long cli_complete_methods(Cli *cli, const char *current) {
         const char *description = NULL;
         long r;
 
-        r = varlink_uri_split(current,
-                              &address,
-                              &method_name,
-                              &interface_name,
-                              NULL);
-        if (r < 0 || !interface_name)
+        r = varlink_uri_new(&uri, current, true);
+        if (r < 0 || !uri->interface)
                 return cli_complete_interfaces(cli, current, true);
 
-        r = cli_connect(cli, &connection, address, method_name);
+        r = cli_connect(cli, &connection, uri);
         if (r < 0)
                 return cli_complete_interfaces(cli, current, true);
 
         varlink_object_new(&parameters);
-        varlink_object_set_string(parameters, "interface", interface_name);
+        varlink_object_set_string(parameters, "interface", uri->interface);
 
         r = cli_call(cli,
                      connection,
@@ -592,7 +571,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
                 if (member->type != VARLINK_MEMBER_METHOD)
                         continue;
 
-                cli_print_completion(current, "%s.%s", interface_name, member->name);
+                cli_print_completion(current, "%s.%s", uri->interface, member->name);
         }
 
         return 0;

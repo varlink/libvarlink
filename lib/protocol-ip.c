@@ -1,4 +1,4 @@
-#include "socket.h"
+#include "protocol.h"
 #include "util.h"
 #include "varlink.h"
 
@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 
 int varlink_connect_ip(const char *address) {
         _cleanup_(freep) char *host = NULL;

@@ -71,10 +71,9 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 { "help",    no_argument,       NULL, 'h' },
                 {}
         };
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        _cleanup_(freep) char *address = NULL;
-        _cleanup_(freep) char *interface = NULL;
         int c;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long r;
 
         while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
@@ -99,26 +98,19 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        r = varlink_uri_split(argv[optind],
-                              &address,
-                              &interface,
-                              NULL,
-                              NULL);
-        if (r < 0) {
+        r = varlink_uri_new(&uri, argv[optind], true);
+        if (r < 0 || !uri->interface) {
                 fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
                 return -CLI_ERROR_INVALID_ARGUMENT;
         }
 
-        r = cli_connect(cli,
-                        &connection,
-                        address,
-                        interface);
+        r = cli_connect(cli, &connection, uri);
         if (r < 0) {
                 fprintf(stderr, "Unable to connect: %s\n", cli_error_string(-r));
                 return r;
         }
 
-        r = help_interface(cli, connection, interface);
+        r = help_interface(cli, connection, uri->interface);
         if (r < 0)
                 return r;
 
@@ -126,6 +118,9 @@ static long help_run(Cli *cli, int argc, char **argv) {
 }
 
 static long help_complete(Cli *cli, int argc, char **argv, const char *current) {
+        if (argc != 1)
+                return 0;
+
         return cli_complete_interfaces(cli, current, false);
 }
 

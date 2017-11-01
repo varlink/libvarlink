@@ -1,128 +1,72 @@
 #include "protocol.h"
+#include "util.h"
+#include "varlink.h"
 
 #include <string.h>
 
-long varlink_protocol_pack_call(const char *method,
-                                VarlinkObject *parameters,
-                                uint64_t flags,
-                                VarlinkObject **callp) {
-        VarlinkObject *call;
+int varlink_protocol_listen(VarlinkURI *uri, char **pathp) {
+        switch (uri->type) {
+                case VARLINK_URI_PROTOCOL_IP:
+                        return varlink_listen_ip(uri->host);
 
-        if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
-                return -VARLINK_ERROR_INVALID_CALL;
+                case VARLINK_URI_PROTOCOL_UNIX:
+                        return varlink_listen_unix(uri->path, pathp);
 
-        varlink_object_new(&call);
-        varlink_object_set_string(call, "method", method);
+                case VARLINK_URI_PROTOCOL_EXEC:
+                case VARLINK_URI_PROTOCOL_NONE:
+                case VARLINK_URI_PROTOCOL_SSH:
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+        }
 
-        if (parameters)
-                varlink_object_set_object(call, "parameters", parameters);
-
-        if (flags & VARLINK_CALL_MORE)
-                varlink_object_set_bool(call, "more", true);
-
-        if (flags & VARLINK_CALL_ONEWAY)
-                varlink_object_set_bool(call, "oneway", true);
-
-        *callp = call;
-
-        return 0;
+        abort();
 }
 
-long varlink_protocol_unpack_call(VarlinkObject *call,
-                                  char **methodp,
-                                  VarlinkObject **parametersp,
-                                  uint64_t *flagsp) {
-        const char *method;
-        VarlinkObject *parameters = NULL;
-        bool more = false;
-        bool oneway = false;
+_public_ int varlink_listen(const char *address, char **pathp) {
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
+        _cleanup_(freep) char *destination = NULL;
         long r;
 
-        r = varlink_object_get_string(call, "method", &method);
+        r = varlink_uri_new(&uri, address, false);
         if (r < 0)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
+                return r;
 
-        r = varlink_object_get_object(call, "parameters", &parameters);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
-
-        r = varlink_object_get_bool(call, "more", &more);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
-
-        r = varlink_object_get_bool(call, "oneway", &oneway);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
-
-        *methodp = strdup(method);
-
-        if (parameters)
-                *parametersp = varlink_object_ref(parameters);
-        else
-                varlink_object_new(parametersp);
-
-        *flagsp = 0;
-        if (more)
-                *flagsp |= VARLINK_CALL_MORE;
-        if (oneway)
-                *flagsp |= VARLINK_CALL_ONEWAY;
-
-        return 0;
+        return varlink_protocol_listen(uri, pathp);
 }
 
-long varlink_protocol_pack_reply(const char *error,
-                                 VarlinkObject *parameters,
-                                 uint64_t flags,
-                                 VarlinkObject **replyp) {
-        VarlinkObject *reply;
+int varlink_protocol_accept(VarlinkURI *uri, int listen_fd) {
+        switch (uri->type) {
+                case VARLINK_URI_PROTOCOL_IP:
+                        return varlink_accept_ip(listen_fd);
 
-        varlink_object_new(&reply);
+                case VARLINK_URI_PROTOCOL_UNIX:
+                        return varlink_accept_unix(listen_fd);
 
-        if (error)
-                varlink_object_set_string(reply, "error", error);
+                case VARLINK_URI_PROTOCOL_EXEC:
+                case VARLINK_URI_PROTOCOL_NONE:
+                case VARLINK_URI_PROTOCOL_SSH:
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+        }
 
-        if (parameters)
-                varlink_object_set_object(reply, "parameters", parameters);
-
-        if (flags & VARLINK_REPLY_CONTINUES)
-                varlink_object_set_bool(reply, "continues", true);
-
-        *replyp = reply;
-
-        return 0;
+        abort();
 }
 
-long varlink_protocol_unpack_reply(VarlinkObject *reply,
-                                   char **errorp,
-                                   VarlinkObject **parametersp,
-                                   uint64_t *flagsp) {
-        const char *error = NULL;
-        VarlinkObject *parameters = NULL;
-        bool continues = false;
-        long r;
+int varlink_protocol_connect(VarlinkURI *uri, pid_t *pidp) {
+        switch (uri->type) {
+                case VARLINK_URI_PROTOCOL_EXEC:
+                        return varlink_connect_exec(uri->path, pidp);
 
-        r = varlink_object_get_string(reply, "error", &error);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
+                case VARLINK_URI_PROTOCOL_IP:
+                        return varlink_connect_ip(uri->host);
 
-        r = varlink_object_get_object(reply, "parameters", &parameters);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
+                case VARLINK_URI_PROTOCOL_SSH:
+                        return varlink_connect_ssh(uri->host, pidp);
 
-        r = varlink_object_get_bool(reply, "continues", &continues);
-        if (r < 0 && r != -VARLINK_ERROR_UNKNOWN_FIELD)
-                return -VARLINK_ERROR_INVALID_MESSAGE;
+                case VARLINK_URI_PROTOCOL_UNIX:
+                        return varlink_connect_unix(uri->path);
 
-        *errorp = error ? strdup(error) : NULL;
+                case VARLINK_URI_PROTOCOL_NONE:
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+        }
 
-        if (parameters)
-                *parametersp = varlink_object_ref(parameters);
-        else
-                varlink_object_new(parametersp);
-
-        *flagsp = 0;
-        if (continues)
-                *flagsp |= VARLINK_REPLY_CONTINUES;
-
-        return 0;
+        abort();
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "uri.h"
+
 #include <getopt.h>
 #include <varlink.h>
 
@@ -46,10 +48,7 @@ long cli_complete_methods(Cli *cli, const char *current);
 __attribute__ ((format (printf, 2, 3)))
 void cli_print_completion(const char *current, const char *format, ...);
 
-long cli_connect(Cli *cli,
-                 VarlinkConnection **connectionp,
-                 const char *address,
-                 const char *method);
+long cli_connect(Cli *cli, VarlinkConnection **connectionp, VarlinkURI *uri);
 long cli_call(Cli *cli,
               VarlinkConnection *connection,
               const char *method,

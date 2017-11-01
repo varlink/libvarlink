@@ -1,6 +1,5 @@
-#include "socket.h"
+#include "protocol.h"
 #include "util.h"
-#include "uri.h"
 #include "varlink.h"
 
 #include <assert.h>
@@ -18,23 +17,22 @@ static long parse_parameters(const char *address,
         _cleanup_(freep) char *path = NULL;
         char *endptr;
         mode_t mode = 0;
-        long r;
 
         /* An empty path asks the kernel to assign a unique abstract address by autobinding. */
-        parm = strchr(address, ';');
-        if (!parm) {
-                r = varlink_uri_percent_decode(pathp, address, strlen(address));
-                if (r < 0)
-                        return r;
-
+        if (!address) {
+                *pathp = NULL;
                 return 0;
         }
 
-        if (parm > address) {
-                r = varlink_uri_percent_decode(&path, address, parm - address);
-                if (r < 0)
-                        return r;
+        parm = strchr(address, ';');
+        if (!parm) {
+                *pathp = strdup(address);
+                return 0;
         }
+
+        /* An empty path asks the kernel to assign a unique abstract address by autobinding. */
+        if (parm > address)
+                path = strndup(address, parm - address);
 
         parm += 1;
 

@@ -1,7 +1,9 @@
+#include "connection.h"
+#include "message.h"
 #include "object.h"
 #include "protocol.h"
-#include "socket.h"
 #include "stream.h"
+#include "uri.h"
 #include "util.h"
 
 #include <errno.h>
@@ -27,8 +29,6 @@ struct ReplyCallback {
 };
 
 struct VarlinkConnection {
-        char *address;
-
         VarlinkStream *stream;
         int events;
 
@@ -38,23 +38,40 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
-_public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
+long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI *uri) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long fd;
         pid_t pid = -1;
 
-        fd = varlink_connect(address, &pid);
+        connection = calloc(1, sizeof(VarlinkConnection));
+        connection->events = EPOLLIN;
+        STAILQ_INIT(&connection->pending);
+
+        fd = varlink_protocol_connect(uri, &pid);
         if (fd < 0)
                 return fd; /* CannotConnect or InvalidAddress */
 
-        connection = calloc(1, sizeof(VarlinkConnection));
         varlink_stream_new(&connection->stream, fd, pid);
-        connection->events = EPOLLIN;
-        STAILQ_INIT(&connection->pending);
-        connection->address = strdup(address);
 
         *connectionp = connection;
         connection = NULL;
+
+        return 0;
+}
+
+_public_ long varlink_connection_new(VarlinkConnection **connectionp, const char *address) {
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
+        long r;
+
+        r = varlink_uri_new(&uri, address, false);
+        if (r < 0)
+                return r;
+
+        r = varlink_connection_new_from_uri(connectionp, uri);
+        if (r < 0)
+                return r;
+
+        uri = NULL;
 
         return 0;
 }
@@ -70,7 +87,6 @@ _public_ VarlinkConnection *varlink_connection_free(VarlinkConnection *connectio
                 STAILQ_REMOVE_HEAD(&connection->pending, entry);
         }
 
-        free(connection->address);
         free(connection);
 
         return NULL;
@@ -122,7 +138,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                 if (!callback)
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
-                r = varlink_protocol_unpack_reply(message, &error, &parameters, &flags);
+                r = varlink_message_unpack_reply(message, &error, &parameters, &flags);
                 if (r < 0)
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
@@ -180,7 +196,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_protocol_pack_call(qualified_method, parameters, flags, &call);
+        r = varlink_message_pack_call(qualified_method, parameters, flags, &call);
         if (r < 0)
                 return r;
 

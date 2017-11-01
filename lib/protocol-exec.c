@@ -1,4 +1,4 @@
-#include "socket.h"
+#include "protocol.h"
 #include "varlink.h"
 #include "util.h"
 

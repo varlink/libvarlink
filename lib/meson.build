@@ -12,18 +12,18 @@ libvarlink_sources = '''
         interface.h
         object.c
         object.h
-        protocol.c
-        protocol.h
+        message.c
+        message.h
         scanner.c
         scanner.h
         service.c
         service.h
-        socket.c
-        socket.h
-        socket-exec.c
-        socket-ip.c
-        socket-ssh.c
-        socket-unix.c
+        protocol.c
+        protocol.h
+        protocol-exec.c
+        protocol-ip.c
+        protocol-ssh.c
+        protocol-unix.c
         stream.c
         stream.h
         type.h

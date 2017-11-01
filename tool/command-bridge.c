@@ -1,6 +1,6 @@
 #include "command.h"
 #include "interface.h"
-#include "protocol.h"
+#include "message.h"
 #include "stream.h"
 #include "util.h"
 #include "uri.h"
@@ -61,7 +61,7 @@ static long bridge_reply(Bridge *bridge,
         _cleanup_(freep) char *json = NULL;
         long r;
 
-        r = varlink_protocol_pack_reply(error, parameters, flags, &message);
+        r = varlink_message_pack_reply(error, parameters, flags, &message);
         if (r < 0)
                 return -CLI_ERROR_PANIC;
 
@@ -131,7 +131,6 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 _cleanup_(freep) char *method = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 uint64_t flags;
-                _cleanup_(freep) char *interface = NULL;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
                 for (;;) {
@@ -166,19 +165,9 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                 return -CLI_ERROR_PANIC;
                 }
 
-                r = varlink_protocol_unpack_call(call, &method, &parameters, &flags);
+                r = varlink_message_unpack_call(call, &method, &parameters, &flags);
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
-
-                r = varlink_uri_split(method,
-                                      NULL,
-                                      NULL,
-                                      &interface,
-                                      NULL);
-                if (r < 0 || !interface) {
-                        bridge_reply(bridge, "org.varlink.service.InvalidParameter", NULL, 0);
-                        return -CLI_ERROR_INVALID_MESSAGE;
-                }
 
                 /* Forward org.varlink.service.GetInfo to org.varlink.resolver.GetInfo */
                 if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
@@ -223,9 +212,16 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                 return -CLI_ERROR_PANIC;
 
                 } else {
+                        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
                         _cleanup_(freep) char *address = NULL;
 
-                        r = cli_resolve(cli, interface, &address);
+                        r = varlink_uri_new(&uri, method, true);
+                        if (r < 0) {
+                                bridge_reply(bridge, "org.varlink.service.InvalidParameter", NULL, 0);
+                                return -CLI_ERROR_INVALID_MESSAGE;
+                        }
+
+                        r = cli_resolve(cli, uri->interface, &address);
                         if (r < 0) {
                                 bridge_reply(bridge, "org.varlink.service.InterfaceNotFound", NULL, 0);
                                 return -CLI_ERROR_PANIC;
