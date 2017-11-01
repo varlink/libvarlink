@@ -36,7 +36,7 @@ const char *scanner_error_string(long error) {
         return error_strings[error];
 }
 
-static long scanner_new(Scanner **scannerp, const char *string) {
+long scanner_new(Scanner **scannerp, const char *string, bool comments) {
         Scanner *scanner;
 
         scanner = calloc(1, sizeof(Scanner));
@@ -44,25 +44,8 @@ static long scanner_new(Scanner **scannerp, const char *string) {
         scanner->p = scanner->string;
         scanner->pline = scanner->string;
         scanner->line_nr = 1;
+        scanner->comments = comments;
 
-        *scannerp = scanner;
-
-        return 0;
-}
-
-long scanner_new_interface(Scanner **scannerp, const char *string) {
-        return scanner_new(scannerp, string);
-}
-
-long scanner_new_json(Scanner **scannerp, const char *string) {
-        Scanner *scanner;
-        long r;
-
-        r = scanner_new(&scanner, string);
-        if (r < 0)
-                return r;
-
-        scanner->json = true;
         *scannerp = scanner;
 
         return 0;
@@ -109,7 +92,7 @@ static const char *scanner_advance(Scanner *scanner) {
                                 break;
 
                         case '#':
-                                if (scanner->json)
+                                if (!scanner->comments)
                                         return scanner->p;
 
                                 if (!scanner->last_comment_start)
@@ -441,7 +424,7 @@ static bool read_unicode_char(const char *p, FILE *stream) {
 }
 
 
-bool scanner_expect_json_string(Scanner *scanner, char **stringp) {
+bool scanner_expect_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
         unsigned long size;

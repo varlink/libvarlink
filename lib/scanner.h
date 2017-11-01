@@ -28,8 +28,8 @@ typedef struct {
         const char *pline;
         unsigned long line_nr;
 
+        bool comments;
         const char *last_comment_start;
-        bool json;
 
         struct {
                 long no;
@@ -50,8 +50,7 @@ typedef struct {
 bool scanner_error(Scanner *scanner, long error, const char *identifier);
 const char *scanner_error_string(long error);
 
-long scanner_new_interface(Scanner **scannerp, const char *string);
-long scanner_new_json(Scanner **scannerp, const char *string);
+long scanner_new(Scanner **scannerp, const char *string, bool comments);
 void scanner_free(Scanner *scanner);
 void scanner_freep(Scanner **scannerp);
 
@@ -78,7 +77,7 @@ char scanner_peek(Scanner *scanner);
  */
 bool scanner_expect_interface_name(Scanner *scanner, char **namep);
 bool scanner_expect_field_name(Scanner *scanner, char **namep);
-bool scanner_expect_json_string(Scanner *scanner, char **stringp);
+bool scanner_expect_string(Scanner *scanner, char **stringp);
 bool scanner_expect_member_name(Scanner *scanner, char **namep);
 bool scanner_expect_operator(Scanner *scanner, const char *op);
 bool scanner_expect_type_name(Scanner *scanner, char **namep);

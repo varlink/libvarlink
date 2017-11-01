@@ -79,7 +79,7 @@ bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 if (!first && !scanner_expect_operator(scanner, ","))
                         return false;
 
-                if (!scanner_expect_json_string(scanner, &name) ||
+                if (!scanner_expect_string(scanner, &name) ||
                     !scanner_expect_operator(scanner, ":"))
                         return false;
 
@@ -108,7 +108,7 @@ _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-        scanner_new_json(&scanner, json);
+        scanner_new(&scanner, json, false);
 
         if (!varlink_object_new_from_scanner(&object, scanner) ||
             scanner_peek(scanner) != '\0')

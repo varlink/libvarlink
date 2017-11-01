@@ -62,7 +62,7 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                 *kindp = VARLINK_TYPE_BOOL;
 
         } else if (scanner_peek(scanner) == '"') {
-                if (!scanner_expect_json_string(scanner, &value->s))
+                if (!scanner_expect_string(scanner, &value->s))
                         return false;
 
                 *kindp = VARLINK_TYPE_STRING;

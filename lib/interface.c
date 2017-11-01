@@ -253,7 +253,7 @@ long varlink_interface_new(VarlinkInterface **interfacep,
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-        scanner_new_interface(&scanner, description);
+        scanner_new(&scanner, description, true);
 
         if (!varlink_interface_new_from_scanner(&interface, scanner) ||
             scanner_peek(scanner) != '\0') {
