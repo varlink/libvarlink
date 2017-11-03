@@ -2,7 +2,6 @@
 #include "util.h"
 #include "varlink.h"
 
-#include <assert.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>

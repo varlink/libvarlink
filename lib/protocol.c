@@ -12,6 +12,7 @@ int varlink_protocol_listen(VarlinkURI *uri, char **pathp) {
                 case VARLINK_URI_PROTOCOL_UNIX:
                         return varlink_listen_unix(uri->path, pathp);
 
+                case VARLINK_URI_PROTOCOL_DEVICE:
                 case VARLINK_URI_PROTOCOL_EXEC:
                 case VARLINK_URI_PROTOCOL_NONE:
                 case VARLINK_URI_PROTOCOL_SSH:
@@ -41,6 +42,7 @@ int varlink_protocol_accept(VarlinkURI *uri, int listen_fd) {
                 case VARLINK_URI_PROTOCOL_UNIX:
                         return varlink_accept_unix(listen_fd);
 
+                case VARLINK_URI_PROTOCOL_DEVICE:
                 case VARLINK_URI_PROTOCOL_EXEC:
                 case VARLINK_URI_PROTOCOL_NONE:
                 case VARLINK_URI_PROTOCOL_SSH:
@@ -52,6 +54,9 @@ int varlink_protocol_accept(VarlinkURI *uri, int listen_fd) {
 
 int varlink_protocol_connect(VarlinkURI *uri, pid_t *pidp) {
         switch (uri->type) {
+                case VARLINK_URI_PROTOCOL_DEVICE:
+                        return varlink_connect_device(uri->path);
+
                 case VARLINK_URI_PROTOCOL_EXEC:
                         return varlink_connect_exec(uri->path, pidp);
 

@@ -20,6 +20,7 @@ libvarlink_sources = '''
         service.h
         protocol.c
         protocol.h
+        protocol-device.c
         protocol-exec.c
         protocol-ip.c
         protocol-ssh.c

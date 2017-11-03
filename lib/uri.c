@@ -64,6 +64,13 @@ static long string_percent_decode( const char *in, char **outp) {
 }
 
 static void uri_parse_protocol(VarlinkURI *uri, const char *address, char **stringp) {
+        if (strncmp(address, "device:", 7) == 0) {
+                uri->type = VARLINK_URI_PROTOCOL_DEVICE;
+                uri->protocol = strdup("device");
+                *stringp = strdup(address + 7);
+                return;
+        }
+
         if (strncmp(address, "exec:", 5) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_EXEC;
                 uri->protocol = strdup("exec");
@@ -192,6 +199,7 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
 
         /* Depending on the protocol, we have an URI path or an URI host*/
         switch(uri->type) {
+                case VARLINK_URI_PROTOCOL_DEVICE:
                 case VARLINK_URI_PROTOCOL_EXEC:
                 case VARLINK_URI_PROTOCOL_UNIX:
                         if (!string)

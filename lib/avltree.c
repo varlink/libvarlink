@@ -1,7 +1,6 @@
 #include "avltree.h"
 #include "util.h"
 
-#include <assert.h>
 #include <stdlib.h>
 
 struct AVLTree {

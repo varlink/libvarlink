@@ -2,7 +2,6 @@
 #include "util.h"
 #include "varlink.h"
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/socket.h>
