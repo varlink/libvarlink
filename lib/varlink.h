@@ -363,7 +363,7 @@ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection);
  */
 void varlink_connection_freep(VarlinkConnection **connectionp);
 
-void varlink_connection_set_close_callback(VarlinkConnection *connection,
+void varlink_connection_set_closed_callback(VarlinkConnection *connection,
                                            VarlinkConnectionClosedFunc closed,
                                            void *userdata);
 

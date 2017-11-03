@@ -163,7 +163,7 @@ _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
 _public_ long varlink_connection_close(VarlinkConnection *connection) {
         connection->stream = varlink_stream_free(connection->stream);
 
-        while (connection->closed_callback)
+        if (connection->closed_callback)
                 connection->closed_callback(connection, connection->closed_userdata);
 
         return 0;
@@ -218,7 +218,7 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         return 0;
 }
 
-_public_ void varlink_connection_set_close_callback(VarlinkConnection *connection,
+_public_ void varlink_connection_set_closed_callback(VarlinkConnection *connection,
                                                     VarlinkConnectionClosedFunc closed,
                                                     void *userdata) {
         connection->closed_callback = closed;

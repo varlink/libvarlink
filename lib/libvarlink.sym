@@ -34,7 +34,7 @@ global:
         varlink_connection_is_closed;
         varlink_connection_new;
         varlink_connection_process_events;
-        varlink_connection_set_close_callback;
+        varlink_connection_set_closed_callback;
         varlink_error_string;
         varlink_listen;
         varlink_object_get_array;
