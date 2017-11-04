@@ -610,7 +610,8 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
                                        const char *error,
                                        VarlinkObject *parameters) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
-        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri_error = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri_method = NULL;
         VarlinkInterface *interface;
         VarlinkInterfaceMember *member;
         _cleanup_(freep) char *string = NULL;
@@ -619,19 +620,27 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_uri_new(&uri, error, true);
+        r = varlink_uri_new(&uri_error, error, true);
         if (r < 0)
                 return r;
 
-        if (!uri->member)
+        if (!uri_error->member)
                 return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
-        interface = avl_tree_find(call->service->interfaces, uri->interface);
+        interface = avl_tree_find(call->service->interfaces, uri_error->interface);
         if (!interface)
-                return -VARLINK_ERROR_INTERFACE_NOT_FOUND;
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
-        member = avl_tree_find(interface->member_tree, uri->member);
+        member = avl_tree_find(interface->member_tree, uri_error->member);
         if (!member || member->type != VARLINK_MEMBER_ERROR)
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+
+        r = varlink_uri_new(&uri_method, call->method, true);
+        if (r < 0)
+                return r;
+
+        if (strcmp(uri_error->interface, "org.varlink.service") != 0 &&
+            strcmp(uri_error->interface, uri_method->interface) != 0)
                 return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
         r = varlink_message_pack_reply(error, parameters, 0, &message);
