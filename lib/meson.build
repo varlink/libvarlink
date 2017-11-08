@@ -18,15 +18,15 @@ libvarlink_sources = '''
         scanner.h
         service.c
         service.h
-        protocol.c
-        protocol.h
-        protocol-device.c
-        protocol-exec.c
-        protocol-ip.c
-        protocol-ssh.c
-        protocol-unix.c
         stream.c
         stream.h
+        transport.c
+        transport.h
+        transport-device.c
+        transport-exec.c
+        transport-ip.c
+        transport-ssh.c
+        transport-unix.c
         type.h
         type.c
         util.c

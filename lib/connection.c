@@ -1,8 +1,8 @@
 #include "connection.h"
 #include "message.h"
 #include "object.h"
-#include "protocol.h"
 #include "stream.h"
+#include "transport.h"
 #include "uri.h"
 #include "util.h"
 
@@ -51,7 +51,7 @@ long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
 
-        fd = varlink_protocol_connect(uri, &pid);
+        fd = varlink_transport_connect(uri, &pid);
         if (fd < 0)
                 return fd; /* CannotConnect or InvalidAddress */
 

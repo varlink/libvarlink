@@ -3,8 +3,8 @@
 #include "interface.h"
 #include "message.h"
 #include "object.h"
-#include "protocol.h"
 #include "stream.h"
+#include "transport.h"
 #include "uri.h"
 #include "util.h"
 
@@ -474,7 +474,7 @@ static long varlink_service_accept(VarlinkService *service) {
 
         connection = calloc(1, sizeof(ServiceConnection));
 
-        r = varlink_protocol_accept(service->uri, service->listen_fd);
+        r = varlink_transport_accept(service->uri, service->listen_fd);
         if (r < 0)
                 return r; /* CannotAccept */
 

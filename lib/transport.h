@@ -3,9 +3,9 @@
 #include "uri.h"
 #include <stdlib.h>
 
-int varlink_protocol_listen(VarlinkURI *uri, char **pathp);
-int varlink_protocol_accept(VarlinkURI *uri, int listen_fd);
-int varlink_protocol_connect(VarlinkURI *uri, pid_t *pidp);
+int varlink_transport_listen(VarlinkURI *uri, char **pathp);
+int varlink_transport_accept(VarlinkURI *uri, int listen_fd);
+int varlink_transport_connect(VarlinkURI *uri, pid_t *pidp);
 
 int varlink_connect_device(const char *device);
 int varlink_connect_exec(const char *executable, pid_t *pidp);

@@ -1,10 +1,10 @@
-#include "protocol.h"
+#include "transport.h"
 #include "util.h"
 #include "varlink.h"
 
 #include <string.h>
 
-int varlink_protocol_listen(VarlinkURI *uri, char **pathp) {
+int varlink_transport_listen(VarlinkURI *uri, char **pathp) {
         switch (uri->type) {
                 case VARLINK_URI_PROTOCOL_IP:
                         return varlink_listen_ip(uri->host);
@@ -31,10 +31,10 @@ _public_ int varlink_listen(const char *address, char **pathp) {
         if (r < 0)
                 return r;
 
-        return varlink_protocol_listen(uri, pathp);
+        return varlink_transport_listen(uri, pathp);
 }
 
-int varlink_protocol_accept(VarlinkURI *uri, int listen_fd) {
+int varlink_transport_accept(VarlinkURI *uri, int listen_fd) {
         switch (uri->type) {
                 case VARLINK_URI_PROTOCOL_IP:
                         return varlink_accept_ip(listen_fd);
@@ -52,7 +52,7 @@ int varlink_protocol_accept(VarlinkURI *uri, int listen_fd) {
         abort();
 }
 
-int varlink_protocol_connect(VarlinkURI *uri, pid_t *pidp) {
+int varlink_transport_connect(VarlinkURI *uri, pid_t *pidp) {
         switch (uri->type) {
                 case VARLINK_URI_PROTOCOL_DEVICE:
                         return varlink_connect_device(uri->path);
