@@ -15,14 +15,23 @@ long varlink_stream_new(VarlinkStream **streamp, int fd, pid_t pid) {
         VarlinkStream *stream;
 
         stream = calloc(1, sizeof(VarlinkStream));
+        if (!stream)
+                return -VARLINK_ERROR_PANIC;
+
         stream->fd = fd;
         stream->pid = pid;
 
         stream->in = malloc(CONNECTION_BUFFER_SIZE);
+        if (!stream->in)
+                return -VARLINK_ERROR_PANIC;
+
         stream->in_start = 0;
         stream->in_end = 0;
 
         stream->out = malloc(CONNECTION_BUFFER_SIZE);
+        if (!stream->out)
+                return -VARLINK_ERROR_PANIC;
+
         stream->out_start = 0;
         stream->out_end = 0;
 
@@ -90,7 +99,6 @@ long varlink_stream_flush(VarlinkStream *stream) {
         }
 
         move_rest(&stream->out, &stream->out_start, &stream->out_end);
-
         return stream->out_end - stream->out_start;
 }
 

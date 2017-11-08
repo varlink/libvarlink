@@ -29,12 +29,14 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
 
                 /* Does not set CLOEXEC */
                 if (dup2(fd, 3) != 3)
-                        return -VARLINK_ERROR_PANIC;
+                        _exit(EXIT_FAILURE);
 
                 if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
 
-                asprintf(&address, "unix:%s;mode=0600", path);
+                if (asprintf(&address, "unix:%s;mode=0600", path) < 0)
+                        _exit(EXIT_FAILURE);
+
                 execlp(executable, executable, address, NULL);
                 _exit(EXIT_FAILURE);
         }

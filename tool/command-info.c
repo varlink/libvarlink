@@ -143,6 +143,9 @@ static long info_complete(Cli *cli, int argc, char **argv, const char *current) 
                         return 0;
 
                 prefix = strndup(current + 5, p - current + 1 - 5);
+                if (!prefix)
+                        return -CLI_ERROR_PANIC;
+
                 dir = opendir(prefix);
         } else
                 dir = opendir(".");

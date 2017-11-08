@@ -63,5 +63,4 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                          const char *method_pre, const char *method_post,
                                          const char *type_pre, const char *type_post);
 
-long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name);
 const char *varlink_interface_get_member_description(VarlinkInterface *interface, const char *name);

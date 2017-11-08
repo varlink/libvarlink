@@ -81,7 +81,7 @@ static long call_arguments_new(CallArguments **argumentsp, int argc, char **argv
         return 0;
 }
 
-static void reply_callback(VarlinkConnection *connection,
+static long reply_callback(VarlinkConnection *connection,
                            const char *error,
                            VarlinkObject *parameters,
                            uint64_t flags,
@@ -94,7 +94,7 @@ static void reply_callback(VarlinkConnection *connection,
                 fprintf(stderr, "Call failed with error: %s\n", error);
                 *errorp = CLI_ERROR_REMOTE_ERROR;
                 varlink_connection_close(connection);
-                return;
+                return 0;
         }
 
         r = varlink_object_to_pretty_json(parameters,
@@ -108,13 +108,15 @@ static void reply_callback(VarlinkConnection *connection,
                 fprintf(stderr, "Unable to read message: %s\n", varlink_error_string(-r));
                 *errorp = CLI_ERROR_INVALID_JSON;
                 varlink_connection_close(connection);
-                return;
+                return 0;
         }
 
         printf("%s\n", json);
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
                 varlink_connection_close(connection);
+
+        return 0;
 }
 
 static long call_run(Cli *cli, int argc, char **argv) {

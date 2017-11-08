@@ -115,19 +115,24 @@ struct Reply {
         VarlinkObject *parameters;
 };
 
-static void reply_callback(VarlinkConnection *connection,
+static long reply_callback(VarlinkConnection *connection,
                            const char *error,
                            VarlinkObject *parameters,
                            uint64_t flags,
                            void *userdata) {
         struct Reply *reply = userdata;
 
-        if (error)
+        if (error) {
                 reply->error = strdup(error);
+                if (!reply->error)
+                        return -CLI_ERROR_PANIC;
+        }
 
         reply->parameters = varlink_object_ref(parameters);
 
         varlink_connection_close(connection);
+
+        return 0;
 }
 
 long cli_call(Cli *cli,
@@ -174,11 +179,16 @@ long cli_resolve(Cli *cli,
         _cleanup_(freep) char *error = NULL;
         _cleanup_(freep) char *json = NULL;
         const char *address;
+        char *a;
         long r;
 
         /* Don't resolve the resolver */
         if (strcmp(interface, "org.varlink.resolver") == 0) {
-                *addressp = strdup(cli->resolver);
+                a = strdup(cli->resolver);
+                if (!a)
+                        return -CLI_ERROR_PANIC;
+
+                *addressp = a;
                 return 0;
         }
 
@@ -206,8 +216,11 @@ long cli_resolve(Cli *cli,
         if (r < 0)
                 return -CLI_ERROR_CANNOT_RESOLVE;
 
-        *addressp = strdup(address);
+        a = strdup(address);
+        if (!a)
+                return -CLI_ERROR_PANIC;
 
+        *addressp = a;
         return 0;
 }
 
@@ -258,7 +271,7 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
                 if (r == 0)
                         return -CLI_ERROR_TIMEOUT;
 
-                if (ev.data.ptr == NULL) {
+                if (!ev.data.ptr) {
                         struct signalfd_siginfo fdsi;
                         long size;
 
@@ -400,7 +413,7 @@ long cli_run(Cli *cli, int argc, char **argv) {
                 return 0;
         }
 
-        if (arguments.command == NULL) {
+        if (!arguments.command) {
                 fprintf(stderr, "Usage: %s COMMAND [OPTIONS]\n", program_invocation_short_name);
                 fprintf(stderr, "Try '%s --help' for more information\n", program_invocation_short_name);
                 return -CLI_ERROR_COMMAND_NOT_FOUND;

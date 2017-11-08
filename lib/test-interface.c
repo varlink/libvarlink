@@ -12,12 +12,12 @@ static void test_invalid(void) {
                 "interface com.example.test\nerror Foo\n",
 
                 /* methods must have object literals as in and out parameters */
-                "interface com.example.test\nmethod Foo() -> string"
-                "interface com.example.test\nmethod Foo int -> ()"
-                "interface com.example.test\ntype Bar ()\nmethod Foo Bar -> ()"
+                "interface com.example.test\nmethod Foo() -> string",
+                "interface com.example.test\nmethod Foo int -> ()",
+                "interface com.example.test\ntype Bar ()\nmethod Foo Bar -> ()",
 
                 /* types must be objects */
-                "interface com.example.test\ntype Foo string"
+                "interface com.example.test\ntype Foo string",
 
                 /* this will valid once enums work - allow setting them
                  * as types, too */
@@ -220,10 +220,8 @@ static void test_writer(void) {
                 _cleanup_(freep) char *output = NULL;
 
                 if (varlink_interface_new(&interface, string, &scanner) < 0) {
-                        fprintf(stderr, "case %lu: %lu:%lu: %li %s\n",
-                                c,
-                                scanner->error.line_nr, scanner->error.pos_nr,
-                                scanner->error.no, scanner->error.identifier);
+                        fprintf(stderr, "case %lu: %lu:%lu: %li\n", c,
+                                scanner->error.line_nr, scanner->error.pos_nr, scanner->error.no);
                         assert(false);
                 }
 

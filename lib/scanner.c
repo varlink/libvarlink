@@ -36,10 +36,21 @@ const char *scanner_error_string(long error) {
         return error_strings[error];
 }
 
+void scanner_error(Scanner *scanner, long error) {
+        if (scanner->error.no == 0) {
+                scanner->error.no = error;
+                scanner->error.line_nr = scanner->line_nr;
+                scanner->error.pos_nr = 1 + scanner->p - scanner->pline;
+        }
+}
+
 long scanner_new(Scanner **scannerp, const char *string, bool comments) {
         Scanner *scanner;
 
         scanner = calloc(1, sizeof(Scanner));
+        if (!scanner)
+                return -VARLINK_ERROR_PANIC;
+
         scanner->string = string;
         scanner->p = scanner->string;
         scanner->pline = scanner->string;
@@ -47,31 +58,17 @@ long scanner_new(Scanner **scannerp, const char *string, bool comments) {
         scanner->comments = comments;
 
         *scannerp = scanner;
-
         return 0;
 }
 
-void scanner_free(Scanner *scanner) {
-        free(scanner->error.identifier);
+Scanner *scanner_free(Scanner *scanner) {
         free(scanner);
+        return NULL;
 }
 
 void scanner_freep(Scanner **scannerp) {
         if (*scannerp)
                 scanner_free(*scannerp);
-}
-
-bool scanner_error(Scanner *scanner, long error, const char *identifier) {
-        if (scanner->error.no == 0) {
-                scanner->error.no = error;
-                scanner->error.line_nr = scanner->line_nr;
-                scanner->error.pos_nr = 1 + scanner->p - scanner->pline;
-
-                if (identifier)
-                        scanner->error.identifier = strdup(identifier);
-        }
-
-        return false;
 }
 
 static const char *scanner_advance(Scanner *scanner) {
@@ -107,7 +104,7 @@ static const char *scanner_advance(Scanner *scanner) {
         }
 }
 
-char *scanner_get_last_docstring(Scanner *scanner) {
+long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
         FILE *stream = NULL;
         char *docstring = NULL;
         unsigned long size;
@@ -115,10 +112,14 @@ char *scanner_get_last_docstring(Scanner *scanner) {
 
         scanner_advance(scanner);
 
-        if (!scanner->last_comment_start)
-                return NULL;
+        if (!scanner->last_comment_start) {
+                *stringp = NULL;
+                return false;
+        }
 
         stream = open_memstream(&docstring, &size);
+        if (!stream)
+                return -VARLINK_ERROR_PANIC;
 
         p = scanner->last_comment_start;
         while (*p == '#') {
@@ -130,7 +131,8 @@ char *scanner_get_last_docstring(Scanner *scanner) {
                 p = strchrnul(start, '\n');
                 p += 1;
 
-                fwrite(start, 1, p - start, stream);
+                if (fwrite(start, 1, p - start, stream) != (size_t)(p - start))
+                        return -VARLINK_ERROR_PANIC;
 
                 /* Skip all leading whitespace in the next line */
                 while (*p == ' ' || *p == '\t')
@@ -140,13 +142,13 @@ char *scanner_get_last_docstring(Scanner *scanner) {
         fclose(stream);
 
         scanner->last_comment_start = NULL;
+        *stringp = docstring;
 
-        return docstring;
+        return true;
 }
 
 char scanner_peek(Scanner *scanner) {
         scanner_advance(scanner);
-
         return *scanner->p;
 }
 
@@ -245,20 +247,28 @@ static bool interface_name_valid(const char *name, unsigned long len) {
         return true;
 }
 
-bool scanner_expect_interface_name(Scanner *scanner, char **namep) {
+long scanner_expect_interface_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
+        char *name;
 
-        if (!interface_name_valid(scanner->p, len))
-                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID, NULL);
+        if (!interface_name_valid(scanner->p, len)) {
+                scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID);
+                return -VARLINK_ERROR_INVALID_INTERFACE;
+        }
 
-        *namep = strndup(scanner->p, len);
+        name = strndup(scanner->p, len);
+        if (!name)
+                return -VARLINK_ERROR_PANIC;
+
+        *namep = name;
         scanner->p += len;
 
-        return true;
+        return 0;
 }
 
-bool scanner_expect_field_name(Scanner *scanner, char **namep) {
+long scanner_expect_field_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
+        char *name;
 
         switch (*scanner->p) {
                 case 'a' ... 'z':
@@ -266,7 +276,8 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                         break;
 
                 default:
-                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
+                        scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID);
+                        return -VARLINK_ERROR_INVALID_TYPE;
         }
 
         for (unsigned long i = 1; i < len; i += 1) {
@@ -277,12 +288,15 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                                 break;
 
                         case '_':
-                                if (scanner->p[i - 1] == '_')
-                                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
+                                if (scanner->p[i - 1] == '_') {
+                                        scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID);
+                                        return -VARLINK_ERROR_INVALID_TYPE;
+                                }
                                 break;
 
                         default:
-                                return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
+                                scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID);
+                                return -VARLINK_ERROR_INVALID_TYPE;
                 }
         }
 
@@ -293,13 +307,18 @@ bool scanner_expect_field_name(Scanner *scanner, char **namep) {
                         break;
 
                 default:
-                        return scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID, NULL);
+                        scanner_error(scanner, SCANNER_ERROR_FIELD_NAME_INVALID);
+                        return -VARLINK_ERROR_INVALID_TYPE;
         }
 
-        *namep = strndup(scanner->p, len);
+        name = strndup(scanner->p, len);
+        if (!name)
+                return -VARLINK_ERROR_PANIC;
+
+        *namep = name;
         scanner->p += len;
 
-        return true;
+        return 0;
 }
 
 static bool member_name_valid(const char *member, unsigned long len) {
@@ -326,37 +345,54 @@ static bool member_name_valid(const char *member, unsigned long len) {
         return true;
 }
 
-bool scanner_expect_member_name(Scanner *scanner, char **namep) {
+long scanner_expect_member_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
+        char *name;
 
-        if (!member_name_valid(scanner->p, len))
-                return scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID, NULL);
+        if (!member_name_valid(scanner->p, len)) {
+                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+        }
 
-        *namep = strndup(scanner->p, len);
+        name = strndup(scanner->p, len);
+        if (!name)
+                return -VARLINK_ERROR_PANIC;
+
+        *namep = name;
         scanner->p += len;
 
-        return true;
+        return 0;
 }
 
-bool scanner_expect_type_name(Scanner *scanner, char **namep) {
+long scanner_expect_type_name(Scanner *scanner, char **namep) {
         unsigned long len = scanner_word_len(scanner);
         unsigned long interface_len = 0;
         const char *member = NULL;
         unsigned long member_len = 0;
+        char *name;
 
         if (member_name_valid(scanner->p, len)) {
-                *namep = strndup(scanner->p, len);
+                name = strndup(scanner->p, len);
+                if (!name)
+                        return -VARLINK_ERROR_PANIC;
+
+                *namep = name;
                 scanner->p += len;
-                return true;
+
+                return 0;
         }
 
-        if (len < 3)
-                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
+        if (len < 3) {
+                scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID);
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+        }
 
         for (unsigned long i = 0; i < len; i += 1) {
                 if (scanner->p[i] >= 'A' && scanner->p[i] <= 'Z') {
-                        if (scanner->p[i - 1] != '.')
-                                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
+                        if (scanner->p[i - 1] != '.') {
+                                scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID);
+                                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+                        }
 
                         interface_len = i - 1;
                         member = scanner->p + i;
@@ -365,16 +401,24 @@ bool scanner_expect_type_name(Scanner *scanner, char **namep) {
                 }
         }
 
-        if (!interface_name_valid(scanner->p, interface_len))
-                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
+        if (!interface_name_valid(scanner->p, interface_len)) {
+                scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID);
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+        }
 
-        if (!member_name_valid(member, member_len))
-                return scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID, NULL);
+        if (!member_name_valid(member, member_len)) {
+                scanner_error(scanner, SCANNER_ERROR_TYPE_NAME_INVALID);
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+        }
 
-        *namep = strndup(scanner->p, len);
+        name = strndup(scanner->p, len);
+        if (!name)
+                return -VARLINK_ERROR_PANIC;
+
+        *namep = name;
         scanner->p += len;
 
-        return true;
+        return 0;
 }
 
 static bool unhex(char d, uint8_t *valuep) {
@@ -424,7 +468,7 @@ static bool read_unicode_char(const char *p, FILE *stream) {
 }
 
 
-bool scanner_expect_string(Scanner *scanner, char **stringp) {
+long scanner_expect_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
         unsigned long size;
@@ -433,15 +477,17 @@ bool scanner_expect_string(Scanner *scanner, char **stringp) {
         p = scanner_advance(scanner);
 
         if (*p != '"')
-                return false;
+                return -VARLINK_ERROR_INVALID_JSON;
 
         p += 1;
 
         stream = open_memstream(&string, &size);
+        if (!stream)
+                return -VARLINK_ERROR_PANIC;
 
         for (;;) {
                 if (*p == '\0')
-                        return false;
+                        return -VARLINK_ERROR_INVALID_JSON;
 
                 if (*p == '"') {
                         p += 1;
@@ -452,49 +498,61 @@ bool scanner_expect_string(Scanner *scanner, char **stringp) {
                         p += 1;
                         switch (*p) {
                                 case '"':
-                                        fprintf(stream, "\"");
+                                        if (fprintf(stream, "\"") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case '\\':
-                                        fprintf(stream, "\\");
+                                        if (fprintf(stream, "\\") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case '/':
-                                        fprintf(stream, "/");
+                                        if (fprintf(stream, "/") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 'b':
-                                        fprintf(stream, "\b");
+                                        if (fprintf(stream, "\b") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 'f':
-                                        fprintf(stream, "\f");
+                                        if (fprintf(stream, "\f") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 'n':
-                                        fprintf(stream, "\n");
+                                        if (fprintf(stream, "\n") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 'r':
-                                        fprintf(stream, "\r");
+                                        if (fprintf(stream, "\r") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 't':
-                                        fprintf(stream, "\t");
+                                        if (fprintf(stream, "\t") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                                         break;
 
                                 case 'u':
-                                        if (!read_unicode_char(p + 1, stream))
-                                                return scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER, NULL);
+                                        if (!read_unicode_char(p + 1, stream)) {
+                                                scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER);
+                                                return -VARLINK_ERROR_INVALID_JSON;
+                                        }
 
                                         p += 4;
                                         break;
 
                                 default:
-                                        return scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER, NULL);
+                                        scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER);
+                                        return -VARLINK_ERROR_INVALID_JSON;
                         }
-                } else
-                        fprintf(stream, "%c", *p);
+
+                } else if (fprintf(stream, "%c", *p) < 0)
+                        return -VARLINK_ERROR_PANIC;
 
                 p += 1;
         }
@@ -508,8 +566,7 @@ bool scanner_expect_string(Scanner *scanner, char **stringp) {
         }
 
         scanner->p = p;
-
-        return true;
+        return 0;
 }
 
 bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
@@ -561,15 +618,16 @@ bool scanner_read_uint(Scanner *scanner, uint64_t *uintp) {
         return true;
 }
 
-bool scanner_expect_operator(Scanner *scanner, const char *op) {
+long scanner_expect_operator(Scanner *scanner, const char *op) {
         unsigned long length = strlen(op);
 
         scanner_advance(scanner);
 
-        if (strncmp(scanner->p, op, length) != 0)
-                return scanner_error(scanner, SCANNER_ERROR_OPERATOR_EXPECTED, op);
+        if (strncmp(scanner->p, op, length) != 0) {
+                scanner_error(scanner, SCANNER_ERROR_OPERATOR_EXPECTED);
+                return -VARLINK_ERROR_INVALID_IDENTIFIER;
+        }
 
         scanner->p += length;
-
-        return true;
+        return 0;
 }

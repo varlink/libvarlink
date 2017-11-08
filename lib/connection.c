@@ -42,8 +42,12 @@ long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         long fd;
         pid_t pid = -1;
+        long r;
 
         connection = calloc(1, sizeof(VarlinkConnection));
+        if (!connection)
+                return -VARLINK_ERROR_PANIC;
+
         connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
 
@@ -51,7 +55,9 @@ long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI
         if (fd < 0)
                 return fd; /* CannotConnect or InvalidAddress */
 
-        varlink_stream_new(&connection->stream, fd, pid);
+        r = varlink_stream_new(&connection->stream, fd, pid);
+        if (r < 0)
+                return r;
 
         *connectionp = connection;
         connection = NULL;
@@ -98,7 +104,7 @@ _public_ void varlink_connection_freep(VarlinkConnection **connectionp) {
 }
 
 _public_ long varlink_connection_process_events(VarlinkConnection *connection, int events) {
-        long r;
+        long r = 0;
 
         if (!connection->stream)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
@@ -115,7 +121,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
         }
 
         /* Check if the stream is valid, because a callback might have closed the connection */
-        while (connection->stream) {
+        for (;;) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
                 _cleanup_(freep) char *error = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
@@ -145,15 +151,21 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
                 if ((flags & VARLINK_REPLY_CONTINUES) && !(callback->call_flags & VARLINK_CALL_MORE))
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
-                callback->func(connection, error, parameters, flags, callback->userdata);
+                r = callback->func(connection, error, parameters, flags, callback->userdata);
 
                 if (!(flags & VARLINK_REPLY_CONTINUES)) {
                         STAILQ_REMOVE_HEAD(&connection->pending, entry);
                         free(callback);
                 }
+
+                if (r < 0)
+                        break;
+
+                if (!connection->stream)
+                        break;
         }
 
-        return 0;
+        return r;
 }
 
 _public_ int varlink_connection_get_events(VarlinkConnection *connection) {
@@ -219,8 +231,8 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
 }
 
 _public_ void varlink_connection_set_closed_callback(VarlinkConnection *connection,
-                                                    VarlinkConnectionClosedFunc closed,
-                                                    void *userdata) {
+                                                     VarlinkConnectionClosedFunc closed,
+                                                     void *userdata) {
         connection->closed_callback = closed;
         connection->closed_userdata = userdata;
 }

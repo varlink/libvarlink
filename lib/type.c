@@ -19,11 +19,17 @@
 long varlink_type_new(VarlinkType **typep, const char *typestring) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
+        int r;
 
-        scanner_new(&scanner, typestring, true);
+        r = scanner_new(&scanner, typestring, true);
+        if (r < 0)
+                return r;
 
-        if (!varlink_type_new_from_scanner(&type, scanner) ||
-            scanner_peek(scanner) != '\0')
+        r = varlink_type_new_from_scanner(&type, scanner);
+        if (r < 0)
+                return r;
+
+        if (scanner_peek(scanner) != '\0')
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *typep = type;
@@ -32,58 +38,94 @@ long varlink_type_new(VarlinkType **typep, const char *typestring) {
         return 0;
 }
 
-bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
+long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
+        long r;
 
-        if (scanner_read_keyword(scanner, "bool"))
-                varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
+        if (scanner_read_keyword(scanner, "bool")) {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
+                if (r < 0)
+                        return r;
 
-        else if (scanner_read_keyword(scanner, "int"))
-                varlink_type_allocate(&type, VARLINK_TYPE_INT);
+        } else if (scanner_read_keyword(scanner, "int")) {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_INT);
+                if (r < 0)
+                        return r;
 
-        else if (scanner_read_keyword(scanner, "float"))
-                varlink_type_allocate(&type, VARLINK_TYPE_FLOAT);
+        } else if (scanner_read_keyword(scanner, "float")) {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_FLOAT);
+                if (r < 0)
+                        return r;
 
-        else if (scanner_read_keyword(scanner, "string"))
-                varlink_type_allocate(&type, VARLINK_TYPE_STRING);
+        } else if (scanner_read_keyword(scanner, "string")) {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_STRING);
+                if (r < 0)
+                        return r;
 
-        else if (scanner_read_keyword(scanner, "object"))
-                varlink_type_allocate(&type, VARLINK_TYPE_FOREIGN_OBJECT);
+        } else if (scanner_read_keyword(scanner, "object")) {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_FOREIGN_OBJECT);
+                if (r < 0)
+                        return r;
 
-        else if (scanner_peek(scanner) ==  '(') {
+        } else if (scanner_peek(scanner) ==  '(') {
                 unsigned long n_fields_allocated = 0;
 
-                scanner_expect_operator(scanner, "(");
-                varlink_type_allocate(&type, VARLINK_TYPE_OBJECT);
+                if (scanner_expect_operator(scanner, "(") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                r = varlink_type_allocate(&type, VARLINK_TYPE_OBJECT);
+                if (r < 0)
+                        return r;
 
                 for (unsigned long i = 0; scanner_peek(scanner) != ')'; i += 1) {
                         _cleanup_(varlink_type_field_freep) VarlinkTypeField *field = NULL;
 
-                        if (i > 0 && !scanner_expect_operator(scanner, ","))
-                                return false;
+                        if (i > 0)
+                                if (scanner_expect_operator(scanner, ",") < 0)
+                                        return -VARLINK_ERROR_INVALID_TYPE;
 
                         field = calloc(1, sizeof(VarlinkTypeField));
-                        field->description = scanner_get_last_docstring(scanner);
+                        if (!field)
+                                return -VARLINK_ERROR_PANIC;
 
-                        if (!scanner_expect_field_name(scanner, &field->name))
-                                return false;
+                        r = scanner_get_last_docstring(scanner, &field->description);
+                        if (r < 0)
+                                return r;
+
+                        r = scanner_expect_field_name(scanner, &field->name);
+                        if (r < 0)
+                                return r;
 
                         if (i == 0 && scanner_peek(scanner) != ':')
                                 type->kind = VARLINK_TYPE_ENUM;
 
                         if (type->kind == VARLINK_TYPE_OBJECT) {
-                                if (!scanner_expect_operator(scanner, ":") ||
-                                    !varlink_type_new_from_scanner(&field->type, scanner))
-                                        return false;
+                                if (scanner_expect_operator(scanner, ":") < 0)
+                                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                                r = varlink_type_new_from_scanner(&field->type, scanner);
+                                if (r < 0)
+                                        return r;
                         }
 
                         /* make sure a field with this name doesn't exist yet */
-                        if (avl_tree_insert(type->fields_sorted, field->name, field) < 0)
-                                return scanner_error(scanner, SCANNER_ERROR_DUPLICATE_FIELD_NAME, field->name);
+                        switch (avl_tree_insert(type->fields_sorted, field->name, field)) {
+                                case 0:
+                                        break;
+
+                                case -AVL_ERROR_KEY_EXISTS:
+                                        scanner_error(scanner, SCANNER_ERROR_DUPLICATE_FIELD_NAME);
+                                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                                default:
+                                        return -VARLINK_ERROR_PANIC;
+                        }
 
                         if (type->n_fields == n_fields_allocated) {
                                 n_fields_allocated = MAX(n_fields_allocated * 2, 4);
                                 type->fields = realloc(type->fields, n_fields_allocated * sizeof(VarlinkType *));
+                                if (!type->fields)
+                                        return -VARLINK_ERROR_PANIC;
                         }
 
                         type->fields[i] = field;
@@ -91,14 +133,17 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         field = NULL;
                 }
 
-                if (!scanner_expect_operator(scanner, ")"))
-                        return false;
+                if (scanner_expect_operator(scanner, ")") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
 
         } else {
                 char *alias;
 
-                if (!scanner_expect_type_name(scanner, &alias))
-                        return scanner_error(scanner, SCANNER_ERROR_TYPE_EXPECTED, NULL);
+                r = scanner_expect_type_name(scanner, &alias);
+                if (r < 0) {
+                        scanner_error(scanner, SCANNER_ERROR_TYPE_EXPECTED);
+                        return r;
+                }
 
                 varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
                 type->alias = alias;
@@ -107,12 +152,21 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         if (scanner_peek(scanner) == '[') {
                 _cleanup_(varlink_type_unrefp) VarlinkType *array = NULL;
 
-                varlink_type_allocate(&array, VARLINK_TYPE_ARRAY);
+                r = varlink_type_allocate(&array, VARLINK_TYPE_ARRAY);
+                if (r < 0)
+                        return r;
 
-                scanner_expect_operator(scanner, "[");
-                if ((isdigit(scanner_peek(scanner)) && !scanner_read_uint(scanner, &array->fixed_n_elements)) ||
-                    !scanner_expect_operator(scanner, "]"))
-                        return false;
+                if (scanner_expect_operator(scanner, "[") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                if (isdigit(scanner_peek(scanner))) {
+                        r = scanner_read_uint(scanner, &array->fixed_n_elements);
+                        if (r < 0)
+                                return r;
+                }
+
+                if (scanner_expect_operator(scanner, "]") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
 
                 array->element_type = type;
                 type = array;
@@ -122,7 +176,7 @@ bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         *typep = type;
         type = NULL;
 
-        return true;
+        return 0;
 }
 
 static VarlinkTypeField *varlink_type_field_free(VarlinkTypeField *field) {
@@ -164,13 +218,20 @@ static long field_compare(const void *key, void *value) {
 long varlink_type_allocate(VarlinkType **typep,
                            VarlinkTypeKind kind) {
         VarlinkType *type;
+        long r;
 
         type = calloc(1, sizeof(VarlinkType));
+        if (!type)
+                return -VARLINK_ERROR_PANIC;
+
         type->refcount = 1;
         type->kind = kind;
 
-        if (kind == VARLINK_TYPE_OBJECT)
-                avl_tree_new(&type->fields_sorted, field_compare, NULL);
+        if (kind == VARLINK_TYPE_OBJECT) {
+                r = avl_tree_new(&type->fields_sorted, field_compare, NULL);
+                if (r < 0)
+                        return -VARLINK_ERROR_PANIC;
+        }
 
         *typep = type;
 
@@ -259,11 +320,13 @@ static bool is_multiline(VarlinkType *type) {
         return false;
 }
 
-static void varlink_type_print(VarlinkType *type,
+static long varlink_type_print(VarlinkType *type,
                                FILE *stream,
                                long indent,
                                const char *comment_pre, const char *comment_post,
                                const char *type_pre, const char *type_post) {
+        long r;
+
         if (!type_pre)
                 type_pre = "";
 
@@ -272,19 +335,23 @@ static void varlink_type_print(VarlinkType *type,
 
         switch (type->kind) {
                 case VARLINK_TYPE_BOOL:
-                        fprintf(stream, "%sbool%s", type_pre, type_post);
+                        if (fprintf(stream, "%sbool%s", type_pre, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_INT:
-                        fprintf(stream, "%sint%s", type_pre, type_post);
+                        if (fprintf(stream, "%sint%s", type_pre, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_FLOAT:
-                        fprintf(stream, "%sfloat%s", type_pre, type_post);
+                        if (fprintf(stream, "%sfloat%s", type_pre, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_STRING:
-                        fprintf(stream, "%sstring%s", type_pre, type_post);
+                        if (fprintf(stream, "%sstring%s", type_pre, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_ENUM:
@@ -295,29 +362,38 @@ static void varlink_type_print(VarlinkType *type,
                         if (indent >= 0)
                                 multiline = is_multiline(type);
 
-                        fprintf(stream, "(");
+                        if (fprintf(stream, "(") < 0)
+                                return -VARLINK_ERROR_PANIC;
 
                         for (unsigned long i = 0; i < type->n_fields; i += 1) {
                                 VarlinkTypeField *field = type->fields[i];
 
                                 if (multiline) {
-                                        fprintf(stream, "\n");
+                                        if (fprintf(stream, "\n") < 0)
+                                                return -VARLINK_ERROR_PANIC;
 
                                         if (field->description) {
                                                 if (i > 0 && !docstring_printed)
-                                                        fprintf(stream, "\n");
+                                                        if (fprintf(stream, "\n") < 0)
+                                                                return -VARLINK_ERROR_PANIC;
 
                                                 for (const char *start = field->description; *start;) {
                                                         const char *end = strchrnul(start, '\n');
                                                         int len = end - start;
 
                                                         for (long l = 0; l < indent + 1; l += 1)
-                                                                fprintf(stream, "  ");
+                                                                if (fprintf(stream, "  ") < 0)
+                                                                        return -VARLINK_ERROR_PANIC;
 
-                                                        fprintf(stream, "%s#", comment_pre);
+                                                        if (fprintf(stream, "%s#", comment_pre) < 0)
+                                                                return -VARLINK_ERROR_PANIC;
+
                                                         if (len > 0)
-                                                                fprintf(stream, " %.*s", len, start);
-                                                        fprintf(stream, "%s\n", comment_post);
+                                                                if (fprintf(stream, " %.*s", len, start) < 0)
+                                                                        return -VARLINK_ERROR_PANIC;
+
+                                                        if (fprintf(stream, "%s\n", comment_post) < 0)
+                                                                return -VARLINK_ERROR_PANIC;
 
                                                         if (*end != '\n')
                                                                 break;
@@ -330,40 +406,51 @@ static void varlink_type_print(VarlinkType *type,
                                                 docstring_printed = false;
 
                                         for (long l = 0; l < indent + 1; l += 1)
-                                                fprintf(stream, "  ");
+                                                if (fprintf(stream, "  ") < 0)
+                                                        return -VARLINK_ERROR_PANIC;
                                 }
 
-                                fprintf(stream, "%s", field->name);
+                                if (fprintf(stream, "%s", field->name) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 if (type->kind == VARLINK_TYPE_OBJECT) {
-                                        fprintf(stream, ": ");
+                                        if (fprintf(stream, ": ") < 0)
+                                                return -VARLINK_ERROR_PANIC;
 
-                                        varlink_type_print(field->type,
-                                                           stream,
-                                                           indent >= 0 ? indent + 1 : -1,
-                                                           comment_pre, comment_post,
-                                                           type_pre, type_post);
+                                        r = varlink_type_print(field->type,
+                                                               stream,
+                                                               indent >= 0 ? indent + 1 : -1,
+                                                               comment_pre, comment_post,
+                                                               type_pre, type_post);
+                                        if (r < 0)
+                                                return r;
                                 }
 
                                 if (i + 1 < type->n_fields) {
-                                        fprintf(stream, ",");
+                                        if (fprintf(stream, ",") < 0)
+                                                return -VARLINK_ERROR_PANIC;
 
                                         if (!multiline)
-                                                fprintf(stream, " ");
+                                                if (fprintf(stream, " ") < 0)
+                                                        return -VARLINK_ERROR_PANIC;
 
                                         if (multiline && field->description)
-                                                fprintf(stream, "\n");
+                                                if (fprintf(stream, "\n") < 0)
+                                                        return -VARLINK_ERROR_PANIC;
                                 }
                         }
 
                         if (multiline) {
-                                fprintf(stream, "\n");
+                                if (fprintf(stream, "\n") < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 for (long l = 0; l < indent; l += 1)
-                                        fprintf(stream, "  ");
+                                        if (fprintf(stream, "  ") < 0)
+                                                return -VARLINK_ERROR_PANIC;
                         }
 
-                        fprintf(stream, ")");
+                        if (fprintf(stream, ")") < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
                 }
 
@@ -373,25 +460,32 @@ static void varlink_type_print(VarlinkType *type,
                                            indent,
                                            comment_pre, comment_post,
                                            type_pre, type_post);
-                        fprintf(stream, "[");
+                        if (fprintf(stream, "[") < 0)
+                                return -VARLINK_ERROR_PANIC;
 
                         if (type->fixed_n_elements > 0)
-                                fprintf(stream, "%lu", type->fixed_n_elements);
+                                if (fprintf(stream, "%lu", type->fixed_n_elements) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
-                        fprintf(stream, "]");
+                        if (fprintf(stream, "]") < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_FOREIGN_OBJECT:
-                        fprintf(stream, "%sobject%s", type_pre, type_post);
+                        if (fprintf(stream, "%sobject%s", type_pre, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_ALIAS:
-                        fprintf(stream, "%s%s%s", type_pre, type->alias, type_post);
+                        if (fprintf(stream, "%s%s%s", type_pre, type->alias, type_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 default:
                         abort();
         }
+
+        return 0;
 }
 
 const char *varlink_type_get_typestring(VarlinkType *type) {
@@ -403,7 +497,11 @@ const char *varlink_type_get_typestring(VarlinkType *type) {
                 return type->typestring;
 
         stream = open_memstream(&type->typestring, &size);
-        varlink_type_print(type, stream, -1, NULL, NULL, NULL, NULL);
+        if (!stream)
+                return NULL;
+
+        if (varlink_type_print(type, stream, -1, NULL, NULL, NULL, NULL) < 0)
+                return NULL;
 
         fclose(stream);
 
@@ -421,11 +519,9 @@ long varlink_type_write_typestring(VarlinkType *type,
         if (!type_post)
                 type_post = "";
 
-        varlink_type_print(type,
-                           stream,
-                           indent,
-                           comment_pre, comment_post,
-                           type_pre, type_post);
-
-        return 0;
+        return varlink_type_print(type,
+                                  stream,
+                                  indent,
+                                  comment_pre, comment_post,
+                                  type_pre, type_post);
 }

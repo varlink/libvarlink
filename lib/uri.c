@@ -34,6 +34,8 @@ static long string_percent_decode( const char *in, char **outp) {
 
         len = strlen(in);
         out = malloc(len + 1);
+        if (!out)
+                return -VARLINK_ERROR_PANIC;
 
         for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
                 if (in[i] == '%') {
@@ -63,33 +65,57 @@ static long string_percent_decode( const char *in, char **outp) {
         return j;
 }
 
-static void uri_parse_protocol(VarlinkURI *uri, const char *address, char **stringp) {
+static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stringp) {
         if (strncmp(address, "device:", 7) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_DEVICE;
                 uri->protocol = strdup("device");
+                if (!uri->protocol)
+                        return -VARLINK_ERROR_PANIC;
+
                 *stringp = strdup(address + 7);
-                return;
+                if (!stringp)
+                        return -VARLINK_ERROR_PANIC;
+
+                return 0;
         }
 
         if (strncmp(address, "exec:", 5) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_EXEC;
                 uri->protocol = strdup("exec");
+                if (!uri->protocol)
+                        return -VARLINK_ERROR_PANIC;
+
                 *stringp = strdup(address + 5);
-                return;
+                if (!stringp)
+                        return -VARLINK_ERROR_PANIC;
+
+                return 0;
         }
 
         if (strncmp(address, "ssh://", 6) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_SSH;
                 uri->protocol = strdup("ssh");
+                if (!uri->protocol)
+                        return -VARLINK_ERROR_PANIC;
+
                 *stringp = strdup(address + 6);
-                return;
+                if (!stringp)
+                        return -VARLINK_ERROR_PANIC;
+
+                return 0;
         }
 
         if (strncmp(address, "unix:", 5) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_UNIX;
                 uri->protocol = strdup("unix");
+                if (!uri->protocol)
+                        return -VARLINK_ERROR_PANIC;
+
                 *stringp = strdup(address + 5);
-                return;
+                if (!stringp)
+                        return -VARLINK_ERROR_PANIC;
+
+                return 0;
         }
 
         /* If no protocol is specified assume IP/host address */
@@ -98,6 +124,10 @@ static void uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
 
         /* interface/member only */
         *stringp = strdup(address);
+        if (!stringp)
+                return -VARLINK_ERROR_PANIC;
+
+        return 0;
 }
 
 /*
@@ -136,8 +166,12 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
         long r;
 
         uri = calloc(1, sizeof(VarlinkURI));
+        if (!uri)
+                return -VARLINK_ERROR_PANIC;
 
-        uri_parse_protocol(uri, address, &string);
+        r = uri_parse_protocol(uri, address, &string);
+        if (r < 0)
+                return r;
 
         /* Split URI fragment */
         p = strchr(string, '#');
@@ -145,8 +179,13 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                 char *s = string;
 
                 uri->fragment = strdup(p + 1);
+                if (!uri->fragment)
+                        return -VARLINK_ERROR_PANIC;
 
                 s = strndup(string, p - string);
+                if (!s)
+                        return -VARLINK_ERROR_PANIC;
+
                 free(string);
                 string = s;
         }
@@ -157,8 +196,13 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                 char *s = string;
 
                 uri->query = strdup(p + 1);
+                if (!uri->query)
+                        return -VARLINK_ERROR_PANIC;
 
                 s = strndup(string, p - string);
+                if (!s)
+                        return -VARLINK_ERROR_PANIC;
+
                 free(string);
                 string = s;
         }
@@ -170,8 +214,13 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                 if (p) {
                         /* Split varlink interface + member */
                         uri->interface = strdup(p + 1);
+                        if (!uri->interface)
+                                return -VARLINK_ERROR_PANIC;
 
                         s = strndup(string, p - string);
+                        if (!s)
+                                return -VARLINK_ERROR_PANIC;
+
                         free(string);
                         string = s;
 
@@ -183,13 +232,18 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
 
                 p = strrchr(uri->interface, '.');
                 if (!p)
-                        return -VARLINK_ERROR_INVALID_INTERFACE;
+                        return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
                 if (p[1] >= 'A' && p[1] <= 'Z') {
                         /* Split interface and member */
                         uri->qualified_member = uri->interface;
                         uri->interface = strndup(uri->interface, p - uri->interface);
+                        if (!uri->interface)
+                                return -VARLINK_ERROR_PANIC;
+
                         uri->member = strdup(p + 1);
+                        if (!uri->member)
+                                return -VARLINK_ERROR_PANIC;
 
                 } else if (p[1] == '\0') {
                         /* Interface only, remove trailing dot */

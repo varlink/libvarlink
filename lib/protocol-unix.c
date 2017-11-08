@@ -25,13 +25,22 @@ static long parse_parameters(const char *address,
 
         parm = strchr(address, ';');
         if (!parm) {
-                *pathp = strdup(address);
+                path = strdup(address);
+                if (!path)
+                        return -VARLINK_ERROR_PANIC;
+
+                *pathp = path;
+                path = NULL;
+
                 return 0;
         }
 
         /* An empty path asks the kernel to assign a unique abstract address by autobinding. */
-        if (parm > address)
+        if (parm > address) {
                 path = strndup(address, parm - address);
+                if (!path)
+                        return -VARLINK_ERROR_PANIC;
+        }
 
         parm += 1;
 
@@ -124,6 +133,8 @@ int varlink_listen_unix(const char *address, char **pathp) {
 
                 sa.sun_path[0] = '@';
                 path = strndup(sa.sun_path, sa_len - offsetof(struct sockaddr_un, sun_path));
+                if (!path)
+                        return -VARLINK_ERROR_PANIC;
 
         } else {
                 if (strlen(path) == 0 || strlen(path) + 1 > sizeof(sa.sun_path))
@@ -143,6 +154,8 @@ int varlink_listen_unix(const char *address, char **pathp) {
                         return -VARLINK_ERROR_CANNOT_LISTEN;
 
                 path = strdup(path);
+                if (!path)
+                        return -VARLINK_ERROR_PANIC;
         }
 
         if (mode > 0) {

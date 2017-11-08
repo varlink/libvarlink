@@ -76,7 +76,7 @@ typedef struct {
         unsigned long n_received;
 } EchoCall;
 
-static void echo_callback(VarlinkConnection *connection,
+static long echo_callback(VarlinkConnection *connection,
                           const char *error,
                           VarlinkObject *parameters,
                           uint64_t flags,
@@ -88,9 +88,10 @@ static void echo_callback(VarlinkConnection *connection,
         assert(strcmp(result, call->words[call->n_received]) == 0);
 
         call->n_received += 1;
+        return 0;
 }
 
-static void later_callback(VarlinkConnection *connection,
+static long later_callback(VarlinkConnection *connection,
                            const char *error,
                            VarlinkObject *parameters,
                            uint64_t flags,
@@ -98,6 +99,7 @@ static void later_callback(VarlinkConnection *connection,
         VarlinkObject **out = userdata;
 
         *out = varlink_object_ref(parameters);
+        return 0;
 }
 
 int main(void) {

@@ -41,7 +41,7 @@ struct VarlinkType {
 };
 
 long varlink_type_new(VarlinkType **typep, const char *typestring);
-bool varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner);
+long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner);
 VarlinkType *varlink_type_ref(VarlinkType *type);
 VarlinkType *varlink_type_unref(VarlinkType *type);
 void varlink_type_unrefp(VarlinkType **typep);

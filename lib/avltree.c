@@ -155,14 +155,18 @@ static AVLTreeNode *node_rebalance(AVLTreeNode *node) {
         return node;
 }
 
-void avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free) {
+long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free) {
         AVLTree *tree;
 
         tree = calloc(1, sizeof(AVLTree));
+        if (!tree)
+                return -AVL_ERROR_PANIC;
+
         tree->compare = compare;
         tree->free = free;
 
         *treep = tree;
+        return 0;
 }
 
 static void avl_tree_free_subtree(AVLTree *tree, AVLTreeNode *node) {
@@ -213,12 +217,14 @@ unsigned long avl_tree_get_n_elements(AVLTree *tree) {
         return tree->n_elements;
 }
 
-unsigned long avl_tree_get_elements(AVLTree *tree, void ***elementsp) {
+long avl_tree_get_elements(AVLTree *tree, void ***elementsp) {
         void **elements = NULL;
         AVLTreeNode *node;
         unsigned int i = 0;
 
         elements = malloc((tree->n_elements + 1) * sizeof(void *));
+        if (!elements)
+                return -AVL_ERROR_PANIC;
 
         node = avl_tree_first(tree);
         while (node) {
@@ -246,6 +252,9 @@ static long avl_tree_insert_subtree(AVLTree *tree,
 
         if (!node) {
                 node = calloc(1, sizeof(AVLTreeNode));
+                if (!node)
+                        return -AVL_ERROR_PANIC;
+
                 node->value = value;
                 node->height = 1;
 

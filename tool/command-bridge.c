@@ -75,7 +75,7 @@ static long bridge_reply(Bridge *bridge,
         return 0;
 }
 
-static void reply_callback(VarlinkConnection *connection,
+static long reply_callback(VarlinkConnection *connection,
                            const char *error,
                            VarlinkObject *parameters,
                            uint64_t flags,
@@ -89,6 +89,8 @@ static void reply_callback(VarlinkConnection *connection,
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
                 varlink_connection_close(connection);
+
+        return 0;
 }
 
 static long bridge_run(Cli *cli, int argc, char **argv) {

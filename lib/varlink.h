@@ -97,7 +97,7 @@ typedef void (*VarlinkCallCanceled)(VarlinkCall *call,
 /*
  * Called when a client receives a reply to its call.
  */
-typedef void (*VarlinkReplyFunc)(VarlinkConnection *connection,
+typedef long (*VarlinkReplyFunc)(VarlinkConnection *connection,
                                  const char *error,
                                  VarlinkObject *parameters,
                                  uint64_t flags,
@@ -149,7 +149,7 @@ long varlink_object_to_json(VarlinkObject *object, char **stringp);
 /*
  * Retrieve an array of strings with the filed names of the object.
  */
-unsigned long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp);
+long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp);
 
 /*
  * Get values from an object.
@@ -364,8 +364,8 @@ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection);
 void varlink_connection_freep(VarlinkConnection **connectionp);
 
 void varlink_connection_set_closed_callback(VarlinkConnection *connection,
-                                           VarlinkConnectionClosedFunc closed,
-                                           void *userdata);
+                                            VarlinkConnectionClosedFunc closed,
+                                            void *userdata);
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes

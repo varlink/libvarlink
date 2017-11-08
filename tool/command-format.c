@@ -19,6 +19,8 @@ static long read_file(FILE *file, char **contentsp) {
                 if (size == allocated) {
                         allocated = MAX(allocated * 2, 4096);
                         contents = realloc(contents, allocated);
+                        if (!contents)
+                                return -ENOMEM;
                 }
 
                 n = fread(contents + size, 1, allocated - size, file);
@@ -90,10 +92,10 @@ static long format_run(Cli *cli, int argc, char **argv) {
 
         r = varlink_interface_new(&interface, in, &scanner);
         if (r < 0) {
-                fprintf(stderr, "%s:%lu:%lu: %s %s\n",
+                fprintf(stderr, "%s:%lu:%lu: %s\n",
                         in_filename,
                         scanner->line_nr, scanner->error.pos_nr,
-                        scanner_error_string(scanner->error.no), scanner->error.identifier ?: "");
+                        scanner_error_string(scanner->error.no));
                 return -CLI_ERROR_PANIC;
         }
 
@@ -124,6 +126,9 @@ static long format_complete(Cli *cli, int argc, char **argv, const char *current
         p = strrchr(current, '/');
         if (p) {
                 prefix = strndup(current, p - current + 1);
+                if (!prefix)
+                        return -CLI_ERROR_PANIC;
+
                 dir = opendir(prefix);
         } else
                 dir = opendir(".");

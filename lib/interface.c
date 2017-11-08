@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static void write_docstring(FILE *stream,
+static long write_docstring(FILE *stream,
                             long indent,
                             const char *comment_pre, const char *comment_post,
                             const char *description) {
@@ -24,18 +24,26 @@ static void write_docstring(FILE *stream,
                 int len = end - start;
 
                 for (long l = 0; l < indent; l += 1)
-                        fprintf(stream, "  ");
+                        if (fprintf(stream, "  ") < 0)
+                                return -VARLINK_ERROR_PANIC;
 
-                fprintf(stream, "%s#", comment_pre);
+                if (fprintf(stream, "%s#", comment_pre) < 0)
+                        return -VARLINK_ERROR_PANIC;
+
                 if (len > 0)
-                        fprintf(stream, " %.*s", len, start);
-                fprintf(stream, "%s\n", comment_post);
+                        if (fprintf(stream, " %.*s", len, start) < 0)
+                                return -VARLINK_ERROR_PANIC;
+
+                if (fprintf(stream, "%s\n", comment_post) < 0)
+                        return -VARLINK_ERROR_PANIC;
 
                 if (*end != '\n')
                         break;
 
                 start = end + 1;
         }
+
+        return 0;
 }
 
 static bool varlink_interface_try_resolve(VarlinkInterface *interface,
@@ -63,7 +71,7 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                         break;
 
                 case VARLINK_TYPE_ALIAS:
-                        if (varlink_interface_get_type(interface, type->alias) == NULL) {
+                        if (!varlink_interface_get_type(interface, type->alias)) {
                                 if (first_unknownp)
                                         *first_unknownp = type->alias;
 
@@ -130,31 +138,33 @@ static long member_compare(const void *key, void *value) {
         return strcmp(key, member->name);
 }
 
-long varlink_interface_allocate(VarlinkInterface **interfacep, const char *name) {
-        VarlinkInterface *interface;
-
-        interface = calloc(1, sizeof(VarlinkInterface));
-        interface->name = name ? strdup(name) : NULL;
-        avl_tree_new(&interface->member_tree, member_compare, NULL);
-
-        *interfacep = interface;
-
-        return 0;
-}
-
-static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Scanner *scanner) {
+static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Scanner *scanner) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         unsigned n_allocated = 0;
+        long r;
 
-        varlink_interface_allocate(&interface, NULL);
+        interface = calloc(1, sizeof(VarlinkInterface));
+        if (!interface)
+                return -VARLINK_ERROR_PANIC;
 
-        interface->description = scanner_get_last_docstring(scanner);
+        r = avl_tree_new(&interface->member_tree, member_compare, NULL);
+        if (r < 0)
+                return r;
 
-        if (!scanner_read_keyword(scanner, "interface"))
-                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_KEYWORD_EXPECTED, NULL);
+        r = scanner_get_last_docstring(scanner, &interface->description);
+        if (r < 0)
+                return r;
 
-        if (!scanner_expect_interface_name(scanner, &interface->name))
-                return scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID, NULL);
+        if (!scanner_read_keyword(scanner, "interface")) {
+                scanner_error(scanner, SCANNER_ERROR_INTERFACE_KEYWORD_EXPECTED);
+                return -VARLINK_ERROR_INVALID_INTERFACE;
+        }
+
+        r = scanner_expect_interface_name(scanner, &interface->name);
+        if (r < 0) {
+                scanner_error(scanner, SCANNER_ERROR_INTERFACE_NAME_INVALID);
+                return r;
+        }
 
         while (scanner_peek(scanner) != '\0') {
                 VarlinkInterfaceMember *member;
@@ -162,6 +172,8 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                 if (n_allocated == interface->n_members) {
                         n_allocated = MAX(2 * n_allocated, 16);
                         interface->members = realloc(interface->members, n_allocated * sizeof(VarlinkInterfaceMember));
+                        if (!interface->members)
+                                return -VARLINK_ERROR_PANIC;
                 }
 
                 member = &interface->members[interface->n_members];
@@ -170,46 +182,105 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
                 if (scanner_read_keyword(scanner, "type")) {
                         member->type = VARLINK_MEMBER_ALIAS;
-                        member->description = scanner_get_last_docstring(scanner);
+                        r = scanner_get_last_docstring(scanner, &member->description);
+                        if (r < 0)
+                                return r;
 
-                        if (!scanner_expect_member_name(scanner, &member->name) ||
-                            !varlink_type_new_from_scanner(&member->alias, scanner))
-                                return false;
+                        r = scanner_expect_member_name(scanner, &member->name);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
 
-                        if (member->alias->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
+                        r = varlink_type_new_from_scanner(&member->alias, scanner);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
+
+                        if (member->alias->kind != VARLINK_TYPE_OBJECT) {
+                                scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED);
+                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                        }
 
                 } else if (scanner_read_keyword(scanner, "method")) {
                         member->type = VARLINK_MEMBER_METHOD;
                         member->method = calloc(1, sizeof(VarlinkMethod));
-                        member->description = scanner_get_last_docstring(scanner);
+                        r = scanner_get_last_docstring(scanner, &member->description);
+                        if (r < 0)
+                                return r;
 
-                        if (!scanner_expect_member_name(scanner, &member->name) ||
-                            !varlink_type_new_from_scanner(&member->method->type_in, scanner) ||
-                            !scanner_expect_operator(scanner, "->") ||
-                            !varlink_type_new_from_scanner(&member->method->type_out, scanner))
-                                return false;
+                        r = scanner_expect_member_name(scanner, &member->name);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
+
+                        r = varlink_type_new_from_scanner(&member->method->type_in, scanner);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
+
+                        if (scanner_expect_operator(scanner, "->") < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_OPERATOR_EXPECTED);
+                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                        }
+
+                        r = varlink_type_new_from_scanner(&member->method->type_out, scanner);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_TYPE_EXPECTED);
+                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                        }
 
                         if (member->method->type_in->kind != VARLINK_TYPE_OBJECT ||
-                            member->method->type_out->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
+                            member->method->type_out->kind != VARLINK_TYPE_OBJECT) {
+                                scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED);
+                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                        }
 
                 } else if (scanner_read_keyword(scanner, "error")) {
                         member->type = VARLINK_MEMBER_ERROR;
-                        member->description = scanner_get_last_docstring(scanner);
+                        r = scanner_get_last_docstring(scanner, &member->description);
+                        if (r < 0)
+                                return r;
 
-                        if (!scanner_expect_member_name(scanner, &member->name) ||
-                            !varlink_type_new_from_scanner(&member->error, scanner))
-                                return false;
+                        r = scanner_expect_member_name(scanner, &member->name);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
 
-                        if (member->error->kind != VARLINK_TYPE_OBJECT)
-                                return scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED, NULL);
+                        r = varlink_type_new_from_scanner(&member->error, scanner);
+                        if (r < 0) {
+                                scanner_error(scanner, SCANNER_ERROR_MEMBER_NAME_INVALID);
+                                return r;
+                        }
 
-                } else
-                        return scanner_error(scanner, SCANNER_ERROR_KEYWORD_EXPECTED, NULL);
+                        if (member->error->kind != VARLINK_TYPE_OBJECT) {
+                                scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED);
+                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                        }
 
-                if (avl_tree_insert(interface->member_tree, member->name, member) < 0)
-                        return scanner_error(scanner, SCANNER_ERROR_DUPLICATE_MEMBER_NAME, member->name);
+                } else {
+                        scanner_error(scanner, SCANNER_ERROR_KEYWORD_EXPECTED);
+                        return -VARLINK_ERROR_INVALID_INTERFACE;
+                }
+
+                r = avl_tree_insert(interface->member_tree, member->name, member);
+                if (r < 0) {
+                        switch (r) {
+                                case 0:
+                                        break;
+
+                                case -AVL_ERROR_KEY_EXISTS:
+                                        scanner_error(scanner, SCANNER_ERROR_DUPLICATE_MEMBER_NAME);
+                                        return -VARLINK_ERROR_INVALID_INTERFACE;
+
+                                default:
+                                        return -VARLINK_ERROR_PANIC;
+                        }
+                }
         }
 
         /* check if all referenced types exist */
@@ -219,22 +290,30 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
                 switch (member->type) {
                         case VARLINK_MEMBER_ALIAS:
-                                if (!varlink_interface_try_resolve(interface, member->alias, &first_unknown))
-                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
+                                if (!varlink_interface_try_resolve(interface, member->alias, &first_unknown)) {
+                                        scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE);
+                                        return -VARLINK_ERROR_INVALID_INTERFACE;
+                                }
                                 break;
 
                         case VARLINK_MEMBER_METHOD:
-                                if (!varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown))
-                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
+                                if (!varlink_interface_try_resolve(interface, member->method->type_in, &first_unknown)) {
+                                        scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE);
+                                        return -VARLINK_ERROR_INVALID_INTERFACE;
+                                }
 
-                                if (!varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown))
-                                        return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
+                                if (!varlink_interface_try_resolve(interface, member->method->type_out, &first_unknown)) {
+                                        scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE);
+                                        return -VARLINK_ERROR_INVALID_INTERFACE;
+                                }
                                 break;
 
                         case VARLINK_MEMBER_ERROR:
                                 if (member->error) {
-                                        if (!varlink_interface_try_resolve(interface, member->error, &first_unknown))
-                                                return scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE, first_unknown);
+                                        if (!varlink_interface_try_resolve(interface, member->error, &first_unknown)) {
+                                                scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE);
+                                                return -VARLINK_ERROR_INVALID_INTERFACE;
+                                        }
                                 }
                                 break;
                 }
@@ -243,7 +322,7 @@ static bool varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
         *interfacep = interface;
         interface = NULL;
 
-        return true;
+        return 0;
 }
 
 long varlink_interface_new(VarlinkInterface **interfacep,
@@ -251,15 +330,19 @@ long varlink_interface_new(VarlinkInterface **interfacep,
                            Scanner **scannerp) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
+        long r;
 
-        scanner_new(&scanner, description, true);
+        r = scanner_new(&scanner, description, true);
+        if (r < 0)
+                return r;
 
-        if (!varlink_interface_new_from_scanner(&interface, scanner) ||
+        if (varlink_interface_new_from_scanner(&interface, scanner) < 0 ||
             scanner_peek(scanner) != '\0') {
                 if (scannerp) {
                         *scannerp = scanner;
                         scanner = NULL;
                 }
+
                 return -VARLINK_ERROR_INVALID_INTERFACE;
         }
 
@@ -330,39 +413,50 @@ long varlink_interface_write_description(VarlinkInterface *interface,
 
         interface_name = interface->name;
 
-        if (interface->description)
-                write_docstring(stream,
-                                indent,
-                                comment_pre, comment_post,
-                                interface->description);
+        if (interface->description) {
+                r = write_docstring(stream,
+                                    indent,
+                                    comment_pre, comment_post,
+                                    interface->description);
+                if (r < 0)
+                        return r;
+        }
 
         for (long l = 0; l < indent; l += 1)
-                fprintf(stream, "  ");
+                if (fprintf(stream, "  ") < 0)
+                        return -VARLINK_ERROR_PANIC;
 
-        fprintf(stream, "%sinterface%s %s",
-                keyword_pre, keyword_post,
-                interface_name);
+        if (fprintf(stream, "%sinterface%s %s",
+                    keyword_pre, keyword_post,
+                    interface_name) < 0)
+                return -VARLINK_ERROR_PANIC;
 
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
                 VarlinkInterfaceMember *member = &interface->members[i];
 
-                fprintf(stream, "\n\n");
+                if (fprintf(stream, "\n\n") < 0)
+                        return -VARLINK_ERROR_PANIC;
 
-                if (member->description)
-                        write_docstring(stream, indent,
-                                        comment_pre, comment_post,
-                                        member->description);
+                if (member->description) {
+                        r = write_docstring(stream, indent,
+                                            comment_pre, comment_post,
+                                            member->description);
+                        if (r < 0)
+                                return r;
+                }
 
                 for (long l = 0; l < indent; l += 1)
-                        fprintf(stream, "  ");
+                        if (fprintf(stream, "  ") < 0)
+                                return -VARLINK_ERROR_PANIC;
 
                 switch (member->type) {
                         case VARLINK_MEMBER_ALIAS:
-                                fprintf(stream, "%stype%s %s%s%s ",
-                                        keyword_pre, keyword_post,
-                                        type_pre,
-                                        member->name,
-                                        type_post);
+                                if (fprintf(stream, "%stype%s %s%s%s ",
+                                            keyword_pre, keyword_post,
+                                            type_pre,
+                                            member->name,
+                                            type_post) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 r = varlink_type_write_typestring(member->alias,
                                                                   stream,
@@ -373,9 +467,10 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                         return r;
                                 break;
                         case VARLINK_MEMBER_METHOD:
-                                fprintf(stream, "%smethod%s %s%s%s",
-                                        keyword_pre, keyword_post,
-                                        method_pre, member->name, method_post);
+                                if (fprintf(stream, "%smethod%s %s%s%s",
+                                            keyword_pre, keyword_post,
+                                            method_pre, member->name, method_post) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 r = varlink_type_write_typestring(member->method->type_in,
                                                                   stream,
@@ -385,7 +480,8 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                 if (r < 0)
                                         return r;
 
-                                fprintf(stream, " %s->%s ", keyword_pre, keyword_post);
+                                if (fprintf(stream, " %s->%s ", keyword_pre, keyword_post) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 r = varlink_type_write_typestring(member->method->type_out,
                                                                   stream,
@@ -396,11 +492,12 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                         return r;
                                 break;
                         case VARLINK_MEMBER_ERROR:
-                                fprintf(stream, "%serror%s %s%s%s ",
-                                        keyword_pre, keyword_post,
-                                        type_pre,
-                                        member->name,
-                                        type_post);
+                                if (fprintf(stream, "%serror%s %s%s%s ",
+                                            keyword_pre, keyword_post,
+                                            type_pre,
+                                            member->name,
+                                            type_post) < 0)
+                                        return -VARLINK_ERROR_PANIC;
 
                                 if (member->error) {
                                         r = varlink_type_write_typestring(member->error,
@@ -416,8 +513,11 @@ long varlink_interface_write_description(VarlinkInterface *interface,
         }
 
         for (long l = 0; l < indent; l += 1)
-                fprintf(stream, "  ");
-        fprintf(stream, "\n");
+                if (fprintf(stream, "  ") < 0)
+                        return -VARLINK_ERROR_PANIC;
+
+        if (fprintf(stream, "\n") < 0)
+                return -VARLINK_ERROR_PANIC;
 
         fclose(stream);
         stream = NULL;

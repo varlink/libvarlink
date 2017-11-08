@@ -22,7 +22,7 @@ typedef void (*AVLFreeFunc)(void *value);
  * Pass avl_tree_ptr_compare() as @compare if keys will be pointer
  * values.
  */
-void avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free);
+long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free);
 
 /*
  * Frees @tree and calls the the free function passed to avl_tree_new()
@@ -38,7 +38,7 @@ unsigned long avl_tree_get_n_elements(AVLTree *tree);
  *
  * Returns the number of elements in @tree.
  */
-unsigned long avl_tree_get_elements(AVLTree *tree, void ***elementsp);
+long avl_tree_get_elements(AVLTree *tree, void ***elementsp);
 
 /*
  * Returns the smallest node in @tree (as defined by the compare

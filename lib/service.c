@@ -342,16 +342,33 @@ _public_ long varlink_service_new(VarlinkService **servicep,
         if (r < 0)
                 return r;
 
-        if (vendor)
+        if (vendor) {
                 service->vendor = strdup(vendor);
-        if (product)
-                service->product = strdup(product);
-        if (version)
-                service->version = strdup(version);
-        if (url)
-                service->url = strdup(url);
+                if (!service->vendor)
+                        return -VARLINK_ERROR_PANIC;
+        }
 
-        avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
+        if (product) {
+                service->product = strdup(product);
+                if (!service->product)
+                        return -VARLINK_ERROR_PANIC;
+        }
+
+        if (version) {
+                service->version = strdup(version);
+                if (!service->version)
+                        return -VARLINK_ERROR_PANIC;
+        }
+
+        if (url) {
+                service->url = strdup(url);
+                if (!service->url)
+                        return -VARLINK_ERROR_PANIC;
+        }
+
+        r = avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
+        if (r < 0)
+                return r;
 
         r = varlink_service_add_interface(service, org_varlink_service_varlink,
                                           "GetInfo", org_varlink_service_GetInfo, NULL,
@@ -431,9 +448,16 @@ _public_ long varlink_service_add_interface(VarlinkService *service,
         }
         va_end(args);
 
-        r = avl_tree_insert(service->interfaces, interface->name, interface);
-        if (r < 0)
-                return -VARLINK_ERROR_INVALID_INTERFACE;
+        switch (avl_tree_insert(service->interfaces, interface->name, interface)) {
+                case 0:
+                        break;
+
+                case -AVL_ERROR_KEY_EXISTS:
+                        return -VARLINK_ERROR_INVALID_INTERFACE;
+
+                default:
+                        return -VARLINK_ERROR_PANIC;
+        }
 
         interface = NULL;
 
@@ -482,7 +506,7 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                         connection->events |= EPOLLOUT;
         }
 
-        while (connection->call == NULL) {
+        while (!connection->call) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
 
                 r = varlink_stream_read(connection->stream, &message);

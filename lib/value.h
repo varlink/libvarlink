@@ -17,7 +17,7 @@ union VarlinkValue {
         VarlinkObject *object;
 };
 
-bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner);
+long varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner);
 long varlink_value_write_json(VarlinkTypeKind kind,
                               VarlinkValue *value,
                               FILE *stream,

@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 long varlink_object_new_from_type(VarlinkObject **objectp, VarlinkType *type);
-bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner);
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner);
 
 long varlink_object_write_json(VarlinkObject *object,
                                FILE *stream,

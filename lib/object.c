@@ -36,26 +36,41 @@ static void field_free(void *ptr) {
         free(field);
 }
 
-static Field *object_replace(VarlinkObject *object, const char *name) {
+static long object_replace(VarlinkObject *object, const char *name, Field **fieldp) {
         Field *field;
+        long r;
 
         avl_tree_remove(object->fields, name);
 
         field = calloc(1, sizeof(Field));
+        if (!field)
+                return -VARLINK_ERROR_PANIC;
+
         field->name = strdup(name);
+        if (!field->name)
+                return -VARLINK_ERROR_PANIC;
 
-        avl_tree_insert(object->fields, field->name, field);
+        r = avl_tree_insert(object->fields, field->name, field);
+        if (r < 0)
+                return -VARLINK_ERROR_PANIC;
 
-        return field;
+        *fieldp = field;
+        return 0;
 }
 
 _public_ long varlink_object_new(VarlinkObject **objectp) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
+        long r;
 
         object = calloc(1, sizeof(VarlinkObject));
+        if (!object)
+                return -VARLINK_ERROR_PANIC;
+
         object->refcount = 1;
-        avl_tree_new(&object->fields, field_compare, field_free);
         object->writable = true;
+        r = avl_tree_new(&object->fields, field_compare, field_free);
+        if (r < 0)
+                return -VARLINK_ERROR_PANIC;
 
         *objectp = object;
         object = NULL;
@@ -63,55 +78,71 @@ _public_ long varlink_object_new(VarlinkObject **objectp) {
         return 0;
 }
 
-bool varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) {
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         bool first = true;
+        long r;
 
-        if (!scanner_expect_operator(scanner, "{"))
-                return false;
+        if (scanner_expect_operator(scanner, "{") < 0)
+                return -VARLINK_ERROR_INVALID_JSON;
 
-        if (varlink_object_new(&object) < 0)
-                return false;
+        r = varlink_object_new(&object);
+        if (r < 0)
+                return r;
 
         while (scanner_peek(scanner) != '}') {
                 _cleanup_(freep) char *name = NULL;
 
-                if (!first && !scanner_expect_operator(scanner, ","))
-                        return false;
+                if (!first) {
+                        if (scanner_expect_operator(scanner, ",") < 0)
+                                return -VARLINK_ERROR_INVALID_JSON;
+                }
 
-                if (!scanner_expect_string(scanner, &name) ||
-                    !scanner_expect_operator(scanner, ":"))
-                        return false;
+                r = scanner_expect_string(scanner, &name);
+                if (r < 0)
+                        return r;
+
+                if (scanner_expect_operator(scanner, ":") < 0)
+                        return -VARLINK_ERROR_INVALID_JSON;
 
                 /* treat `null` the same as non-existent keys */
                 if (!scanner_read_keyword(scanner, "null")) {
                         Field *field;
 
-                        field = object_replace(object, name);
+                        r = object_replace(object, name, &field);
+                        if (r < 0)
+                                return r;
+
                         if (!varlink_value_read_from_scanner(&field->kind, &field->value, scanner))
-                                return false;
+                                return -VARLINK_ERROR_INVALID_JSON;
                 }
 
                 first = false;
         }
 
-        if (!scanner_expect_operator(scanner, "}"))
-                return false;
+        if (scanner_expect_operator(scanner, "}") < 0)
+                return -VARLINK_ERROR_INVALID_JSON;
 
         *objectp = object;
         object = NULL;
 
-        return true;
+        return 0;
 }
 
 _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *json) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
+        long r;
 
-        scanner_new(&scanner, json, false);
+        r = scanner_new(&scanner, json, false);
+        if (r < 0)
+                return r;
 
-        if (!varlink_object_new_from_scanner(&object, scanner) ||
-            scanner_peek(scanner) != '\0')
+        r = varlink_object_new_from_scanner(&object, scanner);
+        if (r < 0)
+                return r;
+
+        if (scanner_peek(scanner) != '\0')
                 return -VARLINK_ERROR_INVALID_JSON;
 
         *objectp = object;
@@ -141,7 +172,7 @@ _public_ void varlink_object_unrefp(VarlinkObject **objectp) {
                 varlink_object_unref(*objectp);
 }
 
-_public_ unsigned long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp) {
+_public_ long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp) {
         unsigned long n_fields;
 
         n_fields = avl_tree_get_n_elements(object->fields);
@@ -152,6 +183,8 @@ _public_ unsigned long varlink_object_get_field_names(VarlinkObject *object, con
                 unsigned long i = 0;
 
                 names = calloc(n_fields + 1, sizeof(const char *));
+                if (!names)
+                        return -VARLINK_ERROR_PANIC;
 
                 node = avl_tree_first(object->fields);
                 while (node) {
@@ -265,11 +298,15 @@ _public_ long varlink_object_get_object(VarlinkObject *object, const char *field
 
 _public_ long varlink_object_set_bool(VarlinkObject *object, const char *field_name, bool b) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_BOOL;
         field->value.b = b;
 
@@ -278,11 +315,15 @@ _public_ long varlink_object_set_bool(VarlinkObject *object, const char *field_n
 
 _public_ long varlink_object_set_int(VarlinkObject *object, const char *field_name, int64_t i) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_INT;
         field->value.i = i;
 
@@ -291,11 +332,15 @@ _public_ long varlink_object_set_int(VarlinkObject *object, const char *field_na
 
 _public_ long varlink_object_set_float(VarlinkObject *object, const char *field_name, double f) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_FLOAT;
         field->value.f = f;
 
@@ -304,24 +349,34 @@ _public_ long varlink_object_set_float(VarlinkObject *object, const char *field_
 
 _public_ long varlink_object_set_string(VarlinkObject *object, const char *field_name, const char *string) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_STRING;
         field->value.s = strdup(string);
+        if (!field->value.s)
+                return -VARLINK_ERROR_PANIC;
 
         return 0;
 }
 
 _public_ long varlink_object_set_array(VarlinkObject *object, const char *field_name, VarlinkArray *array) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_ARRAY;
         field->value.array = varlink_array_ref(array);
 
@@ -330,11 +385,15 @@ _public_ long varlink_object_set_array(VarlinkObject *object, const char *field_
 
 _public_ long varlink_object_set_object(VarlinkObject *object, const char *field_name, VarlinkObject *nested) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_OBJECT;
         field->value.object = varlink_object_ref(nested);
 
@@ -343,28 +402,38 @@ _public_ long varlink_object_set_object(VarlinkObject *object, const char *field
 
 long varlink_object_set_empty_object(VarlinkObject *object, const char *field_name) {
         Field *field;
+        long r;
 
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        field = object_replace(object, field_name);
+        r = object_replace(object, field_name, &field);
+        if (r < 0)
+                return r;
+
         field->kind = VARLINK_TYPE_OBJECT;
         varlink_object_new(&field->value.object);
 
         return 0;
 }
 
-static void object_write_json(FILE *stream,
+static long object_write_json(FILE *stream,
                               long indent,
                               bool first) {
         if (!first) {
-                fprintf(stream, ",");
+                if (fprintf(stream, ",") < 0)
+                        return -VARLINK_ERROR_PANIC;
+
                 if (indent >= 0)
-                        fprintf(stream, "\n");
+                        if (fprintf(stream, "\n") < 0)
+                                return -VARLINK_ERROR_PANIC;
         }
 
         for (long l = 0; l < indent; l += 1)
-                fprintf(stream, "  ");
+                if (fprintf(stream, "  ") < 0)
+                        return -VARLINK_ERROR_PANIC;
+
+        return 0;
 }
 
 long varlink_object_write_json(VarlinkObject *object,
@@ -379,19 +448,27 @@ long varlink_object_write_json(VarlinkObject *object,
         n_fields = varlink_object_get_field_names(object, &field_names);
 
         if (n_fields == 0) {
-                fprintf(stream, "{}");
+                if (fprintf(stream, "{}") < 0)
+                        return -VARLINK_ERROR_PANIC;
                 return 0;
         }
 
-        fprintf(stream, "{");
+        if (fprintf(stream, "{") < 0)
+                return -VARLINK_ERROR_PANIC;
+
         if (indent >= 0)
-                fprintf(stream, "\n");
+                if (fprintf(stream, "\n") < 0)
+                        return -VARLINK_ERROR_PANIC;
 
         for (unsigned long i = 0; i < n_fields; i += 1) {
                 Field *field;
 
-                object_write_json(stream, indent >= 0 ? indent + 1 : -1, i == 0);
-                fprintf(stream, "\"%s%s%s\":%s", key_pre, field_names[i], key_post, indent >= 0 ? " ": "");
+                r = object_write_json(stream, indent >= 0 ? indent + 1 : -1, i == 0);
+                if (r < 0)
+                        return r;
+
+                if (fprintf(stream, "\"%s%s%s\":%s", key_pre, field_names[i], key_post, indent >= 0 ? " ": "") < 0)
+                        return -VARLINK_ERROR_PANIC;
 
                 field = avl_tree_find(object->fields, field_names[i]);
                 if (!field)
@@ -406,10 +483,12 @@ long varlink_object_write_json(VarlinkObject *object,
         }
 
         if (indent >= 0)
-                fprintf(stream, "\n");
+                if (fprintf(stream, "\n") < 0)
+                        return -VARLINK_ERROR_PANIC;
 
         object_write_json(stream, indent, true);
-        fprintf(stream, "}");
+        if (fprintf(stream, "}") < 0)
+                return -VARLINK_ERROR_PANIC;
 
         return 0;
 }

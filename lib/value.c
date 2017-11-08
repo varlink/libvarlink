@@ -38,17 +38,20 @@ void varlink_value_clear(VarlinkTypeKind kind, VarlinkValue *value) {
         }
 }
 
-bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner) {
+long varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner) {
         ScannerNumber number;
+        long r;
 
         if (scanner_peek(scanner) == '{') {
-                if (!varlink_object_new_from_scanner(&value->object, scanner))
+                r = varlink_object_new_from_scanner(&value->object, scanner);
+                if (r < 0)
                         return false;
 
                 *kindp = VARLINK_TYPE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
-                if (!varlink_array_new_from_scanner(&value->array, scanner))
+                r = varlink_array_new_from_scanner(&value->array, scanner);
+                if (r < 0)
                         return false;
 
                 *kindp = VARLINK_TYPE_ARRAY;
@@ -62,8 +65,9 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                 *kindp = VARLINK_TYPE_BOOL;
 
         } else if (scanner_peek(scanner) == '"') {
-                if (!scanner_expect_string(scanner, &value->s))
-                        return false;
+                r = scanner_expect_string(scanner, &value->s);
+                if (r < 0)
+                        return r;
 
                 *kindp = VARLINK_TYPE_STRING;
 
@@ -75,52 +79,67 @@ bool varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                         value->i = number.i;
                         *kindp = VARLINK_TYPE_INT;
                 }
-        } else
-                return scanner_error(scanner, SCANNER_ERROR_JSON_EXPECTED, NULL);
+
+        } else {
+                scanner_error(scanner, SCANNER_ERROR_JSON_EXPECTED);
+                return false;
+        }
 
         return true;
 }
 
-static void json_write_string(FILE *stream, const char *s) {
+static long json_write_string(FILE *stream, const char *s) {
         while (*s != '\0') {
                 switch(*s) {
                         case '\"':
-                                fprintf(stream, "\\\"");
+                                if (fprintf(stream, "\\\"") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\\':
-                                fprintf(stream, "\\\\");
+                                if (fprintf(stream, "\\\\") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\b':
-                                fprintf(stream, "\\b");
+                                if (fprintf(stream, "\\b") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\f':
-                                fprintf(stream, "\\f");
+                                if (fprintf(stream, "\\f") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\n':
-                                fprintf(stream, "\\n");
+                                if (fprintf(stream, "\\n") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\r':
-                                fprintf(stream, "\\r");
+                                if (fprintf(stream, "\\r") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         case '\t':
-                                fprintf(stream, "\\t");
+                                if (fprintf(stream, "\\t") < 0)
+                                        return -VARLINK_ERROR_PANIC;
                                 break;
 
                         default:
-                                if (*(uint8_t *)s < 0x20)
-                                        fprintf(stream, "\\u%04x", *s);
-                                else
-                                        fprintf(stream, "%c", *s);
+                                if (*(uint8_t *)s < 0x20) {
+                                        if (fprintf(stream, "\\u%04x", *s) < 0)
+                                                return -VARLINK_ERROR_PANIC;
+                                } else {
+                                        if (fprintf(stream, "%c", *s) < 0)
+                                                return -VARLINK_ERROR_PANIC;
+                                }
                 }
 
                 s += 1;
         }
+
+        return 0;
 }
 
 long varlink_value_write_json(VarlinkTypeKind kind,
@@ -133,11 +152,13 @@ long varlink_value_write_json(VarlinkTypeKind kind,
 
         switch (kind) {
                 case VARLINK_TYPE_BOOL:
-                        fprintf(stream, "%s%s%s", value_pre, value->b ? "true" : "false", value_post);
+                        if (fprintf(stream, "%s%s%s", value_pre, value->b ? "true" : "false", value_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_INT:
-                        fprintf(stream, "%s%" PRIi64 "%s", value_pre, value->i, value_post);
+                        if (fprintf(stream, "%s%" PRIi64 "%s", value_pre, value->i, value_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_FLOAT: {
@@ -145,15 +166,22 @@ long varlink_value_write_json(VarlinkTypeKind kind,
 
                         loc = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
 
-                        fprintf(stream, "%s%.*e%s", value_pre, DECIMAL_DIG, value->f, value_post);
+                        if (fprintf(stream, "%s%.*e%s", value_pre, DECIMAL_DIG, value->f, value_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         freelocale(loc);
                         break;
                 }
 
                 case VARLINK_TYPE_STRING:
-                        fprintf(stream, "\"%s", value_pre);
-                        json_write_string(stream, value->s);
-                        fprintf(stream, "%s\"", value_post);
+                        if (fprintf(stream, "\"%s", value_pre) < 0)
+                                return -VARLINK_ERROR_PANIC;
+
+                        r = json_write_string(stream, value->s);
+                        if (r < 0)
+                                return r;
+
+                        if (fprintf(stream, "%s\"", value_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
                         break;
 
                 case VARLINK_TYPE_ARRAY:

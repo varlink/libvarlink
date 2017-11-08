@@ -24,6 +24,9 @@ int varlink_connect_ip(const char *address) {
                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
         host = strndup(address, colon - address);
+        if (!host)
+                return -VARLINK_ERROR_PANIC;
+
         port = atoi(colon + 1);
 
         server = gethostbyname(host);
