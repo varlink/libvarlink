@@ -152,10 +152,6 @@ int varlink_listen_unix(const char *address, char **pathp) {
 
                 if (bind(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
                         return -VARLINK_ERROR_CANNOT_LISTEN;
-
-                path = strdup(path);
-                if (!path)
-                        return -VARLINK_ERROR_PANIC;
         }
 
         if (mode > 0) {
