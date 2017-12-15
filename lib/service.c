@@ -527,16 +527,16 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                                              service->method_callback_userdata);
                 if (r < 0)
                         return service_connection_close(service, connection);
+
+                connection->events |= EPOLLIN;
         }
 
-        if (!connection->stream->hup)
-                connection->events |= EPOLLIN;
-
-        if (connection->events == 0)
+        if (events & EPOLLHUP || connection->stream->hup)
                 return service_connection_close(service, connection);
 
-        if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events, connection) < 0)
-                return -VARLINK_ERROR_PANIC;
+        if (connection->events != 0)
+                if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events, connection) < 0)
+                        return -VARLINK_ERROR_PANIC;
 
         return 0;
 }
