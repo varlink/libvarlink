@@ -77,8 +77,6 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
         if (r < 0)
                 return r;
 
-        uri = NULL;
-
         return 0;
 }
 
