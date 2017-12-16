@@ -386,9 +386,9 @@ int varlink_connection_get_fd(VarlinkConnection *connection);
  *
  * Returns 0 or a negative VARLINK_ERROR.
  */
-long varlink_connection_process_events(VarlinkConnection *connection, int events);
+long varlink_connection_process_events(VarlinkConnection *connection, uint32_t events);
 
-int varlink_connection_get_events(VarlinkConnection *connection);
+uint32_t varlink_connection_get_events(VarlinkConnection *connection);
 
 /*
  * Call the specified method with the given argument. The reply will execute

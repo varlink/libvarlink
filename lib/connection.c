@@ -30,7 +30,7 @@ struct ReplyCallback {
 
 struct VarlinkConnection {
         VarlinkStream *stream;
-        int events;
+        uint32_t events;
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
 
@@ -101,7 +101,7 @@ _public_ void varlink_connection_freep(VarlinkConnection **connectionp) {
                 varlink_connection_free(*connectionp);
 }
 
-_public_ long varlink_connection_process_events(VarlinkConnection *connection, int events) {
+_public_ long varlink_connection_process_events(VarlinkConnection *connection, uint32_t events) {
         long r = 0;
 
         if (!connection->stream)
@@ -166,7 +166,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, i
         return r;
 }
 
-_public_ int varlink_connection_get_events(VarlinkConnection *connection) {
+_public_ uint32_t varlink_connection_get_events(VarlinkConnection *connection) {
         return connection->events;
 }
 

@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -23,8 +24,8 @@ static inline void fclosep(FILE **fp) {
                 fclose(*fp);
 }
 
-int epoll_add(int epfd, int fd, int events, void *ptr);
-int epoll_mod(int epfd, int fd, int events, void *ptr);
+int epoll_add(int epfd, int fd, uint32_t events, void *ptr);
+int epoll_mod(int epfd, int fd, uint32_t events, void *ptr);
 int epoll_del(int epfd, int fd);
 
 #define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))

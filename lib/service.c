@@ -55,7 +55,7 @@ struct VarlinkCall {
 
 struct ServiceConnection {
         VarlinkStream *stream;
-        int events;
+        uint32_t events_mask;
         VarlinkCall *call;
 };
 
@@ -67,6 +67,9 @@ static long varlink_call_new(VarlinkCall **callp,
         long r;
 
         call = calloc(1, sizeof(VarlinkCall));
+        if (!call)
+                return -VARLINK_ERROR_PANIC;
+
         call->refcount = 1;
         call->service = service;
         call->connection = connection;
@@ -288,6 +291,9 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
         long r;
 
         service = calloc(1, sizeof(VarlinkService));
+        if (!service)
+                return -VARLINK_ERROR_PANIC;
+
         service->listen_fd = -1;
         service->epoll_fd = -1;
 
@@ -473,6 +479,10 @@ static long varlink_service_accept(VarlinkService *service) {
         long r;
 
         connection = calloc(1, sizeof(ServiceConnection));
+        if (!connection)
+                return -VARLINK_ERROR_PANIC;
+
+        connection->events_mask = EPOLLIN;
 
         r = varlink_transport_accept(service->uri, service->listen_fd);
         if (r < 0)
@@ -480,22 +490,21 @@ static long varlink_service_accept(VarlinkService *service) {
 
         varlink_stream_new(&connection->stream, (int)r, (pid_t)-1);
 
-        r = epoll_add(service->epoll_fd, connection->stream->fd, EPOLLIN, connection);
+        r = epoll_add(service->epoll_fd, connection->stream->fd, connection->events_mask, connection);
         if (r < 0)
                 return -VARLINK_ERROR_PANIC;
 
         avl_tree_insert(service->connections, (void *)(unsigned long)connection->stream->fd, connection);
-        connection = NULL;
 
+        connection = NULL;
         return 0;
 }
 
 static long varlink_service_dispatch_connection(VarlinkService *service,
                                                 ServiceConnection *connection,
-                                                int events) {
+                                                uint32_t events) {
+        uint32_t events_mask = EPOLLIN;
         long r;
-
-        connection->events = 0;
 
         if (events & EPOLLOUT) {
                 r = varlink_stream_flush(connection->stream);
@@ -503,7 +512,7 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                         return r;
 
                 if (r > 0)
-                        connection->events |= EPOLLOUT;
+                        events_mask |= EPOLLOUT;
         }
 
         while (!connection->call) {
@@ -527,16 +536,17 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                                              service->method_callback_userdata);
                 if (r < 0)
                         return service_connection_close(service, connection);
-
-                connection->events |= EPOLLIN;
         }
 
         if (events & EPOLLHUP || connection->stream->hup)
                 return service_connection_close(service, connection);
 
-        if (connection->events != 0)
-                if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events, connection) < 0)
+        if (events_mask != connection->events_mask) {
+                connection->events_mask = events_mask;
+
+                if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events_mask, connection) < 0)
                         return -VARLINK_ERROR_PANIC;
+        }
 
         return 0;
 }
@@ -612,12 +622,12 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (r == 0 && !(call->connection->events & EPOLLOUT)) {
-                call->connection->events |= EPOLLOUT;
+        if (r == 0 && !(call->connection->events_mask & EPOLLOUT)) {
+                call->connection->events_mask |= EPOLLOUT;
 
                 if (epoll_mod(call->service->epoll_fd,
                               call->connection->stream->fd,
-                              call->connection->events,
+                              call->connection->events_mask,
                               call->connection) < 0)
                         return -VARLINK_ERROR_PANIC;
         }
@@ -675,12 +685,12 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (r == 0 && !(call->connection->events & EPOLLOUT)) {
-                call->connection->events |= EPOLLOUT;
+        if (r == 0 && !(call->connection->events_mask & EPOLLOUT)) {
+                call->connection->events_mask |= EPOLLOUT;
 
                 if (epoll_mod(call->service->epoll_fd,
                               call->connection->stream->fd,
-                              call->connection->events,
+                              call->connection->events_mask,
                               call->connection) < 0)
                         return -VARLINK_ERROR_PANIC;
         }
