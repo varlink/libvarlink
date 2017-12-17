@@ -34,6 +34,10 @@ int varlink_connect_ssh(const char *address, pid_t *pidp) {
         if (pid == 0) {
                 const char *arg[11];
                 long i = 0;
+                sigset_t mask;
+
+                sigemptyset(&mask);
+                sigprocmask(SIG_SETMASK, &mask, NULL);
 
                 arg[i++] = "ssh";
 

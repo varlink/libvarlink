@@ -26,6 +26,10 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
 
         if (pid == 0) {
                 _cleanup_(freep) char *address = NULL;
+                sigset_t mask;
+
+                sigemptyset(&mask);
+                sigprocmask(SIG_SETMASK, &mask, NULL);
 
                 /* Does not set CLOEXEC */
                 if (dup2(fd, 3) != 3)
