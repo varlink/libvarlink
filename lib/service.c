@@ -500,10 +500,24 @@ static long varlink_service_accept(VarlinkService *service) {
         return 0;
 }
 
+static long service_connection_set_events_mask(VarlinkService *service,
+                                               ServiceConnection *connection,
+                                               uint32_t events_mask) {
+        if (events_mask == connection->events_mask)
+                return 0;
+
+        connection->events_mask = events_mask;
+
+        if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events_mask, connection) < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        return 0;
+}
+
 static long varlink_service_dispatch_connection(VarlinkService *service,
                                                 ServiceConnection *connection,
                                                 uint32_t events) {
-        uint32_t events_mask = EPOLLIN;
+        uint32_t events_mask = 0;
         long r;
 
         if (events & EPOLLOUT) {
@@ -511,44 +525,46 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                 if (r < 0)
                         return r;
 
+                /* We did not write all data, wake up when we can write to the socket. */
                 if (r > 0)
                         events_mask |= EPOLLOUT;
         }
 
-        while (!connection->call) {
-                _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
+        if (events & EPOLLIN) {
+                while (!connection->call) {
+                        _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
 
-                r = varlink_stream_read(connection->stream, &message);
-                if (r < 0)
-                        return service_connection_close(service, connection);
+                        r = varlink_stream_read(connection->stream, &message);
+                        if (r < 0)
+                                return service_connection_close(service, connection);
 
-                if (r == 0)
-                        break;
+                        /* We did not receive a full message. */
+                        if (r == 0)
+                                break;
 
-                r = varlink_call_new(&connection->call, service, connection, message);
-                if (r < 0)
-                        return r;
+                        r = varlink_call_new(&connection->call, service, connection, message);
+                        if (r < 0)
+                                return r;
 
-                r = service->method_callback(service,
-                                             connection->call,
-                                             connection->call->parameters,
-                                             connection->call->flags,
-                                             service->method_callback_userdata);
-                if (r < 0)
-                        return service_connection_close(service, connection);
+                        r = service->method_callback(service,
+                                                     connection->call,
+                                                     connection->call->parameters,
+                                                     connection->call->flags,
+                                                     service->method_callback_userdata);
+                        if (r < 0)
+                                return service_connection_close(service, connection);
+                }
+
+                /* Do not wake up on incoming data while the connection is busy. */
+                if (!connection->call)
+                        events_mask |= EPOLLIN;
         }
 
+        /* Catch POLLHUP, we never try to read the EOF from a busy connection. */
         if (events & EPOLLHUP || connection->stream->hup)
                 return service_connection_close(service, connection);
 
-        if (events_mask != connection->events_mask) {
-                connection->events_mask = events_mask;
-
-                if (epoll_mod(service->epoll_fd, connection->stream->fd, connection->events_mask, connection) < 0)
-                        return -VARLINK_ERROR_PANIC;
-        }
-
-        return 0;
+        return service_connection_set_events_mask(service, connection, events_mask);
 }
 
 _public_ long varlink_service_process_events(VarlinkService *service) {
@@ -601,6 +617,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                                  VarlinkObject *parameters,
                                  uint64_t flags) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
+        uint32_t events_mask = 0;
         long r;
 
         if (call != call->connection->call)
@@ -622,20 +639,20 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (r == 0 && !(call->connection->events_mask & EPOLLOUT)) {
-                call->connection->events_mask |= EPOLLOUT;
+        /* We did not write all data, wake up when we can write to the socket. */
+        if (r == 0)
+                events_mask |= EPOLLOUT;
 
-                if (epoll_mod(call->service->epoll_fd,
-                              call->connection->stream->fd,
-                              call->connection->events_mask,
-                              call->connection) < 0)
-                        return -VARLINK_ERROR_PANIC;
-        }
+        /* Wake up on incoming data when the connection is no longer busy. */
+        if (!(flags & VARLINK_REPLY_CONTINUES))
+                events_mask |= EPOLLIN;
 
-        if (flags & VARLINK_REPLY_CONTINUES)
-                return 0;
+        r = service_connection_set_events_mask(call->service, call->connection, events_mask);
+        if (r < 0)
+                return r;
 
-        call->connection->call = varlink_call_unref(call);
+        if (!(flags & VARLINK_REPLY_CONTINUES))
+                call->connection->call = varlink_call_unref(call);
 
         return 0;
 }
@@ -649,6 +666,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         VarlinkInterface *interface;
         VarlinkInterfaceMember *member;
         _cleanup_(freep) char *string = NULL;
+        uint32_t events_mask = EPOLLIN;
         long r;
 
         if (call != call->connection->call)
@@ -685,18 +703,15 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        if (r == 0 && !(call->connection->events_mask & EPOLLOUT)) {
-                call->connection->events_mask |= EPOLLOUT;
+        /* We did not write all data, wake up when we can write to the socket. */
+        if (r == 0)
+                events_mask |= EPOLLOUT;
 
-                if (epoll_mod(call->service->epoll_fd,
-                              call->connection->stream->fd,
-                              call->connection->events_mask,
-                              call->connection) < 0)
-                        return -VARLINK_ERROR_PANIC;
-        }
+        r = service_connection_set_events_mask(call->service, call->connection, events_mask);
+        if (r < 0)
+                return r;
 
         call->connection->call = varlink_call_unref(call);
-
         return 0;
 }
 

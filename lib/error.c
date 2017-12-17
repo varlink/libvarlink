@@ -31,7 +31,7 @@ static const char *error_strings[] = {
 };
 
 _public_ const char *varlink_error_string(long error) {
-        if (error == 0 || error >= (long)ARRAY_SIZE(error_strings))
+        if (error <= 0 || error >= (long)ARRAY_SIZE(error_strings))
                 return "<invalid>";
 
         if (!error_strings[error])
