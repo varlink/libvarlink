@@ -49,6 +49,8 @@ static long call_arguments_new(CallArguments **argumentsp, int argc, char **argv
                 switch (c) {
                         case 'h':
                                 arguments->help = true;
+                                *argumentsp = arguments;
+                                arguments = NULL;
                                 return 0;
 
                         case 'm':
