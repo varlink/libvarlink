@@ -53,10 +53,10 @@ libvarlink_a = static_library(
 libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
 libvarlink_so = shared_library(
         'varlink',
-        libvarlink_sources,
         version : '0',
         link_args : ['-shared',
                      '-Wl,--version-script=' + libvarlink_sym],
+        link_whole : libvarlink_a,
         install : true)
 
 libvarlink_include = include_directories('.')
