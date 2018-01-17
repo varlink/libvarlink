@@ -407,11 +407,13 @@ _public_ VarlinkService *varlink_service_free(VarlinkService *service) {
         if (service->interfaces)
                 avl_tree_free(service->interfaces);
 
+        if (service->uri)
+                varlink_uri_free(service->uri);
+
         free(service->vendor);
         free(service->product);
         free(service->version);
         free(service->url);
-        varlink_uri_free(service->uri);
         free(service);
 
         return NULL;

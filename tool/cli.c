@@ -230,9 +230,8 @@ long cli_connect(Cli *cli,
         _cleanup_(freep) char *address = NULL;
         long r;
 
-        r = varlink_connection_new_from_uri(connectionp, uri);
-        if (r >= 0)
-                return 0;
+        if (uri->protocol != VARLINK_URI_PROTOCOL_NONE)
+                return varlink_connection_new_from_uri(connectionp, uri);
 
         r = cli_resolve(cli, uri->interface, &address);
         if (r < 0)

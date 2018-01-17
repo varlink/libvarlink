@@ -118,11 +118,20 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                 return 0;
         }
 
-        /* If no protocol is specified assume IP/host address */
-        if (strchr(address, '/'))
+        if (strncmp(address, "ip:", 3) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_IP;
+                uri->protocol = strdup("ip");
+                if (!uri->protocol)
+                        return -VARLINK_ERROR_PANIC;
 
-        /* interface/member only */
+                *stringp = strdup(address + 3);
+                if (!stringp)
+                        return -VARLINK_ERROR_PANIC;
+
+                return 0;
+        }
+
+        /* VARLINK_URI_PROTOCOL_NONE, interface/member only */
         *stringp = strdup(address);
         if (!stringp)
                 return -VARLINK_ERROR_PANIC;
