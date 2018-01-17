@@ -3,6 +3,7 @@
 #include "varlink.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -36,11 +37,11 @@ int varlink_connect_ip(const char *address) {
         memcpy(&sa.sin_addr.s_addr, server->h_addr, server->h_length);
         sa.sin_port = htons(port);
 
-        fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+        fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
-        if (connect(fd, &sa, sizeof(sa)) < 0)
+        if (connect(fd, &sa, sizeof(sa)) < 0 && errno != EINPROGRESS)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
         r = fd;

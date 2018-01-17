@@ -35,7 +35,6 @@ struct VarlinkType {
         AVLTree *fields_sorted;
 
         VarlinkType *element_type;
-        unsigned long fixed_n_elements;
 
         char *alias;
 };

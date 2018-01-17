@@ -156,16 +156,8 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                 if (r < 0)
                         return r;
 
-                if (scanner_expect_operator(scanner, "[") < 0)
-                        return -VARLINK_ERROR_INVALID_TYPE;
-
-                if (isdigit(scanner_peek(scanner))) {
-                        r = scanner_read_uint(scanner, &array->fixed_n_elements);
-                        if (r < 0)
-                                return r;
-                }
-
-                if (scanner_expect_operator(scanner, "]") < 0)
+                if (scanner_expect_operator(scanner, "[") < 0 ||
+                    scanner_expect_operator(scanner, "]") < 0)
                         return -VARLINK_ERROR_INVALID_TYPE;
 
                 array->element_type = type;
@@ -455,19 +447,15 @@ static long varlink_type_print(VarlinkType *type,
                 }
 
                 case VARLINK_TYPE_ARRAY:
-                        varlink_type_print(type->element_type,
-                                           stream,
-                                           indent,
-                                           comment_pre, comment_post,
-                                           type_pre, type_post);
-                        if (fprintf(stream, "[") < 0)
-                                return -VARLINK_ERROR_PANIC;
+                        r = varlink_type_print(type->element_type,
+                                               stream,
+                                               indent,
+                                               comment_pre, comment_post,
+                                               type_pre, type_post);
+                        if (r < 0)
+                                return r;
 
-                        if (type->fixed_n_elements > 0)
-                                if (fprintf(stream, "%lu", type->fixed_n_elements) < 0)
-                                        return -VARLINK_ERROR_PANIC;
-
-                        if (fprintf(stream, "]") < 0)
+                        if (fprintf(stream, "[]") < 0)
                                 return -VARLINK_ERROR_PANIC;
                         break;
 
