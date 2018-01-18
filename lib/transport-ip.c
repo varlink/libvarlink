@@ -52,6 +52,7 @@ int varlink_connect_ip(const char *address) {
 
 int varlink_listen_ip(const char *address) {
         _cleanup_(closep) int fd = -1;
+        const int on = 1;
         _cleanup_(freep) char *host = NULL;
         unsigned int port;
         char *colon;
@@ -70,6 +71,9 @@ int varlink_listen_ip(const char *address) {
 
         fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (fd < 0)
+                return -VARLINK_ERROR_CANNOT_LISTEN;
+
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)))
