@@ -19,6 +19,12 @@ Requires:       %{name} = %{version}-%{release}
 The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
+%package        util
+Summary:        Varlink command line tools
+
+%description    util
+The %{name}-util package contains varlink command line tools.
+
 %prep
 %setup -q
 
@@ -40,6 +46,8 @@ export LC_CTYPE=C.utf8
 %files
 %license LICENSE
 %{_libdir}/libvarlink.so.*
+
+%files util
 %{_bindir}/varlink
 %{_datadir}/bash-completion/completions/varlink
 %{_datadir}/vim/vimfiles/after/*
@@ -50,5 +58,5 @@ export LC_CTYPE=C.utf8
 %{_libdir}/pkgconfig/libvarlink.pc
 
 %changelog
-* Tue Aug 29 2017 <info@varlink.org> 1-1
+* Tue Jan 30 2018 <info@varlink.org> 1-1
 - libvarlink 1
