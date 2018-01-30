@@ -37,14 +37,10 @@ static void test_object(void) {
 
                 assert(varlink_type_new(&type, "(a: int)") == 0);
                 assert(varlink_type_unref(type) == NULL);
-                assert(varlink_type_new(&type, "(B: int)") == 0);
-                assert(varlink_type_unref(type) == NULL);
-                assert(varlink_type_new(&type, "(aB: int)") == 0);
-                assert(varlink_type_unref(type) == NULL);
-                assert(varlink_type_new(&type, "(Ba: int)") == 0);
-                assert(varlink_type_unref(type) == NULL);
                 assert(varlink_type_new(&type, "(a_b: int)") == 0);
                 assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(B: int)") == -VARLINK_ERROR_INVALID_TYPE);
+                assert(varlink_type_new(&type, "(aB: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(a__b: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(_a: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(a_: int)") == -VARLINK_ERROR_INVALID_TYPE);

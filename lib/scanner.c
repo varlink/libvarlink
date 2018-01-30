@@ -272,7 +272,6 @@ long scanner_expect_field_name(Scanner *scanner, char **namep) {
 
         switch (*scanner->p) {
                 case 'a' ... 'z':
-                case 'A' ... 'Z':
                         break;
 
                 default:
@@ -284,7 +283,6 @@ long scanner_expect_field_name(Scanner *scanner, char **namep) {
                 switch (scanner->p[i]) {
                         case '0' ... '9':
                         case 'a' ... 'z':
-                        case 'A' ... 'Z':
                                 break;
 
                         case '_':
@@ -303,7 +301,6 @@ long scanner_expect_field_name(Scanner *scanner, char **namep) {
         switch (scanner->p[len - 1]) {
                 case '0' ... '9':
                 case 'a' ... 'z':
-                case 'A' ... 'Z':
                         break;
 
                 default:
