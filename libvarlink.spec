@@ -1,3 +1,5 @@
+%global _hardened_build 1
+
 Name:           libvarlink
 Version:        1
 Release:        1%{?dist}
