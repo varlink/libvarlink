@@ -4,7 +4,7 @@ Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL2.0
 URL:            https://github.com/varlink/%{name}
-Source0:        https://github.com/varlink/%{name}/archive/%{name}-%{version}.tar.gz
+Source0:        https://github.com/varlink/%{name}/archive/%{version}/%{name}-%{version}.tar.gz
 BuildRequires:  meson
 BuildRequires:  gcc
 
