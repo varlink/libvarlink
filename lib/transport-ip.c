@@ -9,39 +9,58 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
-int varlink_connect_ip(const char *address) {
-        _cleanup_(freep) char *host = NULL;
-        unsigned int port;
-        char *colon;
-        _cleanup_(closep) int fd = -1;
-        struct hostent *server;
-        struct sockaddr_in sa = {
-                .sin_family = AF_INET,
-        };
-        int r;
+static void freeaddrinfop(struct addrinfo **ai) {
+        if (*ai)
+                freeaddrinfo(*ai);
+}
 
-        colon = strrchr(address, ':');
-        if (!colon)
+static long resolve_addrinfo(const char *address, struct addrinfo **resultp) {
+        _cleanup_(freep) char *name = NULL;
+        char *port;
+        struct addrinfo hints = {
+                .ai_family = AF_UNSPEC,
+                .ai_socktype = SOCK_STREAM,
+                .ai_flags = AI_NUMERICSERV
+        };
+        _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
+
+        port = strrchr(address, ':');
+        if (!port)
                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
-        host = strndup(address, colon - address);
-        if (!host)
+        name = strndup(address, port - address);
+        if (!name)
                 return -VARLINK_ERROR_PANIC;
 
-        port = atoi(colon + 1);
+        port += 1;
 
-        server = gethostbyname(host);
-        if (!server)
-                return -VARLINK_ERROR_CANNOT_CONNECT;
+        if (getaddrinfo(name, port, &hints, &result) != 0)
+                return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        memcpy(&sa.sin_addr.s_addr, server->h_addr, server->h_length);
-        sa.sin_port = htons(port);
+        if (result->ai_family != AF_INET &&
+            result->ai_family != AF_INET6)
+                return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        *resultp = result;
+        result = NULL;
+
+        return 0;
+}
+
+int varlink_connect_ip(const char *address) {
+        _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
+        _cleanup_(closep) int fd = -1;
+        int r;
+
+        r = resolve_addrinfo(address, &result);
+        if (r < 0)
+                return r;
+
+        fd = socket(result->ai_family, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
-        if (connect(fd, &sa, sizeof(sa)) < 0 && errno != EINPROGRESS)
+        if (connect(fd, result->ai_addr, result->ai_addrlen) < 0 && errno != EINPROGRESS)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
         r = fd;
@@ -53,30 +72,21 @@ int varlink_connect_ip(const char *address) {
 int varlink_listen_ip(const char *address) {
         _cleanup_(closep) int fd = -1;
         const int on = 1;
-        _cleanup_(freep) char *host = NULL;
-        unsigned int port;
-        char *colon;
-        struct sockaddr_in sa = {
-                .sin_family = AF_INET,
-                .sin_addr.s_addr = INADDR_ANY,
-        };
+        _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
         int r;
 
-        colon = strrchr(address, ':');
-        if (!colon)
-                return -VARLINK_ERROR_INVALID_ADDRESS;
+        r = resolve_addrinfo(address, &result);
+        if (r < 0)
+                return r;
 
-        port = atoi(colon + 1);
-        sa.sin_port = htons(port);
-
-        fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        fd = socket(result->ai_family, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
-        if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)))
+        if (bind(fd, result->ai_addr, result->ai_addrlen))
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (listen(fd, SOMAXCONN) < 0)
