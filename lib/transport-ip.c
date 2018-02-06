@@ -15,7 +15,8 @@ static void freeaddrinfop(struct addrinfo **ai) {
 }
 
 static long resolve_addrinfo(const char *address, struct addrinfo **resultp) {
-        _cleanup_(freep) char *name = NULL;
+        _cleanup_(freep) char *host = NULL;
+        char *endptr;
         char *port;
         struct addrinfo hints = {
                 .ai_family = AF_UNSPEC,
@@ -24,17 +25,44 @@ static long resolve_addrinfo(const char *address, struct addrinfo **resultp) {
         };
         _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
 
+        /* Split host and port */
         port = strrchr(address, ':');
         if (!port)
                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
-        name = strndup(address, port - address);
-        if (!name)
+        host = strndup(address, port - address);
+        if (!host)
                 return -VARLINK_ERROR_PANIC;
 
         port += 1;
 
-        if (getaddrinfo(name, port, &hints, &result) != 0)
+        /* Require decimal port specification */
+        if (strtol(port, &endptr, 10) < 0 ||
+            endptr == port || endptr[0] != '\0')
+                return -VARLINK_ERROR_INVALID_ADDRESS;
+
+        /* IPv6 literal addresses must be enclosed in [] */
+        if (strchr(host, ':')) {
+                char *s, *p;
+
+                if (host[0] != '[')
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+
+                p = strchr(host, ']');
+                if (!p || p[1] != '\0')
+                        return -VARLINK_ERROR_INVALID_ADDRESS;
+
+                s = strndup(host + 1, p - host - 1);
+                if (!s)
+                        return -VARLINK_ERROR_PANIC;
+
+                free(host);
+                host = s;
+
+                hints.ai_family = AF_INET6;
+        }
+
+        if (getaddrinfo(host, port, &hints, &result) != 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (result->ai_family != AF_INET &&
