@@ -83,16 +83,17 @@ typedef long (*VarlinkMethodCallback)(VarlinkService *service,
                                       void *userdata);
 
 /*
- * Called when a connection is closed.
+ * Called when the server closes a connection.
  */
 typedef void (*VarlinkConnectionClosedFunc)(VarlinkConnection *connection,
                                             void *userdata);
 
 /*
- * Called when a client cancels a call.
+ * Called when a client closes the connection. Call might be NULL,
+ * if there is no pending call anymore but the callback still active.
  */
-typedef void (*VarlinkCallCanceled)(VarlinkCall *call,
-                                    void *userdata);
+typedef void (*VarlinkCallConnectionClosed)(VarlinkCall *call,
+                                            void *userdata);
 
 /*
  * Called when a client receives a reply to its call.
@@ -281,7 +282,7 @@ long varlink_service_add_interface(VarlinkService *service,
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
- * readable whenever there is a connection which gets ready to receice or send
+ * readable whenever there is a connection which gets ready to receive or send
  * data.
  *
  * Returns the file descriptor or a negative VARLINK_ERROR.
@@ -315,14 +316,28 @@ void varlink_call_unrefp(VarlinkCall **callp);
 const char *varlink_call_get_method(VarlinkCall *call);
 
 /*
- * Sets a function which is called when the client cancels a call (i.e.,
- * closes the connection).
+ * Sets a function which is called when the client closes the connection.
  *
  * Only one such function can be set.
  */
-long varlink_call_set_canceled_callback(VarlinkCall *call,
-                                        VarlinkCallCanceled callback,
-                                        void *userdata);
+long varlink_call_set_connection_closed_callback(VarlinkCall *call,
+                                                 VarlinkCallConnectionClosed callback,
+                                                 void *userdata);
+
+/*
+ * Retrieve the userdata pointer set with varlink_call_set_connection_closed_callback().
+ */
+void *varlink_call_get_connection_userdata(VarlinkCall *call);
+
+/*
+ * Get the file descriptor of the connection of the current call.
+ *
+ * UNIX domain socket connections carry UID, GID, PID credentials of the peer and
+ * can be retrieved with SO_PEERCRED.
+ *
+ * Returns the file descriptor or a negative VARLINK_ERROR.
+ */
+int varlink_call_get_connection_fd(VarlinkCall *call);
 
 /*
  * Reply to a method call. After this function, the call is finished.
@@ -347,12 +362,12 @@ long varlink_call_reply_error(VarlinkCall *call,
 long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *parameter);
 
 /*
- * Create a new connection.
+ * Create a new client connection.
  */
 long varlink_connection_new(VarlinkConnection **connectionp, const char *address);
 
 /*
- * Close a connection and free all its ressources.
+ * Close a client connection and free all its ressources.
  *
  * Returns NULL
  */
@@ -363,17 +378,21 @@ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection);
  */
 void varlink_connection_freep(VarlinkConnection **connectionp);
 
+/*
+ * Register function to be called when the server closes the connection.
+ */
 void varlink_connection_set_closed_callback(VarlinkConnection *connection,
-                                            VarlinkConnectionClosedFunc closed,
+                                            VarlinkConnectionClosedFunc callback,
                                             void *userdata);
+/*
+ * Retrieve the userdata pointer set with varlink_connection_set_closed_callback().
+ */
+void *varlink_connection_get_userdata(VarlinkConnection *connection);
 
 /*
  * Get the file descriptor to integrate with poll() into a mainloop; it becomes
- * readable whenever there is a connection which gets ready to receice or send
+ * readable whenever there is a connection which gets ready to receive or send
  * data.
- *
- * UNIX domain socket connections carry UID, GID, PID credentials of the peer and
- * can be retrieved with SO_PEERCRED.
  *
  * Returns the file descriptor or a negative VARLINK_ERROR.
  */

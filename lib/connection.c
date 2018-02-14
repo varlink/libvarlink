@@ -227,9 +227,13 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
         return 0;
 }
 
+_public_ void *varlink_connection_get_userdata(VarlinkConnection *connection) {
+        return connection->closed_userdata;
+}
+
 _public_ void varlink_connection_set_closed_callback(VarlinkConnection *connection,
-                                                     VarlinkConnectionClosedFunc closed,
+                                                     VarlinkConnectionClosedFunc callback,
                                                      void *userdata) {
-        connection->closed_callback = closed;
+        connection->closed_callback = callback;
         connection->closed_userdata = userdata;
 }

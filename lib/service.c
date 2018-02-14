@@ -19,7 +19,11 @@
 
 #include "org.varlink.service.varlink.c.inc"
 
-typedef struct ServiceConnection ServiceConnection;
+typedef struct {
+        VarlinkStream *stream;
+        uint32_t events_mask;
+        VarlinkCall *call;
+} ServiceConnection;
 
 struct VarlinkService {
         char *vendor;
@@ -49,14 +53,8 @@ struct VarlinkCall {
         VarlinkObject *parameters;
         uint64_t flags;
 
-        VarlinkCallCanceled canceled_callback;
-        void *canceled_callback_data;
-};
-
-struct ServiceConnection {
-        VarlinkStream *stream;
-        uint32_t events_mask;
-        VarlinkCall *call;
+        VarlinkCallConnectionClosed closed_callback;
+        void *closed_callback_userdata;
 };
 
 static long varlink_call_new(VarlinkCall **callp,
@@ -130,8 +128,8 @@ static ServiceConnection *service_connection_free(ServiceConnection *connection)
         if (connection->call) {
                 VarlinkCall *call = connection->call;
 
-                if (call->canceled_callback)
-                        call->canceled_callback(call, call->canceled_callback_data);
+                if (call->closed_callback)
+                        call->closed_callback(call, call->closed_callback_userdata);
 
                 varlink_call_unref(call);
         }
@@ -606,13 +604,21 @@ _public_ long varlink_service_process_events(VarlinkService *service) {
         return 0;
 }
 
-_public_ long varlink_call_set_canceled_callback(VarlinkCall *call,
-                                                 VarlinkCallCanceled callback,
-                                                 void *userdata) {
-        call->canceled_callback = callback;
-        call->canceled_callback_data = userdata;
+_public_ long varlink_call_set_connection_closed_callback(VarlinkCall *call,
+                                                          VarlinkCallConnectionClosed callback,
+                                                          void *userdata) {
+        call->closed_callback = callback;
+        call->closed_callback_userdata = userdata;
 
         return 0;
+}
+
+_public_ void *varlink_call_get_connection_userdata(VarlinkCall *call) {
+        return call->closed_callback_userdata;
+}
+
+_public_ int varlink_call_get_connection_fd(VarlinkCall *call) {
+        return call->connection->stream->fd;
 }
 
 _public_ long varlink_call_reply(VarlinkCall *call,

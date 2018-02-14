@@ -17,12 +17,14 @@ global:
         varlink_array_ref;
         varlink_array_unref;
         varlink_array_unrefp;
+        varlink_call_get_connection_userdata;
+        varlink_call_get_connection_fd;
         varlink_call_get_method;
         varlink_call_ref;
         varlink_call_reply;
         varlink_call_reply_error;
         varlink_call_reply_invalid_parameter;
-        varlink_call_set_canceled_callback;
+        varlink_call_set_connection_closed_callback;
         varlink_call_unref;
         varlink_call_unrefp;
         varlink_connection_call;
@@ -30,6 +32,7 @@ global:
         varlink_connection_free;
         varlink_connection_freep;
         varlink_connection_get_events;
+        varlink_connection_get_userdata;
         varlink_connection_get_fd;
         varlink_connection_is_closed;
         varlink_connection_new;
