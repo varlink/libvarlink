@@ -299,6 +299,9 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
                                 case -VARLINK_ERROR_CONNECTION_CLOSED:
                                         return -CLI_ERROR_CONNECTION_CLOSED;
 
+                                case -VARLINK_ERROR_INVALID_MESSAGE:
+                                        return -CLI_ERROR_INVALID_MESSAGE;
+
                                 default:
                                         return -CLI_ERROR_PANIC;
                         }
