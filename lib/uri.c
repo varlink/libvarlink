@@ -118,13 +118,13 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                 return 0;
         }
 
-        if (strncmp(address, "ip:", 3) == 0) {
-                uri->type = VARLINK_URI_PROTOCOL_IP;
-                uri->protocol = strdup("ip");
+        if (strncmp(address, "tcp:", 4) == 0) {
+                uri->type = VARLINK_URI_PROTOCOL_TCP;
+                uri->protocol = strdup("tcp");
                 if (!uri->protocol)
                         return -VARLINK_ERROR_PANIC;
 
-                *stringp = strdup(address + 3);
+                *stringp = strdup(address + 4);
                 if (!stringp)
                         return -VARLINK_ERROR_PANIC;
 
@@ -273,7 +273,7 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                                 return r;
                         break;
 
-                case VARLINK_URI_PROTOCOL_IP:
+                case VARLINK_URI_PROTOCOL_TCP:
                 case VARLINK_URI_PROTOCOL_SSH:
                         if (!string || strchr(string, '/'))
                                 return -VARLINK_ERROR_INVALID_ADDRESS;

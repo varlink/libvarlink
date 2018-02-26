@@ -6,7 +6,7 @@
 
 int varlink_transport_listen(VarlinkURI *uri, char **pathp) {
         switch (uri->type) {
-                case VARLINK_URI_PROTOCOL_IP:
+                case VARLINK_URI_PROTOCOL_TCP:
                         return varlink_listen_ip(uri->host);
 
                 case VARLINK_URI_PROTOCOL_UNIX:
@@ -36,7 +36,7 @@ _public_ int varlink_listen(const char *address, char **pathp) {
 
 int varlink_transport_accept(VarlinkURI *uri, int listen_fd) {
         switch (uri->type) {
-                case VARLINK_URI_PROTOCOL_IP:
+                case VARLINK_URI_PROTOCOL_TCP:
                         return varlink_accept_ip(listen_fd);
 
                 case VARLINK_URI_PROTOCOL_UNIX:
@@ -60,11 +60,11 @@ int varlink_transport_connect(VarlinkURI *uri, pid_t *pidp) {
                 case VARLINK_URI_PROTOCOL_EXEC:
                         return varlink_connect_exec(uri->path, pidp);
 
-                case VARLINK_URI_PROTOCOL_IP:
-                        return varlink_connect_ip(uri->host);
-
                 case VARLINK_URI_PROTOCOL_SSH:
                         return varlink_connect_ssh(uri->host, pidp);
+
+                case VARLINK_URI_PROTOCOL_TCP:
+                        return varlink_connect_ip(uri->host);
 
                 case VARLINK_URI_PROTOCOL_UNIX:
                         return varlink_connect_unix(uri->path);
