@@ -27,6 +27,7 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
         if (pid == 0) {
                 _cleanup_(freep) char *address = NULL;
                 sigset_t mask;
+                char s[32];
 
                 sigemptyset(&mask);
                 sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -40,6 +41,10 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
 
                 if (asprintf(&address, "unix:%s;mode=0600", path) < 0)
                         _exit(EXIT_FAILURE);
+
+                sprintf(s, "%d", getpid());
+                setenv("LISTEN_PID", s, true);
+                setenv("LISTEN_FDS", "1", true);
 
                 execlp(executable, executable, address, NULL);
                 _exit(EXIT_FAILURE);
