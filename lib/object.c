@@ -446,7 +446,6 @@ long varlink_object_write_json(VarlinkObject *object,
         long r;
 
         n_fields = varlink_object_get_field_names(object, &field_names);
-
         if (n_fields == 0) {
                 if (fprintf(stream, "{}") < 0)
                         return -VARLINK_ERROR_PANIC;

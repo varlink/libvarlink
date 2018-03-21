@@ -198,7 +198,8 @@ static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 return r;
                         }
 
-                        if (member->alias->kind != VARLINK_TYPE_OBJECT) {
+                        if (member->alias->kind != VARLINK_TYPE_OBJECT &&
+                            member->alias->kind != VARLINK_TYPE_ENUM) {
                                 scanner_error(scanner, SCANNER_ERROR_OBJECT_EXPECTED);
                                 return -VARLINK_ERROR_INVALID_INTERFACE;
                         }
