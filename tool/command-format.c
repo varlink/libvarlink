@@ -40,11 +40,13 @@ static long read_file(FILE *file, char **contentsp) {
 
 static long format_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
-                { "help",   no_argument,       NULL, 'h' },
+                { "in-place", no_argument,       NULL, 'i' },
+                { "help",     no_argument,       NULL, 'h' },
                 {}
         };
         int c;
-        const char *in_filename = NULL;
+        const char *filename = NULL;
+        bool inplace = false;
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
         _cleanup_(fclosep) FILE *in_file = NULL;
@@ -52,8 +54,12 @@ static long format_run(Cli *cli, int argc, char **argv) {
         _cleanup_(freep) char *out = NULL;
         long r;
 
-        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "ih", options, NULL)) >= 0) {
                 switch (c) {
+                        case 'i':
+                                inplace = true;
+                                break;
+
                         case 'h':
                                 printf("Usage: %s format [OPTIONS]... ARGUMENTS\n", program_invocation_short_name);
                                 printf("\n");
@@ -69,16 +75,16 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        in_filename = argv[optind];
-        if (!in_filename) {
+        filename = argv[optind];
+        if (!filename) {
                 fprintf(stderr, "Usage: %s [OPTIONS]... FILE\n", program_invocation_short_name);
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        if (strcmp(in_filename, "-") != 0) {
-                in_file = fopen(in_filename, "r");
+        if (strcmp(filename, "-") != 0) {
+                in_file = fopen(filename, "r");
                 if (!in_file) {
-                        fprintf(stderr, "Error opening %s for reading: %s\n", in_filename, strerror(errno));
+                        fprintf(stderr, "Error opening %s for reading: %s\n", filename, strerror(errno));
                         return -CLI_ERROR_PANIC;
                 }
         } else
@@ -86,14 +92,14 @@ static long format_run(Cli *cli, int argc, char **argv) {
 
         r = read_file(in_file, &in);
         if (r < 0) {
-                fprintf(stderr, "Error reading %s: %s\n", in_filename, strerror(-r));
+                fprintf(stderr, "Error reading %s: %s\n", filename, strerror(-r));
                 return -CLI_ERROR_PANIC;
         }
 
         r = varlink_interface_new(&interface, in, &scanner);
         if (r < 0) {
                 fprintf(stderr, "%s:%lu:%lu: %s\n",
-                        in_filename,
+                        filename,
                         scanner->line_nr, scanner->error.pos_nr,
                         scanner_error_string(scanner->error.no));
                 return -CLI_ERROR_PANIC;
@@ -110,7 +116,26 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_PANIC;
         }
 
-        printf("%s", out);
+        if (inplace) {
+                _cleanup_(fclosep) FILE *f;
+                _cleanup_(freep) char *filename_tmp = NULL;
+
+                asprintf(&filename_tmp, "%s.tmp", filename);
+
+                f = fopen(filename_tmp, "w");
+                fwrite(out, 1, strlen(out), f);
+                fflush(f);
+                if (ferror(f) != 0) {
+                        fprintf(stderr, "Error writing interface file: %s", strerror(-r));
+                        return -CLI_ERROR_PANIC;
+                }
+
+                if (rename(filename_tmp, filename) < 0) {
+                        fprintf(stderr, "Error renaming interface file: %s", strerror(-r));
+                        return -CLI_ERROR_PANIC;
+                }
+        } else
+                printf("%s", out);
 
         return 0;
 }
