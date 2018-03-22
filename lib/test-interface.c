@@ -16,12 +16,8 @@ static void test_invalid(void) {
                 "interface com.example.test\nmethod Foo int -> ()",
                 "interface com.example.test\ntype Bar ()\nmethod Foo Bar -> ()",
 
-                /* types must be objects */
+                /* types must be objects or enums */
                 "interface com.example.test\ntype Foo string",
-
-                /* this will valid once enums work - allow setting them
-                 * as types, too */
-                "interface com.example.test\ntype Foo (one, two, three)"
         };
 
         for (unsigned long c = 0; c < ARRAY_SIZE(cases); c += 1) {
