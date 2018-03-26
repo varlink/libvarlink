@@ -39,7 +39,7 @@ int varlink_connect_exec(const char *executable, pid_t *pidp) {
                 if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
 
-                if (asprintf(&address, "unix:%s;mode=0600", path) < 0)
+                if (asprintf(&address, "--varlink=unix:%s;mode=0600", path) < 0)
                         _exit(EXIT_FAILURE);
 
                 sprintf(s, "%d", getpid());
