@@ -54,6 +54,7 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                 case VARLINK_TYPE_INT:
                 case VARLINK_TYPE_FLOAT:
                 case VARLINK_TYPE_STRING:
+                case VARLINK_TYPE_MAYBE:
                 case VARLINK_TYPE_ENUM:
                 case VARLINK_TYPE_FOREIGN_OBJECT:
                         break;

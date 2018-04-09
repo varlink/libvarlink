@@ -26,8 +26,12 @@ static void test_basic(void) {
         assert(strcmp(varlink_type_get_typestring(type), "string") == 0);
         assert(varlink_type_unref(type) == NULL);
 
-        assert(varlink_type_new(&type, "int[]") == 0);
-        assert(strcmp(varlink_type_get_typestring(type), "int[]") == 0);
+        assert(varlink_type_new(&type, "[]int") == 0);
+        assert(strcmp(varlink_type_get_typestring(type), "[]int") == 0);
+        assert(varlink_type_unref(type) == NULL);
+
+        assert(varlink_type_new(&type, "?[]int") == 0);
+        assert(strcmp(varlink_type_get_typestring(type), "?[]int") == 0);
         assert(varlink_type_unref(type) == NULL);
 }
 
@@ -37,10 +41,10 @@ static void test_object(void) {
 
                 assert(varlink_type_new(&type, "(a: int)") == 0);
                 assert(varlink_type_unref(type) == NULL);
+                assert(varlink_type_new(&type, "(A: int)") == 0);
+                assert(varlink_type_unref(type) == NULL);
                 assert(varlink_type_new(&type, "(a_b: int)") == 0);
                 assert(varlink_type_unref(type) == NULL);
-                assert(varlink_type_new(&type, "(B: int)") == -VARLINK_ERROR_INVALID_TYPE);
-                assert(varlink_type_new(&type, "(aB: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(a__b: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(_a: int)") == -VARLINK_ERROR_INVALID_TYPE);
                 assert(varlink_type_new(&type, "(a_: int)") == -VARLINK_ERROR_INVALID_TYPE);
@@ -59,8 +63,8 @@ static void test_object(void) {
                 VarlinkType *type;
                 VarlinkType *field_type;
 
-                assert(varlink_type_new(&type, "(one: string, two: int[])") == 0);
-                assert(strcmp(varlink_type_get_typestring(type), "(one: string, two: int[])") == 0);
+                assert(varlink_type_new(&type, "(one: string, two: []int)") == 0);
+                assert(strcmp(varlink_type_get_typestring(type), "(one: string, two: []int)") == 0);
 
                 field_type = varlink_type_field_get_type(type, "one");
                 assert(field_type);
@@ -68,7 +72,7 @@ static void test_object(void) {
 
                 field_type = varlink_type_field_get_type(type, "two");
                 assert(field_type);
-                assert(strcmp(varlink_type_get_typestring(field_type), "int[]") == 0);
+                assert(strcmp(varlink_type_get_typestring(field_type), "[]int") == 0);
 
                 assert(varlink_type_unref(type) == NULL);
         }
@@ -168,10 +172,10 @@ static void test_type_get_typestring(void) {
         const char *cases[] = {
                 "int",
                 "float",
-                "string[]",
+                "[]string",
                 "string",
                 "()",
-                "(foo: string, bar: int[], baz: string[])"
+                "(foo: string, bar: []int, baz: []string)"
         };
 
         for (unsigned long i = 0; i < ARRAY_SIZE(cases); i += 1) {

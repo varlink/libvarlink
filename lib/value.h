@@ -6,16 +6,14 @@
 
 #include <stdio.h>
 
-typedef union VarlinkValue VarlinkValue;
-
-union VarlinkValue {
+typedef union {
         bool b;
         int64_t i;
         double f;
         char *s;
         VarlinkArray *array;
         VarlinkObject *object;
-};
+} VarlinkValue;
 
 long varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner);
 long varlink_value_write_json(VarlinkTypeKind kind,

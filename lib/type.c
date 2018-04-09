@@ -42,7 +42,35 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         long r;
 
-        if (scanner_read_keyword(scanner, "bool")) {
+        if (scanner_peek(scanner) == '[') {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_ARRAY);
+                if (r < 0)
+                        return r;
+
+                if (scanner_expect_operator(scanner, "[]") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                r = varlink_type_new_from_scanner(&type->element_type, scanner);
+                if (r < 0)
+                        return r;
+
+        } else if (scanner_peek(scanner) == '?') {
+                r = varlink_type_allocate(&type, VARLINK_TYPE_MAYBE);
+                if (r < 0)
+                        return r;
+
+                if (scanner_expect_operator(scanner, "?") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
+                r = varlink_type_new_from_scanner(&type->element_type, scanner);
+                if (r < 0)
+                        return r;
+
+                /* Do not nest maybes */
+                if (type->element_type->kind == VARLINK_TYPE_MAYBE)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
+        } else if (scanner_read_keyword(scanner, "bool")) {
                 r = varlink_type_allocate(&type, VARLINK_TYPE_BOOL);
                 if (r < 0)
                         return r;
@@ -149,22 +177,6 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                 type->alias = alias;
         }
 
-        if (scanner_peek(scanner) == '[') {
-                _cleanup_(varlink_type_unrefp) VarlinkType *array = NULL;
-
-                r = varlink_type_allocate(&array, VARLINK_TYPE_ARRAY);
-                if (r < 0)
-                        return r;
-
-                if (scanner_expect_operator(scanner, "[") < 0 ||
-                    scanner_expect_operator(scanner, "]") < 0)
-                        return -VARLINK_ERROR_INVALID_TYPE;
-
-                array->element_type = type;
-                type = array;
-                array = NULL;
-        }
-
         *typep = type;
         type = NULL;
 
@@ -260,6 +272,11 @@ VarlinkType *varlink_type_unref(VarlinkType *type) {
                                 break;
 
                         case VARLINK_TYPE_ARRAY:
+                                if (type->element_type)
+                                        varlink_type_unref(type->element_type);
+                                break;
+
+                        case VARLINK_TYPE_MAYBE:
                                 if (type->element_type)
                                         varlink_type_unref(type->element_type);
                                 break;
@@ -447,6 +464,9 @@ static long varlink_type_print(VarlinkType *type,
                 }
 
                 case VARLINK_TYPE_ARRAY:
+                        if (fprintf(stream, "[]") < 0)
+                                return -VARLINK_ERROR_PANIC;
+
                         r = varlink_type_print(type->element_type,
                                                stream,
                                                indent,
@@ -455,8 +475,20 @@ static long varlink_type_print(VarlinkType *type,
                         if (r < 0)
                                 return r;
 
-                        if (fprintf(stream, "[]") < 0)
+                        break;
+
+                case VARLINK_TYPE_MAYBE:
+                        if (fprintf(stream, "?") < 0)
                                 return -VARLINK_ERROR_PANIC;
+
+                        r = varlink_type_print(type->element_type,
+                                               stream,
+                                               indent,
+                                               comment_pre, comment_post,
+                                               type_pre, type_post);
+                        if (r < 0)
+                                return r;
+
                         break;
 
                 case VARLINK_TYPE_FOREIGN_OBJECT:

@@ -13,6 +13,7 @@ typedef enum {
         VARLINK_TYPE_FLOAT,
         VARLINK_TYPE_STRING,
         VARLINK_TYPE_ARRAY,
+        VARLINK_TYPE_MAYBE,
         VARLINK_TYPE_ENUM,
         VARLINK_TYPE_OBJECT,
         VARLINK_TYPE_FOREIGN_OBJECT,
@@ -30,12 +31,15 @@ struct VarlinkType {
         char *typestring;
         VarlinkTypeKind kind;
 
+        /* Object, Enum */
         VarlinkTypeField **fields;
         unsigned long n_fields;
         AVLTree *fields_sorted;
 
+        /* Array, Maybe */
         VarlinkType *element_type;
 
+        /* Alias */
         char *alias;
 };
 
