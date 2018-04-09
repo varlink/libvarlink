@@ -87,4 +87,3 @@ long scanner_expect_type_name(Scanner *scanner, char **namep);
  */
 bool scanner_read_keyword(Scanner *scanner, const char *keyword);
 bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp);
-bool scanner_read_uint(Scanner *scanner, uint64_t *uintp);

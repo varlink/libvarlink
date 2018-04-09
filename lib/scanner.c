@@ -598,26 +598,6 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
         return true;
 }
 
-bool scanner_read_uint(Scanner *scanner, uint64_t *uintp) {
-        uint64_t u;
-
-        scanner_advance(scanner);
-
-        /*
-         * Don't allow leading 0s and negative values (strtoul converts
-         * those to positives)
-         */
-        if (*scanner->p < '1' || *scanner->p > '9')
-                return false;
-
-        u = strtoul(scanner->p, (char **)&scanner->p, 10);
-
-        if (uintp)
-                *uintp = u;
-
-        return true;
-}
-
 long scanner_expect_operator(Scanner *scanner, const char *op) {
         unsigned long length = strlen(op);
 
