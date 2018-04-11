@@ -43,11 +43,20 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
         long r;
 
         if (scanner_peek(scanner) == '[') {
-                r = varlink_type_allocate(&type, VARLINK_TYPE_ARRAY);
-                if (r < 0)
-                        return r;
+                if (scanner_expect_operator(scanner, "[") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
 
-                if (scanner_expect_operator(scanner, "[]") < 0)
+                if (scanner_read_keyword(scanner, "string")) {
+                        r = varlink_type_allocate(&type, VARLINK_TYPE_MAP);
+                        if (r < 0)
+                                return r;
+                } else {
+                        r = varlink_type_allocate(&type, VARLINK_TYPE_ARRAY);
+                        if (r < 0)
+                                return r;
+                }
+
+                if (scanner_expect_operator(scanner, "]") < 0)
                         return -VARLINK_ERROR_INVALID_TYPE;
 
                 r = varlink_type_new_from_scanner(&type->element_type, scanner);
@@ -55,12 +64,12 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         return r;
 
         } else if (scanner_peek(scanner) == '?') {
+                if (scanner_expect_operator(scanner, "?") < 0)
+                        return -VARLINK_ERROR_INVALID_TYPE;
+
                 r = varlink_type_allocate(&type, VARLINK_TYPE_MAYBE);
                 if (r < 0)
                         return r;
-
-                if (scanner_expect_operator(scanner, "?") < 0)
-                        return -VARLINK_ERROR_INVALID_TYPE;
 
                 r = varlink_type_new_from_scanner(&type->element_type, scanner);
                 if (r < 0)
@@ -272,6 +281,7 @@ VarlinkType *varlink_type_unref(VarlinkType *type) {
                                 break;
 
                         case VARLINK_TYPE_ARRAY:
+                        case VARLINK_TYPE_MAP:
                                 if (type->element_type)
                                         varlink_type_unref(type->element_type);
                                 break;
@@ -462,6 +472,20 @@ static long varlink_type_print(VarlinkType *type,
                                 return -VARLINK_ERROR_PANIC;
                         break;
                 }
+
+                case VARLINK_TYPE_MAP:
+                        if (fprintf(stream, "[string]") < 0)
+                                return -VARLINK_ERROR_PANIC;
+
+                        r = varlink_type_print(type->element_type,
+                                               stream,
+                                               indent,
+                                               comment_pre, comment_post,
+                                               type_pre, type_post);
+                        if (r < 0)
+                                return r;
+
+                        break;
 
                 case VARLINK_TYPE_ARRAY:
                         if (fprintf(stream, "[]") < 0)

@@ -60,6 +60,7 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                         break;
 
                 case VARLINK_TYPE_ARRAY:
+                case VARLINK_TYPE_MAP:
                         if (!varlink_interface_try_resolve(interface, type->element_type, first_unknownp))
                                 return false;
 

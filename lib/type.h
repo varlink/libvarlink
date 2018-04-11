@@ -15,6 +15,7 @@ typedef enum {
         VARLINK_TYPE_ARRAY,
         VARLINK_TYPE_MAYBE,
         VARLINK_TYPE_ENUM,
+        VARLINK_TYPE_MAP,
         VARLINK_TYPE_OBJECT,
         VARLINK_TYPE_FOREIGN_OBJECT,
         VARLINK_TYPE_ALIAS
@@ -36,7 +37,7 @@ struct VarlinkType {
         unsigned long n_fields;
         AVLTree *fields_sorted;
 
-        /* Array, Maybe */
+        /* Array, Maybe, Map */
         VarlinkType *element_type;
 
         /* Alias */

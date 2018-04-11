@@ -33,6 +33,10 @@ static void test_basic(void) {
         assert(varlink_type_new(&type, "?[]int") == 0);
         assert(strcmp(varlink_type_get_typestring(type), "?[]int") == 0);
         assert(varlink_type_unref(type) == NULL);
+
+        assert(varlink_type_new(&type, "[string]int") == 0);
+        assert(strcmp(varlink_type_get_typestring(type), "[string]int") == 0);
+        assert(varlink_type_unref(type) == NULL);
 }
 
 static void test_object(void) {
