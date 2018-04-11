@@ -1,8 +1,7 @@
-#include "service.h"
-
 #include "interface.h"
 #include "message.h"
 #include "object.h"
+#include "service.h"
 #include "stream.h"
 #include "transport.h"
 #include "uri.h"

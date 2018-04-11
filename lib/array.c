@@ -5,7 +5,7 @@
 
 struct VarlinkArray {
         unsigned long refcount;
-        VarlinkTypeKind element_kind;
+        VarlinkValueKind element_kind;
 
         VarlinkValue *elements;
         unsigned long n_elements;
@@ -28,7 +28,7 @@ static long array_append(VarlinkArray *array, VarlinkValue **valuep) {
         return 0;
 }
 
-VarlinkTypeKind varlink_array_get_element_kind(VarlinkArray *array) {
+VarlinkValueKind varlink_array_get_element_kind(VarlinkArray *array) {
         return array->element_kind;
 }
 
@@ -61,7 +61,7 @@ long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner) {
                 return -VARLINK_ERROR_INVALID_JSON;
 
         while (scanner_peek(scanner) != ']') {
-                VarlinkTypeKind kind;
+                VarlinkValueKind kind;
                 VarlinkValue *value;
 
                 if (!first) {
@@ -125,7 +125,7 @@ _public_ long varlink_array_get_bool(VarlinkArray *array, unsigned long index, b
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_BOOL)
+        if (array->element_kind != VARLINK_VALUE_BOOL)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *bp = array->elements[index].b;
@@ -137,7 +137,7 @@ _public_ long varlink_array_get_int(VarlinkArray *array, unsigned long index, in
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_INT)
+        if (array->element_kind != VARLINK_VALUE_INT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *ip = array->elements[index].i;
@@ -149,7 +149,7 @@ _public_ long varlink_array_get_float(VarlinkArray *array, unsigned long index, 
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_FLOAT)
+        if (array->element_kind != VARLINK_VALUE_FLOAT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *fp = array->elements[index].f;
@@ -161,7 +161,7 @@ _public_ long varlink_array_get_string(VarlinkArray *array, unsigned long index,
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_STRING)
+        if (array->element_kind != VARLINK_VALUE_STRING)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *stringp = array->elements[index].s;
@@ -173,7 +173,7 @@ _public_ long varlink_array_get_array(VarlinkArray *array, unsigned long index, 
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_ARRAY)
+        if (array->element_kind != VARLINK_VALUE_ARRAY)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *elementp = array->elements[index].array;
@@ -185,8 +185,7 @@ _public_ long varlink_array_get_object(VarlinkArray *array, unsigned long index,
         if (index >= array->n_elements)
                 return -VARLINK_ERROR_INVALID_INDEX;
 
-        if (array->element_kind != VARLINK_TYPE_OBJECT &&
-            array->element_kind != VARLINK_TYPE_FOREIGN_OBJECT)
+        if (array->element_kind != VARLINK_VALUE_OBJECT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *objectp = array->elements[index].object;
@@ -211,8 +210,8 @@ _public_ long varlink_array_append_bool(VarlinkArray *array, bool b) {
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_BOOL;
-        else if (array->element_kind != VARLINK_TYPE_BOOL)
+                array->element_kind = VARLINK_VALUE_BOOL;
+        else if (array->element_kind != VARLINK_VALUE_BOOL)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);
@@ -232,8 +231,8 @@ _public_ long varlink_array_append_int(VarlinkArray *array, int64_t i) {
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_INT;
-        else if (array->element_kind != VARLINK_TYPE_INT)
+                array->element_kind = VARLINK_VALUE_INT;
+        else if (array->element_kind != VARLINK_VALUE_INT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);
@@ -253,8 +252,8 @@ _public_ long varlink_array_append_float(VarlinkArray *array, double f) {
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_FLOAT;
-        else if (array->element_kind != VARLINK_TYPE_FLOAT)
+                array->element_kind = VARLINK_VALUE_FLOAT;
+        else if (array->element_kind != VARLINK_VALUE_FLOAT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);
@@ -274,8 +273,8 @@ _public_ long varlink_array_append_string(VarlinkArray *array, const char *strin
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_STRING;
-        else if (array->element_kind != VARLINK_TYPE_STRING)
+                array->element_kind = VARLINK_VALUE_STRING;
+        else if (array->element_kind != VARLINK_VALUE_STRING)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);
@@ -297,8 +296,8 @@ _public_ long varlink_array_append_array(VarlinkArray *array, VarlinkArray *elem
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_ARRAY;
-        else if (array->element_kind != VARLINK_TYPE_ARRAY)
+                array->element_kind = VARLINK_VALUE_ARRAY;
+        else if (array->element_kind != VARLINK_VALUE_ARRAY)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);
@@ -318,8 +317,8 @@ _public_ long varlink_array_append_object(VarlinkArray *array, VarlinkObject *ob
                 return -VARLINK_ERROR_READ_ONLY;
 
         if (array->n_elements == 0)
-                array->element_kind = VARLINK_TYPE_OBJECT;
-        else if (array->element_kind != VARLINK_TYPE_OBJECT)
+                array->element_kind = VARLINK_VALUE_OBJECT;
+        else if (array->element_kind != VARLINK_VALUE_OBJECT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         r = array_append(array, &v);

@@ -10,10 +10,10 @@ libvarlink_sources = '''
         error.c
         interface.c
         interface.h
-        object.c
-        object.h
         message.c
         message.h
+        object.c
+        object.h
         scanner.c
         scanner.h
         service.c

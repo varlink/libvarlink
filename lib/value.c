@@ -1,46 +1,38 @@
-#include "value.h"
-
 #include "array.h"
-#include "string.h"
 #include "object.h"
+#include "scanner.h"
 #include "util.h"
+#include "value.h"
 
 #include <float.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <string.h>
 
-void varlink_value_clear(VarlinkTypeKind kind, VarlinkValue *value) {
+void varlink_value_clear(VarlinkValueKind kind, VarlinkValue *value) {
         switch (kind) {
-                case VARLINK_TYPE_BOOL:
-                case VARLINK_TYPE_INT:
-                case VARLINK_TYPE_FLOAT:
+                case VARLINK_VALUE_BOOL:
+                case VARLINK_VALUE_INT:
+                case VARLINK_VALUE_FLOAT:
                         break;
 
-                case VARLINK_TYPE_STRING:
+                case VARLINK_VALUE_STRING:
                         free(value->s);
                         break;
 
-                case VARLINK_TYPE_ARRAY:
+                case VARLINK_VALUE_ARRAY:
                         if (value->array)
                                 varlink_array_unref(value->array);
                         break;
 
-                case VARLINK_TYPE_OBJECT:
-                case VARLINK_TYPE_FOREIGN_OBJECT:
+                case VARLINK_VALUE_OBJECT:
                         if (value->object)
                                 varlink_object_unref(value->object);
-                        break;
-
-                case VARLINK_TYPE_ENUM:
-                case VARLINK_TYPE_MAP:
-                case VARLINK_TYPE_ALIAS:
-                case VARLINK_TYPE_MAYBE:
-                        abort();
                         break;
         }
 }
 
-long varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value, Scanner *scanner) {
+long varlink_value_read_from_scanner(VarlinkValueKind *kindp, VarlinkValue *value, Scanner *scanner) {
         ScannerNumber number;
         long r;
 
@@ -49,37 +41,37 @@ long varlink_value_read_from_scanner(VarlinkTypeKind *kindp, VarlinkValue *value
                 if (r < 0)
                         return false;
 
-                *kindp = VARLINK_TYPE_OBJECT;
+                *kindp = VARLINK_VALUE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
                 r = varlink_array_new_from_scanner(&value->array, scanner);
                 if (r < 0)
                         return false;
 
-                *kindp = VARLINK_TYPE_ARRAY;
+                *kindp = VARLINK_VALUE_ARRAY;
 
         } else if (scanner_read_keyword(scanner, "true")) {
                 value->b = true;
-                *kindp = VARLINK_TYPE_BOOL;
+                *kindp = VARLINK_VALUE_BOOL;
 
         } else if (scanner_read_keyword(scanner, "false")) {
                 value->b = false;
-                *kindp = VARLINK_TYPE_BOOL;
+                *kindp = VARLINK_VALUE_BOOL;
 
         } else if (scanner_peek(scanner) == '"') {
                 r = scanner_expect_string(scanner, &value->s);
                 if (r < 0)
                         return r;
 
-                *kindp = VARLINK_TYPE_STRING;
+                *kindp = VARLINK_VALUE_STRING;
 
         } else if (scanner_read_number(scanner, &number)) {
                 if (number.is_double) {
                         value->f = number.d;
-                        *kindp = VARLINK_TYPE_FLOAT;
+                        *kindp = VARLINK_VALUE_FLOAT;
                 } else {
                         value->i = number.i;
-                        *kindp = VARLINK_TYPE_INT;
+                        *kindp = VARLINK_VALUE_INT;
                 }
 
         } else {
@@ -144,7 +136,7 @@ static long json_write_string(FILE *stream, const char *s) {
         return 0;
 }
 
-long varlink_value_write_json(VarlinkTypeKind kind,
+long varlink_value_write_json(VarlinkValueKind kind,
                               VarlinkValue *value,
                               FILE *stream,
                               long indent,
@@ -153,17 +145,17 @@ long varlink_value_write_json(VarlinkTypeKind kind,
         long r;
 
         switch (kind) {
-                case VARLINK_TYPE_BOOL:
+                case VARLINK_VALUE_BOOL:
                         if (fprintf(stream, "%s%s%s", value_pre, value->b ? "true" : "false", value_post) < 0)
                                 return -VARLINK_ERROR_PANIC;
                         break;
 
-                case VARLINK_TYPE_INT:
+                case VARLINK_VALUE_INT:
                         if (fprintf(stream, "%s%" PRIi64 "%s", value_pre, value->i, value_post) < 0)
                                 return -VARLINK_ERROR_PANIC;
                         break;
 
-                case VARLINK_TYPE_FLOAT: {
+                case VARLINK_VALUE_FLOAT: {
                         locale_t loc;
 
                         loc = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
@@ -174,7 +166,7 @@ long varlink_value_write_json(VarlinkTypeKind kind,
                         break;
                 }
 
-                case VARLINK_TYPE_STRING:
+                case VARLINK_VALUE_STRING:
                         if (fprintf(stream, "\"%s", value_pre) < 0)
                                 return -VARLINK_ERROR_PANIC;
 
@@ -186,27 +178,20 @@ long varlink_value_write_json(VarlinkTypeKind kind,
                                 return -VARLINK_ERROR_PANIC;
                         break;
 
-                case VARLINK_TYPE_ARRAY:
+                case VARLINK_VALUE_ARRAY:
                         r = varlink_array_write_json(value->array, stream, indent,
                                                      key_pre, key_post, value_pre, value_post);
                         if (r < 0)
                                 return r;
                         break;
 
-                case VARLINK_TYPE_OBJECT:
-                case VARLINK_TYPE_FOREIGN_OBJECT:
+                case VARLINK_VALUE_OBJECT:
                         r = varlink_object_write_json(value->object, stream, indent,
                                                       key_pre, key_post, value_pre, value_post);
                         if (r < 0)
                                 return r;
                         break;
 
-                case VARLINK_TYPE_ENUM:
-                case VARLINK_TYPE_MAP:
-                case VARLINK_TYPE_ALIAS:
-                case VARLINK_TYPE_MAYBE:
-                        abort();
-                        break;
         }
 
         return 0;

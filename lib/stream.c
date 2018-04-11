@@ -1,6 +1,5 @@
-#include "stream.h"
-
 #include "object.h"
+#include "stream.h"
 #include "util.h"
 
 #include <errno.h>
@@ -155,7 +154,7 @@ long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message) {
         long length;
         long r;
 
-        length = varlink_object_to_pretty_json(message, &json, -1, NULL, NULL, NULL, NULL);
+        length = varlink_object_to_json(message, &json);
         if (length < 0)
                 return length;
 

@@ -1,7 +1,6 @@
-#include "object.h"
-
 #include "array.h"
 #include "avltree.h"
+#include "object.h"
 #include "scanner.h"
 #include "util.h"
 
@@ -18,7 +17,7 @@ struct VarlinkObject {
 
 struct Field {
         char *name;
-        VarlinkTypeKind kind;
+        VarlinkValueKind kind;
         VarlinkValue value;
 };
 
@@ -210,7 +209,7 @@ _public_ long varlink_object_get_bool(VarlinkObject *object, const char *field_n
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_TYPE_BOOL)
+        if (field->kind != VARLINK_VALUE_BOOL)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *bp = field->value.b;
@@ -225,7 +224,7 @@ _public_ long varlink_object_get_int(VarlinkObject *object, const char *field_na
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_TYPE_INT)
+        if (field->kind != VARLINK_VALUE_INT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *ip = field->value.i;
@@ -240,9 +239,9 @@ _public_ long varlink_object_get_float(VarlinkObject *object, const char *field_
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind == VARLINK_TYPE_INT)
+        if (field->kind == VARLINK_VALUE_INT)
                 *fp = field->value.i;
-        else if (field->kind == VARLINK_TYPE_FLOAT)
+        else if (field->kind == VARLINK_VALUE_FLOAT)
                 *fp = field->value.f;
         else
                 return -VARLINK_ERROR_INVALID_TYPE;
@@ -257,7 +256,7 @@ _public_ long varlink_object_get_string(VarlinkObject *object, const char *field
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_TYPE_STRING)
+        if (field->kind != VARLINK_VALUE_STRING)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *stringp = field->value.s;
@@ -272,7 +271,7 @@ _public_ long varlink_object_get_array(VarlinkObject *object, const char *field_
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_TYPE_ARRAY)
+        if (field->kind != VARLINK_VALUE_ARRAY)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *arrayp = field->value.array;
@@ -287,8 +286,7 @@ _public_ long varlink_object_get_object(VarlinkObject *object, const char *field
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_TYPE_OBJECT &&
-            field->kind != VARLINK_TYPE_FOREIGN_OBJECT)
+        if (field->kind != VARLINK_VALUE_OBJECT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *nestedp = field->value.object;
@@ -307,7 +305,7 @@ _public_ long varlink_object_set_bool(VarlinkObject *object, const char *field_n
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_BOOL;
+        field->kind = VARLINK_VALUE_BOOL;
         field->value.b = b;
 
         return 0;
@@ -324,7 +322,7 @@ _public_ long varlink_object_set_int(VarlinkObject *object, const char *field_na
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_INT;
+        field->kind = VARLINK_VALUE_INT;
         field->value.i = i;
 
         return 0;
@@ -341,7 +339,7 @@ _public_ long varlink_object_set_float(VarlinkObject *object, const char *field_
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_FLOAT;
+        field->kind = VARLINK_VALUE_FLOAT;
         field->value.f = f;
 
         return 0;
@@ -358,7 +356,7 @@ _public_ long varlink_object_set_string(VarlinkObject *object, const char *field
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_STRING;
+        field->kind = VARLINK_VALUE_STRING;
         field->value.s = strdup(string);
         if (!field->value.s)
                 return -VARLINK_ERROR_PANIC;
@@ -377,7 +375,7 @@ _public_ long varlink_object_set_array(VarlinkObject *object, const char *field_
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_ARRAY;
+        field->kind = VARLINK_VALUE_ARRAY;
         field->value.array = varlink_array_ref(array);
 
         return 0;
@@ -394,7 +392,7 @@ _public_ long varlink_object_set_object(VarlinkObject *object, const char *field
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_OBJECT;
+        field->kind = VARLINK_VALUE_OBJECT;
         field->value.object = varlink_object_ref(nested);
 
         return 0;
@@ -411,7 +409,7 @@ long varlink_object_set_empty_object(VarlinkObject *object, const char *field_na
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_TYPE_OBJECT;
+        field->kind = VARLINK_VALUE_OBJECT;
         varlink_object_new(&field->value.object);
 
         return 0;

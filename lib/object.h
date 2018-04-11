@@ -1,12 +1,11 @@
 #pragma once
 
 #include "scanner.h"
-#include "varlink.h"
 #include "value.h"
+#include "varlink.h"
 
 #include <stdio.h>
 
-long varlink_object_new_from_type(VarlinkObject **objectp, VarlinkType *type);
 long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner);
 
 long varlink_object_write_json(VarlinkObject *object,
