@@ -474,7 +474,7 @@ static long varlink_type_print(VarlinkType *type,
                 }
 
                 case VARLINK_TYPE_MAP:
-                        if (fprintf(stream, "[string]") < 0)
+                        if (fprintf(stream, "[%sstring%s]", type_pre, type_post) < 0)
                                 return -VARLINK_ERROR_PANIC;
 
                         r = varlink_type_print(type->element_type,
