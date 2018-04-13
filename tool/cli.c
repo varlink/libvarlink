@@ -581,7 +581,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
                 return -CLI_ERROR_PANIC;
 
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
-                const VarlinkInterfaceMember *member = &interface->members[i];
+                const VarlinkInterfaceMember *member = interface->members[i];
 
                 if (member->type != VARLINK_MEMBER_METHOD)
                         continue;

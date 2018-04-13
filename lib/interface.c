@@ -99,7 +99,7 @@ static VarlinkMethod *varlink_method_free(VarlinkMethod *method) {
 
 VarlinkInterface *varlink_interface_free(VarlinkInterface *interface) {
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
-                VarlinkInterfaceMember *member = &interface->members[i];
+                VarlinkInterfaceMember *member = interface->members[i];
 
                 free(member->name);
                 free(member->description);
@@ -109,19 +109,23 @@ VarlinkInterface *varlink_interface_free(VarlinkInterface *interface) {
                                 if (member->alias)
                                         varlink_type_unref(member->alias);
                                 break;
+
                         case VARLINK_MEMBER_METHOD:
                                 if (member->method)
                                         varlink_method_free(member->method);
                                 break;
+
                         case VARLINK_MEMBER_ERROR:
                                 if (member->error)
                                         varlink_type_unref(member->error);
                                 break;
                 }
+
+                free(member);
         }
 
-        avl_tree_free(interface->member_tree);
         free(interface->members);
+        avl_tree_free(interface->member_tree);
         free(interface->name);
         free(interface->description);
         free(interface);
@@ -178,9 +182,12 @@ static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                                 return -VARLINK_ERROR_PANIC;
                 }
 
-                member = &interface->members[interface->n_members];
+                member = calloc(1, sizeof(VarlinkInterfaceMember));
+                if (!member)
+                        return -VARLINK_ERROR_PANIC;
+
+                interface->members[interface->n_members] = member;
                 interface->n_members += 1;
-                memset(member, 0, sizeof(VarlinkInterfaceMember));
 
                 if (scanner_read_keyword(scanner, "type")) {
                         member->type = VARLINK_MEMBER_ALIAS;
@@ -288,7 +295,7 @@ static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
         /* check if all referenced types exist */
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
-                VarlinkInterfaceMember *member = &interface->members[i];
+                VarlinkInterfaceMember *member = interface->members[i];
                 const char *first_unknown;
 
                 switch (member->type) {
@@ -435,7 +442,7 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                 return -VARLINK_ERROR_PANIC;
 
         for (unsigned long i = 0; i < interface->n_members; i += 1) {
-                VarlinkInterfaceMember *member = &interface->members[i];
+                VarlinkInterfaceMember *member = interface->members[i];
 
                 if (fprintf(stream, "\n\n") < 0)
                         return -VARLINK_ERROR_PANIC;

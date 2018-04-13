@@ -22,7 +22,7 @@ struct VarlinkInterface {
         char *name;
         char *description;
 
-        VarlinkInterfaceMember *members;
+        VarlinkInterfaceMember **members;
         unsigned long n_members;
 
         AVLTree *member_tree;
