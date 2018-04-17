@@ -19,5 +19,3 @@ long varlink_object_to_pretty_json(VarlinkObject *object,
                                    long indent,
                                    const char *key_pre, const char *key_post,
                                    const char *value_pre, const char *value_post);
-
-long varlink_object_set_empty_object(VarlinkObject *object, const char *field);

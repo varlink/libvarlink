@@ -398,23 +398,6 @@ _public_ long varlink_object_set_object(VarlinkObject *object, const char *field
         return 0;
 }
 
-long varlink_object_set_empty_object(VarlinkObject *object, const char *field_name) {
-        Field *field;
-        long r;
-
-        if (!object->writable)
-                return -VARLINK_ERROR_READ_ONLY;
-
-        r = object_replace(object, field_name, &field);
-        if (r < 0)
-                return r;
-
-        field->kind = VARLINK_VALUE_OBJECT;
-        varlink_object_new(&field->value.object);
-
-        return 0;
-}
-
 static long object_write_json(FILE *stream,
                               long indent,
                               bool first) {
