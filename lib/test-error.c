@@ -1,5 +1,4 @@
 #include "varlink.h"
-#include "error.h"
 
 #include <assert.h>
 

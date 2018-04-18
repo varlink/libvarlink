@@ -1,5 +1,4 @@
 #include "command.h"
-#include "error.h"
 #include "interface.h"
 #include "object.h"
 #include "terminal-colors.h"

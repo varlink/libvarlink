@@ -1,4 +1,3 @@
-#include "error.h"
 #include "interface.h"
 #include "service.h"
 #include "scanner.h"

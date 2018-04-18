@@ -1,6 +1,5 @@
 #pragma once
 
-#include "error.h"
 #include "varlink.h"
 
 #include <stdio.h>

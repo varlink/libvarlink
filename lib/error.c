@@ -1,4 +1,3 @@
-#include "error.h"
 #include "util.h"
 #include "varlink.h"
 

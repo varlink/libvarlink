@@ -1,7 +1,6 @@
 #pragma once
 
 #include "avltree.h"
-#include "error.h"
 #include "scanner.h"
 #include "type.h"
 #include "varlink.h"
