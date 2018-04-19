@@ -91,12 +91,8 @@ static long reply_callback(VarlinkConnection *connection,
         _cleanup_(freep) char *json = NULL;
         long r;
 
-        if (error) {
+        if (error)
                 fprintf(stderr, "Call failed with error: %s\n", error);
-                *errorp = CLI_ERROR_REMOTE_ERROR;
-                varlink_connection_close(connection);
-                return 0;
-        }
 
         r = varlink_object_to_pretty_json(parameters,
                                           &json,
@@ -113,6 +109,12 @@ static long reply_callback(VarlinkConnection *connection,
         }
 
         printf("%s\n", json);
+
+        if (error) {
+                *errorp = CLI_ERROR_REMOTE_ERROR;
+                varlink_connection_close(connection);
+                return 0;
+        }
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
                 varlink_connection_close(connection);
