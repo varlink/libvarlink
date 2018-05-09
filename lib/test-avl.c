@@ -16,7 +16,7 @@ static void test_basic(void) {
         const char *strings[] = { "ghi", "abc", "mno", "jkl", "def" };
         const char *sorted[] = { "abc", "def", "ghi", "jkl", "mno" };
 
-        avl_tree_new(&tree, compare_names, free);
+        avl_tree_new(&tree, compare_names, freep);
         for (unsigned long i = 0; i < ARRAY_SIZE(strings); i += 1)
                 avl_tree_insert(tree, strings[i], strdup(strings[i]));
 

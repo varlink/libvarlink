@@ -302,7 +302,7 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
         service->method_callback = callback;
         service->method_callback_userdata = userdata;
 
-        avl_tree_new(&service->connections, connection_compare, (AVLFreeFunc)service_connection_free);
+        avl_tree_new(&service->connections, connection_compare, (AVLFreepFunc)service_connection_freep);
 
         if (listen_fd < 0) {
                 _cleanup_(freep) char *path = NULL;
@@ -370,7 +370,7 @@ _public_ long varlink_service_new(VarlinkService **servicep,
                         return -VARLINK_ERROR_PANIC;
         }
 
-        r = avl_tree_new(&service->interfaces, interface_compare, (AVLFreeFunc)varlink_interface_free);
+        r = avl_tree_new(&service->interfaces, interface_compare, (AVLFreepFunc)varlink_interface_freep);
         if (r < 0)
                 return r;
 

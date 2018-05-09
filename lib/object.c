@@ -27,8 +27,8 @@ static long field_compare(const void *key, void *value) {
         return strcmp(key, field->name);
 }
 
-static void field_free(void *ptr) {
-        Field *field = ptr;
+static void field_freep(void *ptr) {
+        Field *field = *(void **)ptr;
 
         free(field->name);
         varlink_value_clear(field->kind, &field->value);
@@ -67,7 +67,7 @@ _public_ long varlink_object_new(VarlinkObject **objectp) {
 
         object->refcount = 1;
         object->writable = true;
-        r = avl_tree_new(&object->fields, field_compare, field_free);
+        r = avl_tree_new(&object->fields, field_compare, field_freep);
         if (r < 0)
                 return -VARLINK_ERROR_PANIC;
 

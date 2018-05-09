@@ -6,7 +6,7 @@
 struct AVLTree {
         AVLTreeNode *root;
         AVLCompareFunc compare;
-        AVLFreeFunc free;
+        AVLFreepFunc freep;
         unsigned long n_elements;
 };
 
@@ -155,7 +155,7 @@ static AVLTreeNode *node_rebalance(AVLTreeNode *node) {
         return node;
 }
 
-long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free) {
+long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreepFunc fp) {
         AVLTree *tree;
 
         tree = calloc(1, sizeof(AVLTree));
@@ -163,7 +163,7 @@ long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free) {
                 return -AVL_ERROR_PANIC;
 
         tree->compare = compare;
-        tree->free = free;
+        tree->freep = fp;
 
         *treep = tree;
         return 0;
@@ -176,8 +176,8 @@ static void avl_tree_free_subtree(AVLTree *tree, AVLTreeNode *node) {
         avl_tree_free_subtree(tree, node->left);
         avl_tree_free_subtree(tree, node->right);
 
-        if (tree->free)
-                tree->free(node->value);
+        if (tree->freep)
+                tree->freep(&node->value);
 
         free(node);
 }
@@ -320,8 +320,8 @@ long avl_tree_remove(AVLTree *tree, const void *key) {
         if (!node)
                 return -AVL_ERROR_UNKNOWN_KEY;
 
-        if (tree->free)
-                tree->free(node->value);
+        if (tree->freep)
+                tree->freep(&node->value);
 
         if (node->left) {
                 AVLTreeNode *rightmost = node->left;

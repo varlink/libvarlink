@@ -13,7 +13,9 @@ typedef struct AVLTree AVLTree;
 typedef struct AVLTreeNode AVLTreeNode;
 
 typedef long (*AVLCompareFunc)(const void *key, void *value);
-typedef void (*AVLFreeFunc)(void *value);
+
+/* ThIs is the same signature as a cleanup function, a freep() not a plain free() */
+typedef void (*AVLFreepFunc)(void *value);
 
 /*
  * Creates a new AVLTree which sorts its elements with @compare and
@@ -22,7 +24,7 @@ typedef void (*AVLFreeFunc)(void *value);
  * Pass avl_tree_ptr_compare() as @compare if keys will be pointer
  * values.
  */
-long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreeFunc free);
+long avl_tree_new(AVLTree **treep, AVLCompareFunc compare, AVLFreepFunc fp);
 
 /*
  * Frees @tree and calls the the free function passed to avl_tree_new()
