@@ -102,7 +102,7 @@ vimsyntaxdir = 'share/vim/vimfiles/after/syntax'
 substs = configuration_data()
 substs.set('VERSION', meson.project_version())
 substs.set('libdir', libdir)
-substs.set('includedir', prefixdir)
+substs.set('includedir', includedir)
 
 varlink_wrapper_py = find_program('./varlink-wrapper.py')
 
