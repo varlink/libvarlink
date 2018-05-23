@@ -8,6 +8,57 @@
 #include <getopt.h>
 #include <string.h>
 
+static long print_interfaces(Cli *cli) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
+        _cleanup_(freep) char *error = NULL;
+        VarlinkArray *interfaces;
+        unsigned long n_interfaces;
+        long r;
+
+        r = varlink_connection_new(&connection, cli->resolver);
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                return r;
+        }
+
+        r = cli_call(cli,
+                     connection,
+                     "org.varlink.resolver.GetInfo",
+                     NULL,
+                     0,
+                     &error,
+                     &info);
+        if (r < 0) {
+                fprintf(stderr, "Unable to call method: %s\n", cli_error_string(-r));
+                return r;
+        }
+
+        if (error) {
+                fprintf(stderr, "Call failed with error: %s\n", error);
+                return -CLI_ERROR_REMOTE_ERROR;
+        }
+
+        if (varlink_object_get_array(info, "interfaces", &interfaces) < 0) {
+                fprintf(stderr, "Unable to parse reply\n");
+                return -CLI_ERROR_INVALID_MESSAGE;
+        }
+
+        n_interfaces = varlink_array_get_n_elements(interfaces);
+        for (unsigned long i = 0; i < n_interfaces; i += 1) {
+                const char *interface;
+
+                if (varlink_array_get_string(interfaces, i, &interface) < 0) {
+                        fprintf(stderr, "Unable to parse reply\n");
+                        return -CLI_ERROR_INVALID_MESSAGE;
+                }
+
+                printf("%s\n", interface);
+        }
+
+        return 0;
+}
+
 static long resolve_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
                 { "help", no_argument, NULL, 'h' },
@@ -35,8 +86,13 @@ static long resolve_run(Cli *cli, int argc, char **argv) {
 
         interface = argv[optind];
         if (!interface) {
-                fprintf(stderr, "Error: INTERFACE expected\n");
-                return -CLI_ERROR_MISSING_ARGUMENT;
+                r = print_interfaces(cli);
+                if (r < 0) {
+                        fprintf(stderr, "Error retrieving interfaces\n");
+                        return -CLI_ERROR_CANNOT_RESOLVE;
+                }
+
+                return 0;
         }
 
         r = cli_resolve(cli, interface, &address);
