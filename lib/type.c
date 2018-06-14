@@ -263,6 +263,7 @@ VarlinkType *varlink_type_unref(VarlinkType *type) {
 
         if (type->refcount == 0) {
                 switch (type->kind) {
+                        case VARLINK_TYPE_UNDEFINED:
                         case VARLINK_TYPE_BOOL:
                         case VARLINK_TYPE_INT:
                         case VARLINK_TYPE_FLOAT:
@@ -352,6 +353,9 @@ static long varlink_type_print(VarlinkType *type,
                 type_post = "";
 
         switch (type->kind) {
+                case VARLINK_TYPE_UNDEFINED:
+                        abort();
+
                 case VARLINK_TYPE_BOOL:
                         if (fprintf(stream, "%sbool%s", type_pre, type_post) < 0)
                                 return -VARLINK_ERROR_PANIC;

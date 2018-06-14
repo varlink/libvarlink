@@ -155,6 +155,7 @@ long varlink_object_get_field_names(VarlinkObject *object, const char ***namesp)
 /*
  * Get values from an object.
  */
+long varlink_object_set_null(VarlinkObject *object, const char *field);
 long varlink_object_get_bool(VarlinkObject *object, const char *field, bool *bp);
 long varlink_object_get_int(VarlinkObject *object, const char *field, int64_t *ip);
 long varlink_object_get_float(VarlinkObject *object, const char *field, double *fp);
@@ -219,6 +220,7 @@ long varlink_array_get_object(VarlinkArray *array, unsigned long index, VarlinkO
  *
  * Return 0 or a negative VARLINK_ERROR.
  */
+long varlink_array_append_null(VarlinkArray *array);
 long varlink_array_append_bool(VarlinkArray *array, bool b);
 long varlink_array_append_int(VarlinkArray *array, int64_t i);
 long varlink_array_append_float(VarlinkArray *array, double f);

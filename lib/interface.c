@@ -49,6 +49,9 @@ static bool varlink_interface_try_resolve(VarlinkInterface *interface,
                                           VarlinkType *type,
                                           const char **first_unknownp) {
         switch (type->kind) {
+                case VARLINK_TYPE_UNDEFINED:
+                        abort();
+
                 case VARLINK_TYPE_BOOL:
                 case VARLINK_TYPE_INT:
                 case VARLINK_TYPE_FLOAT:

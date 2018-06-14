@@ -9,8 +9,10 @@
 #include <locale.h>
 #include <string.h>
 
-void varlink_value_clear(VarlinkValueKind kind, VarlinkValue *value) {
-        switch (kind) {
+void varlink_value_clear(VarlinkValue *value) {
+        switch (value->kind) {
+                case VARLINK_VALUE_UNDEFINED:
+                case VARLINK_VALUE_NULL:
                 case VARLINK_VALUE_BOOL:
                 case VARLINK_VALUE_INT:
                 case VARLINK_VALUE_FLOAT:
@@ -32,7 +34,7 @@ void varlink_value_clear(VarlinkValueKind kind, VarlinkValue *value) {
         }
 }
 
-long varlink_value_read_from_scanner(VarlinkValueKind *kindp, VarlinkValue *value, Scanner *scanner) {
+long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner) {
         ScannerNumber number;
         long r;
 
@@ -41,37 +43,37 @@ long varlink_value_read_from_scanner(VarlinkValueKind *kindp, VarlinkValue *valu
                 if (r < 0)
                         return false;
 
-                *kindp = VARLINK_VALUE_OBJECT;
+                value->kind = VARLINK_VALUE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
                 r = varlink_array_new_from_scanner(&value->array, scanner);
                 if (r < 0)
                         return false;
 
-                *kindp = VARLINK_VALUE_ARRAY;
+                value->kind = VARLINK_VALUE_ARRAY;
 
         } else if (scanner_read_keyword(scanner, "true")) {
                 value->b = true;
-                *kindp = VARLINK_VALUE_BOOL;
+                value->kind = VARLINK_VALUE_BOOL;
 
         } else if (scanner_read_keyword(scanner, "false")) {
                 value->b = false;
-                *kindp = VARLINK_VALUE_BOOL;
+                value->kind = VARLINK_VALUE_BOOL;
 
         } else if (scanner_peek(scanner) == '"') {
                 r = scanner_expect_string(scanner, &value->s);
                 if (r < 0)
                         return r;
 
-                *kindp = VARLINK_VALUE_STRING;
+                value->kind = VARLINK_VALUE_STRING;
 
         } else if (scanner_read_number(scanner, &number)) {
                 if (number.is_double) {
                         value->f = number.d;
-                        *kindp = VARLINK_VALUE_FLOAT;
+                        value->kind = VARLINK_VALUE_FLOAT;
                 } else {
                         value->i = number.i;
-                        *kindp = VARLINK_VALUE_INT;
+                        value->kind = VARLINK_VALUE_INT;
                 }
 
         } else {
@@ -136,15 +138,22 @@ static long json_write_string(FILE *stream, const char *s) {
         return 0;
 }
 
-long varlink_value_write_json(VarlinkValueKind kind,
-                              VarlinkValue *value,
+long varlink_value_write_json(VarlinkValue *value,
                               FILE *stream,
                               long indent,
                               const char *key_pre, const char *key_post,
                               const char *value_pre, const char *value_post) {
         long r;
 
-        switch (kind) {
+        switch (value->kind) {
+                case VARLINK_VALUE_UNDEFINED:
+                        abort();
+
+                case VARLINK_VALUE_NULL:
+                        if (fprintf(stream, "%snull%s", value_pre, value_post) < 0)
+                                return -VARLINK_ERROR_PANIC;
+                        break;
+
                 case VARLINK_VALUE_BOOL:
                         if (fprintf(stream, "%s%s%s", value_pre, value->b ? "true" : "false", value_post) < 0)
                                 return -VARLINK_ERROR_PANIC;

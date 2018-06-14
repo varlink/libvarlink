@@ -4,6 +4,7 @@ global:
         varlink_array_append_bool;
         varlink_array_append_float;
         varlink_array_append_int;
+        varlink_array_append_null;
         varlink_array_append_object;
         varlink_array_append_string;
         varlink_array_get_array;
@@ -54,6 +55,7 @@ global:
         varlink_object_set_bool;
         varlink_object_set_float;
         varlink_object_set_int;
+        varlink_object_set_null;
         varlink_object_set_object;
         varlink_object_set_string;
         varlink_object_to_json;

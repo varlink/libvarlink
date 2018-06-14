@@ -17,7 +17,6 @@ struct VarlinkObject {
 
 struct Field {
         char *name;
-        VarlinkValueKind kind;
         VarlinkValue value;
 };
 
@@ -31,7 +30,7 @@ static void field_freep(void *ptr) {
         Field *field = *(void **)ptr;
 
         free(field->name);
-        varlink_value_clear(field->kind, &field->value);
+        varlink_value_clear(&field->value);
         free(field);
 }
 
@@ -55,9 +54,8 @@ static long object_add_field(VarlinkObject *object, const char *name, Field **fi
         return 0;
 }
 
-static long object_replace_field(VarlinkObject *object, const char *name, Field **fieldp) {
+static void object_remove_field(VarlinkObject *object, const char *name) {
         avl_tree_remove(object->fields, name);
-        return object_add_field(object, name, fieldp);
 }
 
 _public_ long varlink_object_new(VarlinkObject **objectp) {
@@ -115,7 +113,7 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                         if (r < 0)
                                 return r;
 
-                        if (!varlink_value_read_from_scanner(&field->kind, &field->value, scanner))
+                        if (!varlink_value_read_from_scanner(&field->value, scanner))
                                 return -VARLINK_ERROR_INVALID_JSON;
                 }
 
@@ -212,7 +210,7 @@ _public_ long varlink_object_get_bool(VarlinkObject *object, const char *field_n
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_VALUE_BOOL)
+        if (field->value.kind != VARLINK_VALUE_BOOL)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *bp = field->value.b;
@@ -227,7 +225,7 @@ _public_ long varlink_object_get_int(VarlinkObject *object, const char *field_na
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_VALUE_INT)
+        if (field->value.kind != VARLINK_VALUE_INT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *ip = field->value.i;
@@ -242,9 +240,9 @@ _public_ long varlink_object_get_float(VarlinkObject *object, const char *field_
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind == VARLINK_VALUE_INT)
+        if (field->value.kind == VARLINK_VALUE_INT)
                 *fp = field->value.i;
-        else if (field->kind == VARLINK_VALUE_FLOAT)
+        else if (field->value.kind == VARLINK_VALUE_FLOAT)
                 *fp = field->value.f;
         else
                 return -VARLINK_ERROR_INVALID_TYPE;
@@ -259,7 +257,7 @@ _public_ long varlink_object_get_string(VarlinkObject *object, const char *field
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_VALUE_STRING)
+        if (field->value.kind != VARLINK_VALUE_STRING)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *stringp = field->value.s;
@@ -274,7 +272,7 @@ _public_ long varlink_object_get_array(VarlinkObject *object, const char *field_
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_VALUE_ARRAY)
+        if (field->value.kind != VARLINK_VALUE_ARRAY)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *arrayp = field->value.array;
@@ -289,11 +287,19 @@ _public_ long varlink_object_get_object(VarlinkObject *object, const char *field
         if (!field)
                 return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-        if (field->kind != VARLINK_VALUE_OBJECT)
+        if (field->value.kind != VARLINK_VALUE_OBJECT)
                 return -VARLINK_ERROR_INVALID_TYPE;
 
         *nestedp = field->value.object;
 
+        return 0;
+}
+
+_public_ long varlink_object_set_null(VarlinkObject *object, const char *field_name) {
+        if (!object->writable)
+                return -VARLINK_ERROR_READ_ONLY;
+
+        object_remove_field(object, field_name);
         return 0;
 }
 
@@ -304,11 +310,12 @@ _public_ long varlink_object_set_bool(VarlinkObject *object, const char *field_n
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_BOOL;
+        field->value.kind = VARLINK_VALUE_BOOL;
         field->value.b = b;
 
         return 0;
@@ -321,11 +328,12 @@ _public_ long varlink_object_set_int(VarlinkObject *object, const char *field_na
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_INT;
+        field->value.kind = VARLINK_VALUE_INT;
         field->value.i = i;
 
         return 0;
@@ -338,11 +346,12 @@ _public_ long varlink_object_set_float(VarlinkObject *object, const char *field_
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_FLOAT;
+        field->value.kind = VARLINK_VALUE_FLOAT;
         field->value.f = f;
 
         return 0;
@@ -355,11 +364,12 @@ _public_ long varlink_object_set_string(VarlinkObject *object, const char *field
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_STRING;
+        field->value.kind = VARLINK_VALUE_STRING;
         field->value.s = strdup(string);
         if (!field->value.s)
                 return -VARLINK_ERROR_PANIC;
@@ -374,11 +384,12 @@ _public_ long varlink_object_set_array(VarlinkObject *object, const char *field_
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_ARRAY;
+        field->value.kind = VARLINK_VALUE_ARRAY;
         field->value.array = varlink_array_ref(array);
 
         return 0;
@@ -391,11 +402,12 @@ _public_ long varlink_object_set_object(VarlinkObject *object, const char *field
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace_field(object, field_name, &field);
+        object_remove_field(object, field_name);
+        r = object_add_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
-        field->kind = VARLINK_VALUE_OBJECT;
+        field->value.kind = VARLINK_VALUE_OBJECT;
         field->value.object = varlink_object_ref(nested);
 
         return 0;
@@ -457,7 +469,7 @@ long varlink_object_write_json(VarlinkObject *object,
                 if (!field)
                         return -VARLINK_ERROR_UNKNOWN_FIELD;
 
-                r = varlink_value_write_json(field->kind, &field->value, stream,
+                r = varlink_value_write_json(&field->value, stream,
                                              indent >= 0 ? indent + 1 : -1,
                                              key_pre, key_post,
                                              value_pre, value_post);

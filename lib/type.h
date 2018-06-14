@@ -7,7 +7,8 @@
 typedef struct VarlinkType VarlinkType;
 
 typedef enum {
-        VARLINK_TYPE_BOOL = 0,
+        VARLINK_TYPE_UNDEFINED,
+        VARLINK_TYPE_BOOL,
         VARLINK_TYPE_INT,
         VARLINK_TYPE_FLOAT,
         VARLINK_TYPE_STRING,
