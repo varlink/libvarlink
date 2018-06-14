@@ -35,11 +35,9 @@ static void field_freep(void *ptr) {
         free(field);
 }
 
-static long object_replace(VarlinkObject *object, const char *name, Field **fieldp) {
+static long object_add_field(VarlinkObject *object, const char *name, Field **fieldp) {
         Field *field;
         long r;
-
-        avl_tree_remove(object->fields, name);
 
         field = calloc(1, sizeof(Field));
         if (!field)
@@ -55,6 +53,11 @@ static long object_replace(VarlinkObject *object, const char *name, Field **fiel
 
         *fieldp = field;
         return 0;
+}
+
+static long object_replace_field(VarlinkObject *object, const char *name, Field **fieldp) {
+        avl_tree_remove(object->fields, name);
+        return object_add_field(object, name, fieldp);
 }
 
 _public_ long varlink_object_new(VarlinkObject **objectp) {
@@ -108,7 +111,7 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 if (!scanner_read_keyword(scanner, "null")) {
                         Field *field;
 
-                        r = object_replace(object, name, &field);
+                        r = object_add_field(object, name, &field);
                         if (r < 0)
                                 return r;
 
@@ -301,7 +304,7 @@ _public_ long varlink_object_set_bool(VarlinkObject *object, const char *field_n
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
@@ -318,7 +321,7 @@ _public_ long varlink_object_set_int(VarlinkObject *object, const char *field_na
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
@@ -335,7 +338,7 @@ _public_ long varlink_object_set_float(VarlinkObject *object, const char *field_
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
@@ -352,7 +355,7 @@ _public_ long varlink_object_set_string(VarlinkObject *object, const char *field
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
@@ -371,7 +374,7 @@ _public_ long varlink_object_set_array(VarlinkObject *object, const char *field_
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
@@ -388,7 +391,7 @@ _public_ long varlink_object_set_object(VarlinkObject *object, const char *field
         if (!object->writable)
                 return -VARLINK_ERROR_READ_ONLY;
 
-        r = object_replace(object, field_name, &field);
+        r = object_replace_field(object, field_name, &field);
         if (r < 0)
                 return r;
 
