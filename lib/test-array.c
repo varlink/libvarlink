@@ -77,10 +77,37 @@ static void test_string(void) {
         assert(varlink_array_unref(array) == NULL);
 }
 
+static void test_null(void) {
+        VarlinkArray *array;
+        const char *str;
+
+        assert(varlink_array_new(&array) == 0);
+        assert(varlink_array_get_n_elements(array) == 0);
+
+        assert(varlink_array_append_null(array) == 0);
+        assert(varlink_array_append_string(array, "a") == 0);
+        assert(varlink_array_append_null(array) == 0);
+        assert(varlink_array_append_string(array, "b") == 0);
+        assert(varlink_array_append_null(array) == 0);
+
+        assert(varlink_array_get_n_elements(array) == 5);
+        assert(varlink_array_get_string(array, 0, &str) == -VARLINK_ERROR_INVALID_TYPE);
+        assert(varlink_array_get_string(array, 1, &str) == 0);
+        assert(strcmp(str, "a") == 0);
+        assert(varlink_array_get_string(array, 2, &str) == -VARLINK_ERROR_INVALID_TYPE);
+        assert(varlink_array_get_string(array, 3, &str) == 0);
+        assert(strcmp(str, "b") == 0);
+        assert(varlink_array_get_string(array, 4, &str) == -VARLINK_ERROR_INVALID_TYPE);
+        assert(varlink_array_get_string(array, 5, &str) == -VARLINK_ERROR_INVALID_INDEX);
+
+        assert(varlink_array_unref(array) == NULL);
+}
+
 int main(void) {
         test_api();
         test_int();
         test_string();
+        test_null();
 
         return EXIT_SUCCESS;
 }

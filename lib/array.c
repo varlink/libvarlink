@@ -75,10 +75,13 @@ long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner) {
                 if (!varlink_value_read_from_scanner(value, scanner))
                         return -VARLINK_ERROR_INVALID_JSON;
 
-                if (first)
-                        array->element_kind = value->kind;
-                else if (value->kind != array->element_kind)
-                        return -VARLINK_ERROR_INVALID_JSON;
+                /* Accept `null` value for any element kind */
+                if (value->kind != VARLINK_VALUE_NULL) {
+                        if (array->element_kind == VARLINK_VALUE_UNDEFINED)
+                                array->element_kind = value->kind;
+                        else if (array->element_kind != value->kind)
+                                return -VARLINK_ERROR_INVALID_JSON;
+                }
 
                 first = false;
         }

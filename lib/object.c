@@ -92,6 +92,7 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
 
         while (scanner_peek(scanner) != '}') {
                 _cleanup_(freep) char *name = NULL;
+                Field *field;
 
                 if (!first) {
                         if (scanner_expect_operator(scanner, ",") < 0)
@@ -105,17 +106,16 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 if (scanner_expect_operator(scanner, ":") < 0)
                         return -VARLINK_ERROR_INVALID_JSON;
 
-                /* treat `null` the same as non-existent keys */
-                if (!scanner_read_keyword(scanner, "null")) {
-                        Field *field;
+                r = object_add_field(object, name, &field);
+                if (r < 0)
+                        return r;
 
-                        r = object_add_field(object, name, &field);
-                        if (r < 0)
-                                return r;
+                if (!varlink_value_read_from_scanner(&field->value, scanner))
+                        return -VARLINK_ERROR_INVALID_JSON;
 
-                        if (!varlink_value_read_from_scanner(&field->value, scanner))
-                                return -VARLINK_ERROR_INVALID_JSON;
-                }
+                /* Treat `null` the same as non-existent keys */
+                if (field->value.kind == VARLINK_VALUE_NULL)
+                        object_remove_field(object, name);
 
                 first = false;
         }

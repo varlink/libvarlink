@@ -52,6 +52,9 @@ long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner) {
 
                 value->kind = VARLINK_VALUE_ARRAY;
 
+        } else if (scanner_read_keyword(scanner, "null")) {
+                value->kind = VARLINK_VALUE_NULL;
+
         } else if (scanner_read_keyword(scanner, "true")) {
                 value->b = true;
                 value->kind = VARLINK_VALUE_BOOL;
