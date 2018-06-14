@@ -42,7 +42,7 @@ int varlink_connect_ssh(const char *address, pid_t *pidp) {
                 arg[i++] = "ssh";
 
                 /* Disable X11 and pseudo-terminal */
-                arg[i++] = "-xT";
+                arg[i++] = "-xTK";
 
                 /* Disable passphrase/password querying */
                 arg[i++] = "-o";
