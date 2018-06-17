@@ -249,6 +249,9 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
         _cleanup_(freep) char *error = NULL;
         long r;
 
+        if (varlink_connection_get_events(connection) == 0)
+                return 0;
+
         r = epoll_add(cli->epoll_fd,
                       varlink_connection_get_fd(connection),
                       varlink_connection_get_events(connection),

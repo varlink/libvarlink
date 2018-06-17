@@ -47,7 +47,6 @@ long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI
         if (!connection)
                 return -VARLINK_ERROR_PANIC;
 
-        connection->events = EPOLLIN;
         STAILQ_INIT(&connection->pending);
 
         fd = varlink_transport_connect(uri, &pid);
@@ -106,15 +105,14 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, u
         if (!connection->stream)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;
 
-        connection->events = EPOLLIN;
-
         if (events & EPOLLOUT) {
                 r = varlink_stream_flush(connection->stream);
                 if (r < 0)
                         return r;
 
-                if (r > 0)
-                        connection->events |= EPOLLOUT;
+                /* We did not write the entire message. */
+                if (r == 0)
+                        connection->events &= ~EPOLLOUT;
         }
 
         /* Check if the stream is valid, because a callback might have closed the connection */
@@ -161,6 +159,10 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, u
                 if (!connection->stream)
                         break;
         }
+
+        /* Unsubscribe from incoming messages when no call is pending. */
+        if (STAILQ_EMPTY(&connection->pending))
+                connection->events &= ~EPOLLIN;
 
         return r;
 }
@@ -215,12 +217,16 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 callback->func = func;
                 callback->userdata = userdata;
                 STAILQ_INSERT_TAIL(&connection->pending, callback, entry);
+
+                /* Subscribe to replies. */
+                connection->events |= EPOLLIN;
         }
 
         r = varlink_stream_write(connection->stream, call);
         if (r < 0)
                 return r;
 
+        /* We did not write the entire message. */
         if (r == 0)
                 connection->events |= EPOLLOUT;
 
