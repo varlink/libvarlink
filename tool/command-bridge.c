@@ -10,12 +10,13 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
-#include <sys/poll.h>
+#include <sys/epoll.h>
 
 #define STREAM_BUFFER_SIZE (8 * 1024 * 1204)
 
 typedef struct {
         Cli *cli;
+        int epoll_fd;
         long status;
         AVLTree *services;
         VarlinkObject *info;
@@ -30,6 +31,10 @@ static void bridge_free(Bridge *bridge) {
                 varlink_object_unref(bridge->info);
 
         varlink_stream_free(bridge->in);
+
+        if (bridge->epoll_fd >= 0)
+                close(bridge->epoll_fd);
+
         free(bridge);
 }
 
@@ -38,14 +43,43 @@ static void bridge_freep(Bridge **bridgep) {
                 bridge_free(*bridgep);
 }
 
+static long fd_nonblock(int fd) {
+        int flags;
+
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags < 0)
+                return -errno;
+
+        if (flags & O_NONBLOCK)
+                return 0;
+
+        if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+                return -errno;
+
+        return 0;
+}
+
 static long bridge_new(Bridge **bridgep, Cli *cli) {
         _cleanup_(bridge_freep) Bridge *bridge = NULL;
-        _cleanup_(freep) char **error = NULL;
+        long r;
 
         bridge = calloc(1, sizeof(Bridge));
         bridge->cli = cli;
 
-        varlink_stream_new(&bridge->in, STDIN_FILENO, -1);
+        if (fd_nonblock(STDIN_FILENO) < 0)
+                return -CLI_ERROR_PANIC;
+
+        r = varlink_stream_new(&bridge->in, STDIN_FILENO, -1);
+        if (r < 0)
+                return r;
+
+        bridge->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+        if (bridge->epoll_fd < 0)
+                return -CLI_ERROR_PANIC;
+
+        if (epoll_add(bridge->epoll_fd, cli->signal_fd, EPOLLIN, bridge) < 0 ||
+            epoll_add(bridge->epoll_fd, bridge->in->fd, EPOLLIN, NULL) < 0)
+                return -CLI_ERROR_PANIC;
 
         *bridgep = bridge;
         bridge = NULL;
@@ -122,40 +156,42 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 }
         }
 
-        bridge_new(&bridge, cli);
+        r = bridge_new(&bridge, cli);
+        if (r < 0)
+                return r;
 
         while (bridge->status == 0) {
-                struct pollfd pfd[] = {
-                        { .fd = cli->signal_fd, .events = POLLIN },
-                        { .fd = bridge->in->fd, .events = POLLIN }
-                };
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 uint64_t flags;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
 
-                for (;;) {
-                        r = poll(pfd, 2, -1);
-                        if (r < 0) {
-                                if (errno == EINTR)
-                                        continue;
-
-                                return -CLI_ERROR_PANIC;
-                        }
-
-                        break;
-                }
-
-                if (pfd[0].revents > 0) {
-                        bridge->status = -CLI_ERROR_CANCELED;
-                        break;
-                }
-
+                /* Read one message. */
                 r = varlink_stream_read(bridge->in, &call);
                 switch (r) {
                         case 0:
-                                return 0;
+                                if (bridge->in->hup)
+                                        return 0;
+
+                                /* Wait for message from client. */
+                                for (;;) {
+                                        struct epoll_event ev;
+
+                                        r = epoll_wait(bridge->epoll_fd, &ev, 1, -1);
+                                        if (r < 0) {
+                                                if (errno == EINTR)
+                                                        continue;
+
+                                                return -CLI_ERROR_PANIC;
+                                        }
+
+                                        if (ev.data.ptr == bridge)
+                                                return -CLI_ERROR_CANCELED;
+
+                                        break;
+                                }
+                                continue;
 
                         case 1:
                                 break;

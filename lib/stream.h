@@ -40,4 +40,3 @@ long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message);
  * in the buffer.
  */
 long varlink_stream_flush(VarlinkStream *stream);
-
