@@ -79,32 +79,6 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                 return 0;
         }
 
-        if (strncmp(address, "exec:", 5) == 0) {
-                uri->type = VARLINK_URI_PROTOCOL_EXEC;
-                uri->protocol = strdup("exec");
-                if (!uri->protocol)
-                        return -VARLINK_ERROR_PANIC;
-
-                *stringp = strdup(address + 5);
-                if (!stringp)
-                        return -VARLINK_ERROR_PANIC;
-
-                return 0;
-        }
-
-        if (strncmp(address, "ssh://", 6) == 0) {
-                uri->type = VARLINK_URI_PROTOCOL_SSH;
-                uri->protocol = strdup("ssh");
-                if (!uri->protocol)
-                        return -VARLINK_ERROR_PANIC;
-
-                *stringp = strdup(address + 6);
-                if (!stringp)
-                        return -VARLINK_ERROR_PANIC;
-
-                return 0;
-        }
-
         if (strncmp(address, "unix:", 5) == 0) {
                 uri->type = VARLINK_URI_PROTOCOL_UNIX;
                 uri->protocol = strdup("unix");
@@ -145,28 +119,15 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
  * to supply this information in `has_interface`, depending on the
  * context the URI is parsed.
  *
- * ssh://example.org:22223/org.example.foo.List?foo=bar#baz
- *   address:          ssh://example.org:22223
- *   protocol:         ssh
- *   host:             example.org:22223
+ * unix:/run/org.example.foo/org.example.foo.List?foo=bar#baz
+ *   address:          unix:/run/org.example.foo
+ *   protocol:         unix
+ *   path:             /run/org.example.foo
  *   qualified_member: org.example.foo.List
  *   interface:        org.example.foo
  *   member:           List
  *   query:            foo=bar
  *   fragment:         baz
- *
- * unix:/run/org.example.foo/org.example.foo#baz
- *   address:          unix:/run/org.example.foo
- *   protocol:         unix
- *   path:             /run/org.example.foo
- *   interface:        org.example.foo
- *   fragment:         baz
- *
- * exec:io.systemd.sysinfo/org.example.foo
- *   address:          exec:io.systemd.sysinfo
- *   protocol:         exec
- *   path:             io.systemd.sysinfo
- *   interface:        org.example.foo
  */
 long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface) {
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
@@ -263,7 +224,6 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
         /* Depending on the protocol, we have an URI path or an URI host*/
         switch(uri->type) {
                 case VARLINK_URI_PROTOCOL_DEVICE:
-                case VARLINK_URI_PROTOCOL_EXEC:
                 case VARLINK_URI_PROTOCOL_UNIX:
                         if (!string)
                                 return -VARLINK_ERROR_INVALID_ADDRESS;
@@ -274,7 +234,6 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                         break;
 
                 case VARLINK_URI_PROTOCOL_TCP:
-                case VARLINK_URI_PROTOCOL_SSH:
                         if (!string || strchr(string, '/'))
                                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
@@ -284,6 +243,8 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                         break;
 
                 case VARLINK_URI_PROTOCOL_NONE:
+                        if (!has_interface)
+                                return -VARLINK_ERROR_INVALID_ADDRESS;
                         break;
         }
 

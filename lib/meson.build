@@ -23,9 +23,7 @@ libvarlink_sources = '''
         transport.c
         transport.h
         transport-device.c
-        transport-exec.c
-        transport-ip.c
-        transport-ssh.c
+        transport-tcp.c
         transport-unix.c
         type.h
         type.c

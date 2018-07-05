@@ -9,6 +9,23 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
+static long strip_parameters(const char *address, char **hostp) {
+        char *parm;
+        _cleanup_(freep) char *host = NULL;
+
+        parm = strchr(address, ';');
+        if (!parm)
+                host = strdup(address);
+        else
+                host = strndup(address, parm - address);
+        if (!host)
+                return -VARLINK_ERROR_PANIC;
+
+        *hostp = host;
+        host = NULL;
+        return 0;
+}
+
 static void freeaddrinfop(struct addrinfo **ai) {
         if (*ai)
                 freeaddrinfo(*ai);
@@ -75,12 +92,17 @@ static long resolve_addrinfo(const char *address, struct addrinfo **resultp) {
         return 0;
 }
 
-int varlink_connect_ip(const char *address) {
+int varlink_connect_tcp(const char *address) {
+        _cleanup_(freep) char *host = NULL;
         _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
         _cleanup_(closep) int fd = -1;
         int r;
 
-        r = resolve_addrinfo(address, &result);
+        r = strip_parameters(address, &host);
+        if (r < 0)
+                return r;
+
+        r = resolve_addrinfo(host, &result);
         if (r < 0)
                 return r;
 
@@ -97,13 +119,18 @@ int varlink_connect_ip(const char *address) {
         return r;
 }
 
-int varlink_listen_ip(const char *address) {
+int varlink_listen_tcp(const char *address) {
+        _cleanup_(freep) char *host = NULL;
         _cleanup_(closep) int fd = -1;
         const int on = 1;
         _cleanup_(freeaddrinfop) struct addrinfo *result = NULL;
         int r;
 
-        r = resolve_addrinfo(address, &result);
+        r = strip_parameters(address, &host);
+        if (r < 0)
+                return r;
+
+        r = resolve_addrinfo(host, &result);
         if (r < 0)
                 return r;
 
@@ -126,7 +153,7 @@ int varlink_listen_ip(const char *address) {
         return r;
 }
 
-int varlink_accept_ip(int listen_fd) {
+int varlink_accept_tcp(int listen_fd) {
         _cleanup_(closep) int fd = -1;
         _cleanup_(freep) char *address = NULL;
         int r;

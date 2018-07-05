@@ -24,8 +24,13 @@ enum {
 };
 
 typedef struct {
+        const char *activate;
+        const char *bridge;
         const char *resolver;
         long timeout;
+
+        char *path;
+        pid_t pid;
 
         int epoll_fd;
         int signal_fd;
@@ -56,3 +61,6 @@ long cli_call(Cli *cli,
               uint64_t flags,
               char **errorp,
               VarlinkObject **outp);
+
+int cli_activate(const char *command, char **pathp, pid_t *pidp);
+int cli_bridge(const char *command, pid_t *pidp);

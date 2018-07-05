@@ -6,9 +6,7 @@ typedef struct {
         enum {
                 VARLINK_URI_PROTOCOL_NONE,
                 VARLINK_URI_PROTOCOL_DEVICE,
-                VARLINK_URI_PROTOCOL_EXEC,
                 VARLINK_URI_PROTOCOL_TCP,
-                VARLINK_URI_PROTOCOL_SSH,
                 VARLINK_URI_PROTOCOL_UNIX
         } type;
         char *protocol;

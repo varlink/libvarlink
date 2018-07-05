@@ -7,20 +7,13 @@
 #include <getopt.h>
 #include <string.h>
 
-static long print_service(Cli *cli, const char *address) {
-        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+static long print_service(Cli *cli, VarlinkConnection *connection) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
         const char *str;
         VarlinkArray *interfaces;
         unsigned long n_interfaces;
         long r;
-
-        r = varlink_connection_new(&connection, address);
-        if (r < 0) {
-                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                return r;
-        }
 
         r = cli_call(cli,
                      connection,
@@ -95,6 +88,8 @@ static long info_run(Cli *cli, int argc, char **argv) {
                 {}
         };
         const char *address = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         int c;
         long r;
 
@@ -116,12 +111,21 @@ static long info_run(Cli *cli, int argc, char **argv) {
         }
 
         address = argv[optind];
-        if (!address) {
-                fprintf(stderr, "Usage: %s info ADDRESS\n", program_invocation_short_name);
-                return -CLI_ERROR_MISSING_ARGUMENT;
+        if (address) {
+                r = varlink_uri_new(&uri, address, false);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to parse ADDRESS\n");
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+                }
         }
 
-        r = print_service(cli, address);
+        r = cli_connect(cli, &connection, uri);
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                return r;
+        }
+
+        r = print_service(cli, connection);
         if (r < 0)
                 return r;
 

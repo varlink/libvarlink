@@ -37,10 +37,8 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
-long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI *uri) {
+long varlink_connection_new_from_fd(VarlinkConnection **connectionp, int fd) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
-        long fd;
-        pid_t pid = -1;
         long r;
 
         connection = calloc(1, sizeof(VarlinkConnection));
@@ -49,17 +47,29 @@ long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI
 
         STAILQ_INIT(&connection->pending);
 
-        fd = varlink_transport_connect(uri, &pid);
-        if (fd < 0)
-                return fd; /* CannotConnect or InvalidAddress */
-
-        r = varlink_stream_new(&connection->stream, fd, pid);
+        r = varlink_stream_new(&connection->stream, fd);
         if (r < 0)
                 return r;
 
         *connectionp = connection;
         connection = NULL;
 
+        return 0;
+}
+
+long varlink_connection_new_from_uri(VarlinkConnection **connectionp, VarlinkURI *uri) {
+        _cleanup_(closep) int fd = -1;
+        long r;
+
+        fd = varlink_transport_connect(uri);
+        if (fd < 0)
+                return fd; /* CannotConnect or InvalidAddress */
+
+        r = varlink_connection_new_from_fd(connectionp, fd);
+        if (r < 0)
+                return r;
+
+        fd = -1;
         return 0;
 }
 

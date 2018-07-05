@@ -6,11 +6,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/signal.h>
-#include <sys/wait.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
 
-long varlink_stream_new(VarlinkStream **streamp, int fd, pid_t pid) {
+long varlink_stream_new(VarlinkStream **streamp, int fd) {
         VarlinkStream *stream;
 
         stream = calloc(1, sizeof(VarlinkStream));
@@ -18,7 +17,6 @@ long varlink_stream_new(VarlinkStream **streamp, int fd, pid_t pid) {
                 return -VARLINK_ERROR_PANIC;
 
         stream->fd = fd;
-        stream->pid = pid;
 
         stream->in = malloc(CONNECTION_BUFFER_SIZE);
         if (!stream->in)
@@ -38,9 +36,6 @@ VarlinkStream *varlink_stream_free(VarlinkStream *stream) {
 
         free(stream->in);
         free(stream->out);
-
-        if (stream->pid > 0 && kill(stream->pid, SIGTERM) >= 0)
-                waitpid(stream->pid, NULL, 0);
 
         free(stream);
         return NULL;

@@ -488,7 +488,7 @@ static long varlink_service_accept(VarlinkService *service) {
         if (r < 0)
                 return r; /* CannotAccept */
 
-        varlink_stream_new(&connection->stream, (int)r, (pid_t)-1);
+        varlink_stream_new(&connection->stream, (int)r);
 
         r = epoll_add(service->epoll_fd, connection->stream->fd, connection->current_events_mask, connection);
         if (r < 0)

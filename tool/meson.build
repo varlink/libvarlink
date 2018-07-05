@@ -1,6 +1,8 @@
 varlink_sources = files('''
         cli.c
         cli.h
+        cli-bridge.c
+        cli-activate.c
         command.c
         command.h
         command-bridge.c

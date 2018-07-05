@@ -15,6 +15,7 @@
 #include <sys/prctl.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 
 static const char *error_strings[] = {
         [CLI_ERROR_PANIC] = "Panic",
@@ -34,6 +35,8 @@ static const char *error_strings[] = {
 };
 
 static const struct option cli_options[] = {
+        { "activate", required_argument, NULL, 'A' },
+        { "bridge",   required_argument, NULL, 'b' },
         { "help",     no_argument,       NULL, 'h' },
         { "resolver", required_argument, NULL, 'R' },
         { "timeout",  required_argument, NULL, 't' },
@@ -44,6 +47,8 @@ static const struct option cli_options[] = {
 typedef struct {
         bool help;
         bool version;
+        const char *activate;
+        const char *bridge;
         const char *resolver;
         long timeout;
 
@@ -100,8 +105,22 @@ Cli *cli_free(Cli *cli) {
         if (cli->signal_fd > 0)
                 close(cli->signal_fd);
 
-        free(cli);
+        if (cli->pid > 0 && kill(cli->pid, SIGTERM) >= 0)
+                waitpid(cli->pid, NULL, 0);
 
+        if (cli->path) {
+                char *s;
+
+                unlink(cli->path);
+                s = strrchr(cli->path, '/');
+                if (s) {
+                        *s = '\0';
+                        rmdir(cli->path);
+                }
+                free(cli->path);
+        }
+
+        free(cli);
         return NULL;
 }
 
@@ -230,6 +249,32 @@ long cli_connect(Cli *cli,
         _cleanup_(freep) char *address = NULL;
         long r;
 
+        if ((cli->activate || cli->bridge) && (uri && uri->protocol != VARLINK_URI_PROTOCOL_NONE))
+                return -CLI_ERROR_CANNOT_CONNECT;
+
+        if (cli->activate) {
+                long fd;
+
+                fd = cli_activate(cli->activate, &cli->path, &cli->pid);
+                if (fd < 0)
+                        return fd;
+
+                return varlink_connection_new_from_fd(connectionp, (int)fd);
+        }
+
+        if (cli->bridge) {
+                long fd;
+
+                fd = cli_bridge(cli->bridge, &cli->pid);
+                if (fd < 0)
+                        return fd;
+
+                return varlink_connection_new_from_fd(connectionp, (int)fd);
+        }
+
+        if (!uri)
+                return -CLI_ERROR_CANNOT_CONNECT;
+
         if (uri->protocol != VARLINK_URI_PROTOCOL_NONE)
                 return varlink_connection_new_from_uri(connectionp, uri);
 
@@ -340,8 +385,16 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
 
         opterr = 0;
 
-        while ((c = getopt_long(argc, argv, "+:ht:R:V", cli_options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "+Ab:ht:R:V", cli_options, NULL)) >= 0) {
                 switch (c) {
+                        case 'A':
+                                arguments->activate = optarg;
+                                break;
+
+                        case 'b':
+                                arguments->bridge = optarg;
+                                break;
+
                         case 'h':
                                 arguments->help = true;
                                 break;
@@ -369,6 +422,9 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
                 }
         }
 
+        if (arguments->activate && arguments->bridge)
+                return -CLI_ERROR_INVALID_ARGUMENT;
+
         arguments->command = argv[optind];
         arguments->remaining_argc = argc - optind;
         arguments->remaining_argv = argv + optind;
@@ -388,6 +444,12 @@ long cli_run(Cli *cli, int argc, char **argv) {
         if (r < 0)
                 return r;
 
+        if (arguments.activate)
+                cli->activate = arguments.activate;
+
+        if (arguments.bridge)
+                cli->bridge = arguments.bridge;
+
         if (arguments.resolver)
                 cli->resolver = arguments.resolver;
 
@@ -397,10 +459,14 @@ long cli_run(Cli *cli, int argc, char **argv) {
         if (arguments.help) {
                 printf("Usage: %s COMMAND [OPTIONS]...\n", program_invocation_short_name);
                 printf("\n");
-                printf("  -h, --help             display this help text and exit\n");
-                printf("  -t, --timeout=SECONDS  time in seconds to wait for a reply\n");
-                printf("  -R, --resolver=ADDRESS address of the resolver\n");
-                printf("  -V, --version          output version information and exit\n");
+                printf("  -A, --activate=COMMAND Service to socket-activate and connect to\n");
+                printf("                         The temporary UNIX socket address is\n");
+                printf("                         exported as $VARLINK_ADDRESS.\n");
+                printf("  -b, --bridge=COMMAND   Command to execute and connect to\n");
+                printf("  -h, --help             Display this help text and exit\n");
+                printf("  -t, --timeout=SECONDS  Time in seconds to wait for a reply\n");
+                printf("  -R, --resolver=ADDRESS Address of the resolver\n");
+                printf("  -V, --version          Output version information and exit\n");
                 printf("\n");
                 printf("Commands:\n");
                 for (unsigned long i = 0; cli_commands[i]; i += 1)
