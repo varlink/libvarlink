@@ -129,10 +129,12 @@ static long reply_callback(VarlinkConnection *connection,
 
 static long bridge_run(Cli *cli, int argc, char **argv) {
         static const struct option options[] = {
+                { "connect", required_argument, NULL, 'c' },
                 { "help",    no_argument,       NULL, 'h' },
                 {}
         };
         int c;
+        const char *connect = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(bridge_freep) Bridge *bridge = NULL;
@@ -148,6 +150,10 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                 printf("\n");
                                 printf("  -h, --help             display this help text and exit\n");
                                 return 0;
+
+                        case 'c':
+                                connect = optarg;
+                                break;
 
                         default:
                                 fprintf(stderr, "Try '%s --help' for more information\n",
@@ -207,12 +213,27 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
 
-                /* Forward org.varlink.service.GetInfo to org.varlink.resolver.GetInfo */
-                if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
+                if (connect) {
+                        /* Connect directly to specified service address. */
+                        r = varlink_connection_new(&connection, connect);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                        r = varlink_connection_call(connection,
+                                                    method,
+                                                    parameters,
+                                                    flags,
+                                                    reply_callback,
+                                                    bridge);
+                        if (r < 0)
+                                return -CLI_ERROR_PANIC;
+
+                } else if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
                         r = varlink_connection_new(&connection, cli->resolver);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
 
+                        /* Forward org.varlink.service.GetInfo to org.varlink.resolver.GetInfo */
                         r = varlink_connection_call(connection,
                                                     "org.varlink.resolver.GetInfo",
                                                     parameters,
