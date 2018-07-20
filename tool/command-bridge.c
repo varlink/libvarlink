@@ -127,12 +127,13 @@ static long reply_callback(VarlinkConnection *connection,
         return 0;
 }
 
+static const struct option options[] = {
+        { "connect", required_argument, NULL, 'c' },
+        { "help",    no_argument,       NULL, 'h' },
+        {}
+};
+
 static long bridge_run(Cli *cli, int argc, char **argv) {
-        static const struct option options[] = {
-                { "connect", required_argument, NULL, 'c' },
-                { "help",    no_argument,       NULL, 'h' },
-                {}
-        };
         int c;
         const char *connect = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
@@ -309,8 +310,16 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         return bridge->status;
 }
 
+static long bridge_complete(Cli *cli, int argc, char **argv, const char *current) {
+        if (current[0] == '-')
+                return cli_complete_options(cli, options, current);
+
+        return 0;
+}
+
 const CliCommand command_bridge = {
         .name = "bridge",
         .info = "Bridge varlink messages to services on this machine",
-        .run = bridge_run
+        .run = bridge_run,
+        .complete = bridge_complete
 };

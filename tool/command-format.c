@@ -38,12 +38,13 @@ static long read_file(FILE *file, char **contentsp) {
         return 0;
 }
 
+static const struct option options[] = {
+        { "in-place", no_argument,       NULL, 'i' },
+        { "help",     no_argument,       NULL, 'h' },
+        {}
+};
+
 static long format_run(Cli *cli, int argc, char **argv) {
-        static const struct option options[] = {
-                { "in-place", no_argument,       NULL, 'i' },
-                { "help",     no_argument,       NULL, 'h' },
-                {}
-        };
         int c;
         const char *filename = NULL;
         bool inplace = false;
@@ -147,6 +148,9 @@ static long format_complete(Cli *cli, int argc, char **argv, const char *current
 
         if (argc != 1)
                 return 0;
+
+        if (current[0] == '-')
+                return cli_complete_options(cli, options, current);
 
         p = strrchr(current, '/');
         if (p) {
