@@ -1,5 +1,5 @@
 project('libvarlink', 'c',
-        version : '12',
+        version : '13',
         license : 'ASL2.0',
         default_options: [
                 'c_std=gnu99',
