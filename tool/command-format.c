@@ -118,7 +118,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         }
 
         if (inplace) {
-                _cleanup_(fclosep) FILE *f;
+                _cleanup_(fclosep) FILE *f = NULL;
                 _cleanup_(freep) char *filename_tmp = NULL;
 
                 asprintf(&filename_tmp, "%s.tmp", filename);
