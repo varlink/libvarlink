@@ -12,66 +12,36 @@ project('libvarlink', 'c',
 cc = meson.get_compiler('c')
 
 c_args = '''
-        -ftrapv
-        -ffast-math
-        -fno-common
-        -fdiagnostics-show-option
-        -fno-strict-aliasing
         -fvisibility=hidden
-        -ffunction-sections
-        -fdata-sections
-        -fstack-protector
-        -fPIC
-        --param=ssp-buffer-size=4
-        -Wall
-        -Wextra
-        -Wno-inline
+        -Wno-maybe-uninitialized
+        -Wno-pointer-arith
+        -Wno-unknown-warning-option
         -Wundef
-        -Wformat=2
-        -Wformat-security
-        -Wformat-nonliteral
-        -Wsuggest-attribute=format
-        -Wsign-compare
+        -Wlogical-op
         -Wmissing-include-dirs
         -Wold-style-definition
-        -Wpointer-arith
-        -Winit-self
         -Wdeclaration-after-statement
         -Wfloat-equal
-        -Wmissing-prototypes
+        -Wsuggest-attribute=noreturn
         -Wstrict-prototypes
-        -Wswitch-enum
         -Wredundant-decls
-        -Wmissing-declarations
         -Wmissing-noreturn
         -Wshadow
         -Wendif-labels
-        -Wstrict-aliasing=2
+        -Wstrict-aliasing=3
         -Wwrite-strings
-        -Wno-long-long
-        -Wno-overlength-strings
-        -Wno-unused-parameter
-        -Wno-missing-field-initializers
-        -Wno-unused-result
-        -Werror=overflow
+        -Wdate-time
         -Wnested-externs
+        -Werror=overflow
+        -Werror=missing-prototypes
+        -Werror=implicit-function-declaration
+        -Werror=missing-declarations
+        -Werror=return-type
+        -Werror=incompatible-pointer-types
 '''.split()
 
 foreach arg : c_args
         add_project_arguments(arg, language : 'c')
-endforeach
-
-ld_args = '''
-        -Wl,--as-needed
-        -Wl,--no-undefined
-        -Wl,--gc-sections
-        -Wl,-z,relro
-        -Wl,-z,now
-        -pie
-'''.split()
-
-foreach arg : ld_args
-        add_project_link_arguments(arg, language : 'c')
 endforeach
 
 libm = cc.find_library('m')
