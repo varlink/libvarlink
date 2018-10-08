@@ -35,30 +35,35 @@ static void test_name(void) {
                 "a.b",
                 "a.b.c",
                 "a1.b1.c1",
+                "a1.b--1.c--1",
                 "a--1.b--1.c--1",
-                "a.21.c"
+                "a.21.c",
+                "a.1",
+                "a.0.0"
         };
 
         const char *invalid[] = {
-                /* needs a dot */
+                /* Needs a dot. */
                 "ab",
 
-                /* only one dot, but not at the start or end */
+                /* Only one dot, but not at the start or end. */
                 ".a.b.c",
                 "a.b.c.",
                 "a..b.c",
 
-                /* the first element needs an alpha character */
-                "21.b.c",
+                /* The first element must start with an alpha character */
+                "1.b.c",
+                "8a.0.0",
 
-                /* no dashes at the beginning and end of an element */
+                /* No dashes at the beginning and end of an element. */
                 "-a.b.c",
 
                 "a.b.c-",
                 "a.b-.c-",
+                "a.-b.c-",
                 "a.-.c",
 
-                /* illegal character */
+                /* Illegal character. */
                 "a.*.c",
                 "a.?"
         };

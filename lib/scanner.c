@@ -196,44 +196,16 @@ bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
 }
 
 static bool interface_name_valid(const char *name, unsigned long len) {
-        bool has_dot = false;
-        bool has_alpha = false;
-
         if (len < 3 || len > 255)
                 return false;
 
-        if (name[0] == '.' || name[len - 1] == '.')
-                return false;
-
-        if (name[0] == '-' || name[len - 1] == '-')
-                return false;
-
+        /* Only ASCII characters are allowed. */
         for (unsigned long i = 0; i < len; i += 1) {
                 switch (name[i]) {
                         case 'a' ... 'z':
-                                has_alpha = true;
-                                break;
-
                         case '0' ... '9':
-                                break;
-
-                        case '.':
-                                if (name[i - 1] == '.')
-                                        return false;
-
-                                if (name[i - 1] == '.')
-                                        return false;
-
-                                if (!has_alpha)
-                                        return false;
-
-                                has_dot = true;
-                                break;
-
                         case '-':
-                                if (name[i - 1] == '.')
-                                        return false;
-
+                        case '.':
                                 break;
 
                         default:
@@ -241,7 +213,33 @@ static bool interface_name_valid(const char *name, unsigned long len) {
                 }
         }
 
-        if (!has_dot || !has_alpha)
+        /* The top-level element starts with an alpha character. */
+        switch (name[0]) {
+                case 'a' ... 'z':
+                        break;
+
+                default:
+                        return false;
+        }
+
+        /* At least two elements are required. */
+        if (!strchr(name, '.'))
+                return false;
+
+        /* The last element ends alphanumeric. */
+        switch (name[len - 1]) {
+                case 'a' ... 'z':
+                case '0' ... '9':
+                        break;
+
+                default:
+                        return false;
+        }
+
+        /* No double dots and no dashes next to a dot. */
+        if (strstr(name, "..") ||
+            strstr(name, ".-") ||
+            strstr(name, "-."))
                 return false;
 
         return true;
