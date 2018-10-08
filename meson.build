@@ -15,7 +15,6 @@ c_args = '''
         -fvisibility=hidden
         -Wno-maybe-uninitialized
         -Wno-pointer-arith
-        -Wno-unknown-warning-option
         -Wundef
         -Wlogical-op
         -Wmissing-include-dirs

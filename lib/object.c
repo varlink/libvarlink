@@ -495,7 +495,7 @@ long varlink_object_to_pretty_json(VarlinkObject *object,
                                    const char *value_pre, const char *value_post) {
         _cleanup_(fclosep) FILE *stream = NULL;
         _cleanup_(freep) char *string = NULL;
-        unsigned long size;
+        size_t size;
         long r;
 
         if (!key_pre)

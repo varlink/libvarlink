@@ -107,7 +107,7 @@ static const char *scanner_advance(Scanner *scanner) {
 long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
         FILE *stream = NULL;
         char *docstring = NULL;
-        unsigned long size;
+        size_t size;
         const char *p;
 
         scanner_advance(scanner);
@@ -471,7 +471,7 @@ static bool read_unicode_char(const char *p, FILE *stream) {
 long scanner_expect_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
-        unsigned long size;
+        size_t size;
         const char *p;
 
         p = scanner_advance(scanner);

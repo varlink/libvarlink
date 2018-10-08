@@ -393,7 +393,7 @@ long varlink_interface_write_description(VarlinkInterface *interface,
                                          const char *type_pre, const char *type_post) {
         _cleanup_(fclosep) FILE *stream = NULL;
         _cleanup_(freep) char *string = NULL;
-        unsigned long size;
+        size_t size;
         const char *interface_name;
         long r;
 
