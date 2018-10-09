@@ -1,7 +1,7 @@
 %global _hardened_build 1
 
 Name:           libvarlink
-Version:        14
+Version:        15
 Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL 2.0
@@ -60,5 +60,5 @@ export LC_CTYPE=C.utf8
 %{_libdir}/pkgconfig/libvarlink.pc
 
 %changelog
-* Mon Oct  8 2018 <info@varlink.org> 14-1
-- libvarlink 14
+* Tue Oct  9 2018 <info@varlink.org> 15-1
+- libvarlink 15
