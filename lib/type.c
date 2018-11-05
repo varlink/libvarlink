@@ -159,7 +159,7 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
 
                         if (type->n_fields == n_fields_allocated) {
                                 n_fields_allocated = MAX(n_fields_allocated * 2, 4);
-                                type->fields = realloc(type->fields, n_fields_allocated * sizeof(VarlinkType *));
+                                type->fields = realloc(type->fields, n_fields_allocated * sizeof(VarlinkTypeField *));
                                 if (!type->fields)
                                         return -VARLINK_ERROR_PANIC;
                         }

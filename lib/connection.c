@@ -93,10 +93,11 @@ _public_ VarlinkConnection *varlink_connection_free(VarlinkConnection *connectio
                 varlink_connection_close(connection);
 
         while (!STAILQ_EMPTY(&connection->pending)) {
-                _cleanup_(freep) ReplyCallback *cb = NULL;
+                ReplyCallback *cb;
 
                 cb = STAILQ_FIRST(&connection->pending);
                 STAILQ_REMOVE_HEAD(&connection->pending, entry);
+                free(cb);
         }
 
         free(connection);

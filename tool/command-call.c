@@ -215,12 +215,8 @@ static long call_run(Cli *cli, int argc, char **argv) {
         if (r >= 0)
                 return 0;
 
-        /* CTRL-C */
-        if (r == -CLI_ERROR_CANCELED)
-                return 0;
-
         switch (r) {
-                case -CLI_ERROR_CANCELED:
+                case -CLI_ERROR_CANCELED: /* CTRL-C */
                         return 0;
 
                 case -CLI_ERROR_CONNECTION_CLOSED:

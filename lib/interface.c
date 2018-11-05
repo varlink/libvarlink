@@ -148,7 +148,7 @@ static long member_compare(const void *key, void *value) {
 
 static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Scanner *scanner) {
         _cleanup_(varlink_interface_freep) VarlinkInterface *interface = NULL;
-        unsigned n_allocated = 0;
+        unsigned long n_allocated = 0;
         long r;
 
         interface = calloc(1, sizeof(VarlinkInterface));
@@ -179,7 +179,7 @@ static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
 
                 if (n_allocated == interface->n_members) {
                         n_allocated = MAX(2 * n_allocated, 16);
-                        interface->members = realloc(interface->members, n_allocated * sizeof(VarlinkInterfaceMember));
+                        interface->members = realloc(interface->members, n_allocated * sizeof(VarlinkInterfaceMember *));
                         if (!interface->members)
                                 return -VARLINK_ERROR_PANIC;
                 }
@@ -282,9 +282,6 @@ static long varlink_interface_new_from_scanner(VarlinkInterface **interfacep, Sc
                 r = avl_tree_insert(interface->member_tree, member->name, member);
                 if (r < 0) {
                         switch (r) {
-                                case 0:
-                                        break;
-
                                 case -AVL_ERROR_KEY_EXISTS:
                                         scanner_error(scanner, SCANNER_ERROR_DUPLICATE_MEMBER_NAME);
                                         return -VARLINK_ERROR_INVALID_INTERFACE;

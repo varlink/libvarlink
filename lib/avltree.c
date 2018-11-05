@@ -220,7 +220,7 @@ unsigned long avl_tree_get_n_elements(AVLTree *tree) {
 long avl_tree_get_elements(AVLTree *tree, void ***elementsp) {
         void **elements = NULL;
         AVLTreeNode *node;
-        unsigned int i = 0;
+        unsigned long i = 0;
 
         elements = malloc((tree->n_elements + 1) * sizeof(void *));
         if (!elements)

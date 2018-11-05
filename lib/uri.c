@@ -39,12 +39,12 @@ static long string_percent_decode( const char *in, char **outp) {
 
         for (unsigned long i = 0; in[i] != '\0' && i < len; i += 1) {
                 if (in[i] == '%') {
-                        unsigned int hex;
+                        unsigned long hex;
 
                         if (i + 3 > len)
                                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
-                        if (sscanf(in + i + 1, "%02x", &hex) != 1)
+                        if (sscanf(in + i + 1, "%02lx", &hex) != 1)
                                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
                         out[j] = hex;
@@ -73,7 +73,7 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                         return -VARLINK_ERROR_PANIC;
 
                 *stringp = strdup(address + 7);
-                if (!stringp)
+                if (!*stringp)
                         return -VARLINK_ERROR_PANIC;
 
                 return 0;
@@ -86,7 +86,7 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                         return -VARLINK_ERROR_PANIC;
 
                 *stringp = strdup(address + 5);
-                if (!stringp)
+                if (!*stringp)
                         return -VARLINK_ERROR_PANIC;
 
                 return 0;
@@ -99,7 +99,7 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
                         return -VARLINK_ERROR_PANIC;
 
                 *stringp = strdup(address + 4);
-                if (!stringp)
+                if (!*stringp)
                         return -VARLINK_ERROR_PANIC;
 
                 return 0;
@@ -107,7 +107,7 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
 
         /* VARLINK_URI_PROTOCOL_NONE, interface/member only */
         *stringp = strdup(address);
-        if (!stringp)
+        if (!*stringp)
                 return -VARLINK_ERROR_PANIC;
 
         return 0;
@@ -163,7 +163,7 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
         /* Split URI query */
         p = strchr(string, '?');
         if (p) {
-                char *s = string;
+                char *s;
 
                 uri->query = strdup(p + 1);
                 if (!uri->query)
@@ -178,10 +178,10 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
         }
 
         if (has_interface) {
-                char *s = string;
-
                 p = strrchr(string, '/');
                 if (p) {
+                        char *s;
+
                         /* Split varlink interface + member */
                         uri->interface = strdup(p + 1);
                         if (!uri->interface)

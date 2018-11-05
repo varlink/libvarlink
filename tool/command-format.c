@@ -30,6 +30,9 @@ static long read_file(FILE *file, char **contentsp) {
                 size += n;
         }
 
+        if (!contents)
+                return -EIO;
+
         contents[size] = '\0';
 
         *contentsp = contents;
@@ -121,9 +124,15 @@ static long format_run(Cli *cli, int argc, char **argv) {
                 _cleanup_(fclosep) FILE *f = NULL;
                 _cleanup_(freep) char *filename_tmp = NULL;
 
-                asprintf(&filename_tmp, "%s.tmp", filename);
+                if (asprintf(&filename_tmp, "%s.tmp", filename) < 0)
+                        return -CLI_ERROR_PANIC;
 
                 f = fopen(filename_tmp, "w");
+                if (!f) {
+                        fprintf(stderr, "Error creating tempory file: %s", strerror(-r));
+                        return -CLI_ERROR_PANIC;
+                }
+
                 fwrite(out, 1, strlen(out), f);
                 fflush(f);
                 if (ferror(f) != 0) {

@@ -505,7 +505,8 @@ void cli_print_completion(const char *current, const char *format, ...) {
         _cleanup_(freep) char *word = NULL;
 
         va_start(args, format);
-        vasprintf(&word, format, args);
+        if (vasprintf(&word, format, args) < 0)
+                abort();
         va_end(args);
 
         if (strncmp(word, current, strlen(current)) != 0)
