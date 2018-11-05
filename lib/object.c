@@ -437,11 +437,14 @@ long varlink_object_write_json(VarlinkObject *object,
                                long indent,
                                const char *key_pre, const char *key_post,
                                const char *value_pre, const char *value_post) {
-        unsigned long n_fields;
+        long n_fields;
         _cleanup_(freep) const char **field_names = NULL;
         long r;
 
         n_fields = varlink_object_get_field_names(object, &field_names);
+        if (n_fields < 0)
+                return n_fields;
+
         if (n_fields == 0) {
                 if (fprintf(stream, "{}") < 0)
                         return -VARLINK_ERROR_PANIC;

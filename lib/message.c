@@ -107,6 +107,8 @@ long varlink_message_pack_reply(const char *error,
         long r;
 
         r = varlink_object_new(&reply);
+        if (r < 0)
+                return r;
 
         if (error) {
                 r = varlink_object_set_string(reply, "error", error);

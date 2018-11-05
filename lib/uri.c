@@ -146,7 +146,7 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
         /* Split URI fragment */
         p = strchr(string, '#');
         if (p) {
-                char *s = string;
+                char *s;
 
                 uri->fragment = strdup(p + 1);
                 if (!uri->fragment)
