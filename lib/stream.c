@@ -10,7 +10,7 @@
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
 
 long varlink_stream_new(VarlinkStream **streamp, int fd) {
-        VarlinkStream *stream;
+        _cleanup_(freep) VarlinkStream *stream = NULL;
 
         stream = calloc(1, sizeof(VarlinkStream));
         if (!stream)
@@ -27,6 +27,8 @@ long varlink_stream_new(VarlinkStream **streamp, int fd) {
                 return -VARLINK_ERROR_PANIC;
 
         *streamp = stream;
+        stream = NULL;
+
         return 0;
 }
 

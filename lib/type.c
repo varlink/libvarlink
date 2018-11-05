@@ -173,7 +173,7 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         return -VARLINK_ERROR_INVALID_TYPE;
 
         } else {
-                char *alias;
+                _cleanup_(freep) char *alias = NULL;
 
                 r = scanner_expect_type_name(scanner, &alias);
                 if (r < 0) {
@@ -184,7 +184,9 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                 r = varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
                 if (r < 0)
                         return r;
+
                 type->alias = alias;
+                alias = NULL;
         }
 
         *typep = type;

@@ -15,6 +15,7 @@ static void test_basic(void) {
         AVLTreeNode *node;
         const char *strings[] = { "ghi", "abc", "mno", "jkl", "def" };
         const char *sorted[] = { "abc", "def", "ghi", "jkl", "mno" };
+        char *s;
 
         avl_tree_new(&tree, compare_names, freep);
         for (unsigned long i = 0; i < ARRAY_SIZE(strings); i += 1)
@@ -22,9 +23,18 @@ static void test_basic(void) {
 
         assert(avl_tree_get_n_elements(tree) == 5);
 
-        assert(strcmp(avl_tree_find(tree, "abc"), "abc") == 0);
-        assert(strcmp(avl_tree_find(tree, "jkl"), "jkl") == 0);
-        assert(strcmp(avl_tree_find(tree, "mno"), "mno") == 0);
+        s = avl_tree_find(tree, "abc");
+        assert(s);
+        assert(strcmp(s, "abc") == 0);
+
+        s = avl_tree_find(tree, "jkl");
+        assert(s);
+        assert(strcmp(s, "jkl") == 0);
+
+        s = avl_tree_find(tree, "mno");
+        assert(s);
+        assert(strcmp(s, "mno") == 0);
+
         assert(avl_tree_find(tree, "foo") == NULL);
         assert(avl_tree_remove(tree, "foo") == -AVL_ERROR_UNKNOWN_KEY);
 

@@ -106,7 +106,7 @@ static const char *scanner_advance(Scanner *scanner) {
 
 long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
         _cleanup_(fclosep) FILE *stream = NULL;
-        char *docstring = NULL;
+        _cleanup_(freep) char *docstring = NULL;
         size_t size;
         const char *p;
 
