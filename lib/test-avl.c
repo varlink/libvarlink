@@ -28,14 +28,16 @@ static void test_basic(void) {
         assert(avl_tree_find(tree, "foo") == NULL);
         assert(avl_tree_remove(tree, "foo") == -AVL_ERROR_UNKNOWN_KEY);
 
-        assert((node = avl_tree_first(tree)));
+        node = avl_tree_first(tree);
+        assert(node);
         for (unsigned long i = 0; i < ARRAY_SIZE(strings); i += 1) {
                 assert(strcmp(avl_tree_node_get(node), sorted[i]) == 0);
                 node = avl_tree_node_next(node);
         }
         assert(node == NULL);
 
-        assert((node = avl_tree_last(tree)));
+        node = avl_tree_last(tree);
+        assert(node);
         for (long i = ARRAY_SIZE(strings) - 1; i >= 0; i -= 1) {
                 assert(strcmp(avl_tree_node_get(node), sorted[i]) == 0);
                 node = avl_tree_node_previous(node);

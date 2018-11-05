@@ -72,7 +72,7 @@ static void test_name(void) {
                 _cleanup_(freep) char *string = NULL;
                 VarlinkInterface *interface;
 
-                asprintf(&string, "interface %s", valid[i]);
+                assert(asprintf(&string, "interface %s", valid[i]) >= 0);
                 assert(varlink_interface_new(&interface, string, NULL) == 0);
                 assert(varlink_interface_free(interface) == NULL);
         }
@@ -82,7 +82,7 @@ static void test_name(void) {
                 VarlinkInterface *interface;
                 _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                asprintf(&string, "interface %s", invalid[i]);
+                assert(asprintf(&string, "interface %s", invalid[i]) >= 0);
                 assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
                 assert(scanner);
         }
@@ -105,7 +105,7 @@ static void test_method_name(void) {
                 _cleanup_(freep) char *string = NULL;
                 VarlinkInterface *interface;
 
-                asprintf(&string, "interface a.b\nmethod %s() -> ()", valid[i]);
+                assert(asprintf(&string, "interface a.b\nmethod %s() -> ()", valid[i]) >= 0);
                 assert(varlink_interface_new(&interface, string, NULL) == 0);
                 assert(varlink_interface_free(interface) == NULL);
         }
@@ -115,7 +115,7 @@ static void test_method_name(void) {
                 VarlinkInterface *interface;
                 _cleanup_(scanner_freep) Scanner *scanner = NULL;
 
-                asprintf(&string, "interface a.b\nmethod %s() -> ()", invalid[i]);
+                assert(asprintf(&string, "interface a.b\nmethod %s() -> ()", invalid[i]) >= 0);
                 assert(varlink_interface_new(&interface, string, &scanner) == -VARLINK_ERROR_INVALID_INTERFACE);
                 assert(scanner);
         }

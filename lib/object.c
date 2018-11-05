@@ -35,7 +35,7 @@ static void field_freep(void *ptr) {
 }
 
 static long object_add_field(VarlinkObject *object, const char *name, Field **fieldp) {
-        Field *field;
+        _cleanup_(freep) Field *field = NULL;
         long r;
 
         field = calloc(1, sizeof(Field));
@@ -51,6 +51,8 @@ static long object_add_field(VarlinkObject *object, const char *name, Field **fi
                 return -VARLINK_ERROR_PANIC;
 
         *fieldp = field;
+        field = NULL;
+
         return 0;
 }
 

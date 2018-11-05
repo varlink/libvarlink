@@ -105,7 +105,7 @@ static const char *scanner_advance(Scanner *scanner) {
 }
 
 long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
-        FILE *stream = NULL;
+        _cleanup_(fclosep) FILE *stream = NULL;
         char *docstring = NULL;
         size_t size;
         const char *p;
@@ -140,6 +140,7 @@ long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
         }
 
         fclose(stream);
+        stream = NULL;
 
         scanner->last_comment_start = NULL;
         *stringp = docstring;

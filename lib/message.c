@@ -7,7 +7,7 @@ long varlink_message_pack_call(const char *method,
                                VarlinkObject *parameters,
                                uint64_t flags,
                                VarlinkObject **callp) {
-        VarlinkObject *call;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
         long r;
 
         if (flags & VARLINK_CALL_MORE && flags & VARLINK_CALL_ONEWAY)
@@ -40,6 +40,7 @@ long varlink_message_pack_call(const char *method,
         }
 
         *callp = call;
+        call = NULL;
 
         return 0;
 }
@@ -103,7 +104,7 @@ long varlink_message_pack_reply(const char *error,
                                 VarlinkObject *parameters,
                                 uint64_t flags,
                                 VarlinkObject **replyp) {
-        VarlinkObject *reply;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *reply = NULL;
         long r;
 
         r = varlink_object_new(&reply);
@@ -129,6 +130,7 @@ long varlink_message_pack_reply(const char *error,
         }
 
         *replyp = reply;
+        reply = NULL;
 
         return 0;
 }

@@ -231,7 +231,7 @@ static long field_compare(const void *key, void *value) {
 
 long varlink_type_allocate(VarlinkType **typep,
                            VarlinkTypeKind kind) {
-        VarlinkType *type;
+        _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         long r;
 
         type = calloc(1, sizeof(VarlinkType));
@@ -248,6 +248,7 @@ long varlink_type_allocate(VarlinkType **typep,
         }
 
         *typep = type;
+        type = NULL;
 
         return 0;
 }
