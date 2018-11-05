@@ -181,7 +181,9 @@ long varlink_type_new_from_scanner(VarlinkType **typep, Scanner *scanner) {
                         return r;
                 }
 
-                varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
+                r = varlink_type_allocate(&type, VARLINK_TYPE_ALIAS);
+                if (r < 0)
+                        return r;
                 type->alias = alias;
         }
 
