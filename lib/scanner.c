@@ -144,6 +144,7 @@ long scanner_get_last_docstring(Scanner *scanner, char **stringp) {
 
         scanner->last_comment_start = NULL;
         *stringp = docstring;
+        docstring = NULL;
 
         return true;
 }

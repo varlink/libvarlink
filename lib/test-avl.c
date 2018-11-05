@@ -104,32 +104,37 @@ static void test_numbers(void) {
 }
 
 static void test_worst_case(void) {
-        AVLTree *tree;
         const unsigned long count = 10000;
 
-        avl_tree_new(&tree, compare_numbers, NULL);
+        {
+                AVLTree *tree;
+                avl_tree_new(&tree, compare_numbers, NULL);
 
-        for (unsigned long i = 0; i < count; i += 1)
-                avl_tree_insert(tree, (void *)i, (void *)i);
+                for (unsigned long i = 0; i < count; i += 1)
+                        avl_tree_insert(tree, (void *)i, (void *)i);
 
-        assert(avl_tree_get_n_elements(tree) == count);
-        assert(avl_tree_get_height(tree) == (unsigned long)log2(count) + 1);
+                assert(avl_tree_get_n_elements(tree) == count);
+                assert(avl_tree_get_height(tree) == (unsigned long)log2(count) + 1);
 
-        for (unsigned long i = 0; i < count; i += 1)
-                avl_tree_remove(tree, (void *)i);
+                for (unsigned long i = 0; i < count; i += 1)
+                        avl_tree_remove(tree, (void *)i);
 
-        assert(avl_tree_get_n_elements(tree) == 0);
-        assert(avl_tree_free(tree) == NULL);
+                assert(avl_tree_get_n_elements(tree) == 0);
+                assert(avl_tree_free(tree) == NULL);
+        }
+        {
+                AVLTree *tree;
 
-        avl_tree_new(&tree, compare_numbers, NULL);
+                avl_tree_new(&tree, compare_numbers, NULL);
 
-        for (unsigned long i = count; i > 0; i -= 1)
-                avl_tree_insert(tree, (void *)i, (void *)i);
+                for (unsigned long i = count; i > 0; i -= 1)
+                        avl_tree_insert(tree, (void *)i, (void *)i);
 
-        assert(avl_tree_get_n_elements(tree) == count);
-        assert(avl_tree_get_height(tree) == (unsigned long)log2(count) + 1);
+                assert(avl_tree_get_n_elements(tree) == count);
+                assert(avl_tree_get_height(tree) == (unsigned long)log2(count) + 1);
 
-        assert(avl_tree_free(tree) == NULL);
+                assert(avl_tree_free(tree) == NULL);
+        }
 }
 
 int main(void) {
