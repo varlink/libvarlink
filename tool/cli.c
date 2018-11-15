@@ -438,6 +438,7 @@ long cli_run(Cli *cli, int argc, char **argv) {
                 .timeout = -1
         };
         const CliCommand *command;
+        char *bridge;
         long r;
 
         r = cli_parse_arguments(argc, argv, &arguments);
@@ -446,6 +447,9 @@ long cli_run(Cli *cli, int argc, char **argv) {
 
         if (arguments.activate)
                 cli->activate = arguments.activate;
+
+        if ((bridge = getenv("VARLINK_BRIDGE")) != NULL)
+                cli->bridge = bridge;
 
         if (arguments.bridge)
                 cli->bridge = arguments.bridge;
