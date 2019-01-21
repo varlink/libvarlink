@@ -139,6 +139,8 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         _cleanup_(freep) char *error = NULL;
         _cleanup_(bridge_freep) Bridge *bridge = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *bridge_connection = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *bridge_uri = NULL;
         long r;
 
         while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
@@ -166,6 +168,22 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         r = bridge_new(&bridge, cli);
         if (r < 0)
                 return r;
+
+
+        if (connect) {
+                r = varlink_uri_new(&bridge_uri, connect, false);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to parse --connect ADDRESS\n");
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+                }
+        }
+        if (cli->activate || cli->bridge || bridge_uri ) {
+                r = cli_connect(cli, &bridge_connection, bridge_uri);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                        return r;
+                }
+        }
 
         while (bridge->status == 0) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
@@ -214,13 +232,9 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
 
-                if (connect) {
+                if (bridge_connection) {
                         /* Connect directly to specified service address. */
-                        r = varlink_connection_new(&connection, connect);
-                        if (r < 0)
-                                return -CLI_ERROR_PANIC;
-
-                        r = varlink_connection_call(connection,
+                        r = varlink_connection_call(bridge_connection,
                                                     method,
                                                     parameters,
                                                     flags,
@@ -228,6 +242,11 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                                     bridge);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
+
+                        r = cli_process_all_events(cli, bridge_connection);
+                        if (r < 0)
+                                return r;
+                        continue;
 
                 } else if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
                         r = varlink_connection_new(&connection, cli->resolver);
