@@ -385,7 +385,7 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
 
         opterr = 0;
 
-        while ((c = getopt_long(argc, argv, "+Ab:ht:R:V", cli_options, NULL)) >= 0) {
+        while ((c = getopt_long(argc, argv, "+A:b:ht:R:V", cli_options, NULL)) >= 0) {
                 switch (c) {
                         case 'A':
                                 arguments->activate = optarg;
