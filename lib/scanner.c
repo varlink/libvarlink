@@ -198,6 +198,9 @@ bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
 }
 
 static bool interface_name_valid(const char *name, unsigned long len) {
+        int previous = 0;
+        unsigned sections = 1;
+
         if (len < 3 || len > 255)
                 return false;
 
@@ -206,13 +209,26 @@ static bool interface_name_valid(const char *name, unsigned long len) {
                 switch (name[i]) {
                         case 'a' ... 'z':
                         case '0' ... '9':
+                                break;
+
                         case '-':
+                                /* No dashes after a dot. */
+                                if (previous == '.')
+                                        return false;
+                                break;
+
                         case '.':
+                                /* No double dots and no dashes before a dot. */
+                                if (previous == '.' || previous == '-')
+                                        return false;
+                                sections += 1;
                                 break;
 
                         default:
                                 return false;
                 }
+
+                previous = name[i];
         }
 
         /* The top-level element starts with an alpha character. */
@@ -225,7 +241,7 @@ static bool interface_name_valid(const char *name, unsigned long len) {
         }
 
         /* At least two elements are required. */
-        if (!strchr(name, '.'))
+        if (sections < 2)
                 return false;
 
         /* The last element ends alphanumeric. */
@@ -235,14 +251,8 @@ static bool interface_name_valid(const char *name, unsigned long len) {
                         break;
 
                 default:
-                        return false;
+                       return false;
         }
-
-        /* No double dots and no dashes next to a dot. */
-        if (strstr(name, "..") ||
-            strstr(name, ".-") ||
-            strstr(name, "-."))
-                return false;
 
         return true;
 }
