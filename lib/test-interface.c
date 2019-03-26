@@ -72,7 +72,8 @@ static void test_name(void) {
                 _cleanup_(freep) char *string = NULL;
                 VarlinkInterface *interface;
 
-                assert(asprintf(&string, "interface %s", valid[i]) >= 0);
+                /* append some invalid interface characters in a comment */
+                assert(asprintf(&string, "interface %s\n#...--.?", valid[i]) >= 0);
                 assert(varlink_interface_new(&interface, string, NULL) == 0);
                 assert(varlink_interface_free(interface) == NULL);
         }
