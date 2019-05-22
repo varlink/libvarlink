@@ -5,6 +5,7 @@
 #include "util.h"
 #include "uri.h"
 #include "varlink.h"
+#include "connection.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -133,64 +134,14 @@ static const struct option options[] = {
         {}
 };
 
-static long bridge_run(Cli *cli, int argc, char **argv) {
-        int c;
-        const char *connect = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
-        _cleanup_(freep) char *error = NULL;
-        _cleanup_(bridge_freep) Bridge *bridge = NULL;
-        _cleanup_(varlink_connection_freep) VarlinkConnection *bridge_connection = NULL;
-        _cleanup_(varlink_uri_freep) VarlinkURI *bridge_uri = NULL;
-        long r;
-
-        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
-                switch (c) {
-                        case 'h':
-                                printf("Usage: %s bridge\n", program_invocation_short_name);
-                                printf("\n");
-                                printf("Bridge varlink messages on standard in and out to varlink services\n"
-                                       "on this machine.\n");
-                                printf("\n");
-                                printf("  -h, --help             display this help text and exit\n");
-                                return 0;
-
-                        case 'c':
-                                connect = optarg;
-                                break;
-
-                        default:
-                                fprintf(stderr, "Try '%s --help' for more information\n",
-                                        program_invocation_short_name);
-                                return -CLI_ERROR_INVALID_ARGUMENT;
-                }
-        }
-
-        r = bridge_new(&bridge, cli);
-        if (r < 0)
-                return r;
-
-
-        if (connect) {
-                r = varlink_uri_new(&bridge_uri, connect, false);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to parse --connect ADDRESS\n");
-                        return -CLI_ERROR_INVALID_ARGUMENT;
-                }
-        }
-        if (cli->activate || cli->bridge || bridge_uri ) {
-                r = cli_connect(cli, &bridge_connection, bridge_uri);
-                if (r < 0) {
-                        fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
-                        return r;
-                }
-        }
-
-        while (bridge->status == 0) {
+static long handleBridge(Cli *cli, Bridge *bridge) {
+        while (bridge->status >= 0) {
                 _cleanup_(varlink_object_unrefp) VarlinkObject *call = NULL;
                 _cleanup_(freep) char *method = NULL;
                 _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
                 uint64_t flags;
                 _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+                long r;
 
                 /* Read one message. */
                 r = varlink_stream_read(bridge->in, &call);
@@ -232,23 +183,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                 if (r < 0)
                         return -CLI_ERROR_INVALID_MESSAGE;
 
-                if (bridge_connection) {
-                        /* Connect directly to specified service address. */
-                        r = varlink_connection_call(bridge_connection,
-                                                    method,
-                                                    parameters,
-                                                    flags,
-                                                    reply_callback,
-                                                    bridge);
-                        if (r < 0)
-                                return -CLI_ERROR_PANIC;
-
-                        r = cli_process_all_events(cli, bridge_connection);
-                        if (r < 0)
-                                return r;
-                        continue;
-
-                } else if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
+                if (strcmp(method, "org.varlink.service.GetInfo") == 0) {
                         r = varlink_connection_new(&connection, cli->resolver);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
@@ -306,6 +241,10 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
                                 return -CLI_ERROR_PANIC;
                         }
 
+                        if (connection != NULL) {
+                                varlink_connection_free(connection);
+                        }
+
                         r = varlink_connection_new(&connection, address);
                         if (r < 0)
                                 return -CLI_ERROR_PANIC;
@@ -327,6 +266,81 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
         }
 
         return bridge->status;
+}
+
+static long handleDirectBridge(Cli *cli, Bridge *bridge, VarlinkURI *bridge_uri) {
+        _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
+        VarlinkStream *out_stream = NULL;
+        long r;
+
+        r = cli_connect(cli, &connection, bridge_uri);
+
+        if (r < 0) {
+                fprintf(stderr, "Unable to connect: %s\n", varlink_error_string(-r));
+                return r;
+        }
+
+        r = varlink_stream_new(&out_stream, STDOUT_FILENO);
+        if (r < 0)
+                return r;
+
+        varlink_connection_bridge(cli->signal_fd, bridge->in, out_stream, connection);
+
+        varlink_stream_free(out_stream);
+
+        return bridge->status;
+}
+
+static long bridge_run(Cli *cli, int argc, char **argv) {
+        int c;
+        const char *connect = NULL;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
+        _cleanup_(freep) char *error = NULL;
+        _cleanup_(bridge_freep) Bridge *bridge = NULL;
+        _cleanup_(varlink_connection_freep) VarlinkConnection *bridge_connection = NULL;
+        _cleanup_(varlink_uri_freep) VarlinkURI *bridge_uri = NULL;
+        long r;
+
+        while ((c = getopt_long(argc, argv, "h", options, NULL)) >= 0) {
+                switch (c) {
+                        case 'h':
+                                printf("Usage: %s bridge\n", program_invocation_short_name);
+                                printf("\n");
+                                printf("Bridge varlink messages on standard in and out to varlink services\n"
+                                       "on this machine.\n");
+                                printf("\n");
+                                printf("  -h, --help             display this help text and exit\n");
+                                return 0;
+
+                        case 'c':
+                                connect = optarg;
+                                break;
+
+                        default:
+                                fprintf(stderr, "Try '%s --help' for more information\n",
+                                        program_invocation_short_name);
+                                return -CLI_ERROR_INVALID_ARGUMENT;
+                }
+        }
+
+        r = bridge_new(&bridge, cli);
+        if (r < 0)
+                return r;
+
+
+        if (connect) {
+                r = varlink_uri_new(&bridge_uri, connect, false);
+                if (r < 0) {
+                        fprintf(stderr, "Unable to parse --connect ADDRESS\n");
+                        return -CLI_ERROR_INVALID_ARGUMENT;
+                }
+        }
+
+        if (cli->activate || cli->bridge || bridge_uri)
+                return handleDirectBridge(cli, bridge, bridge_uri);
+        else
+                return handleBridge(cli, bridge);
+
 }
 
 static long bridge_complete(Cli *cli, int argc, char **argv, const char *current) {

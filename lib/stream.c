@@ -1,11 +1,14 @@
 #include "object.h"
+#include "connection.h"
 #include "stream.h"
 #include "util.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/signal.h>
+#include <sys/epoll.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
 
@@ -90,6 +93,82 @@ long varlink_stream_flush(VarlinkStream *stream) {
         return stream->out_end - stream->out_start;
 }
 
+static long fd_nonblock(int fd) {
+        int flags;
+
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags < 0)
+                return -errno;
+
+        if (flags & O_NONBLOCK)
+                return 0;
+
+        if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+                return -errno;
+
+        return 0;
+}
+
+long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStream *client_out, VarlinkStream *server) {
+        long r;
+        unsigned char buf[8192];
+        int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+
+        if (fd_nonblock(client_in->fd) < 0)
+                return -1;
+        if (fd_nonblock(client_out->fd) < 0)
+                return -1;
+        if (fd_nonblock(server->fd) < 0)
+                return -1;
+
+        epoll_add(epoll_fd, client_in->fd, EPOLLIN, (void *) &server->fd);
+        epoll_add(epoll_fd, server->fd, EPOLLIN, (void *) &client_out->fd);
+        epoll_add(epoll_fd, signal_fd, EPOLLIN, (void *) &signal_fd);
+
+        for (;;) {
+                struct epoll_event ev[3];
+                int in, out;
+                size_t towrite;
+                int num_ev;
+
+                num_ev = epoll_wait(epoll_fd, ev, 3, -1);
+                if (num_ev < 0)
+                        break;
+
+                for (int i = 0; i < num_ev; i++) {
+                        if (!(ev[i].events & EPOLLIN))
+                                goto out;
+
+                        out = *(int *) ev[i].data.ptr;
+
+                        if (out == server->fd)
+                                in = client_in->fd;
+                        else if (out == client_out->fd) {
+                                in = server->fd;
+                        } else {
+                                goto out;
+                        }
+
+                        r = read(in, buf, 8192);
+                        if (r <= 0)
+                                goto out;
+
+                        towrite = r;
+                        while (towrite) {
+                                r = write(out, buf, towrite);
+                                if (r <= 0)
+                                        goto out;
+                                towrite -= r;
+                        }
+
+                        if (ev[i].events & (EPOLLHUP | EPOLLRDHUP | EPOLLERR))
+                                goto out;
+                }
+        }
+        out:
+        return 0;
+}
+
 long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
         for (;;) {
                 uint8_t *nul;
@@ -97,7 +176,7 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
 
                 nul = memchr(&stream->in[stream->in_start], 0, stream->in_end - stream->in_start);
                 if (nul) {
-                        r = varlink_object_new_from_json(messagep, (const char *)&stream->in[stream->in_start]);
+                        r = varlink_object_new_from_json(messagep, (const char *) &stream->in[stream->in_start]);
                         if (r < 0)
                                 return r;
 
