@@ -57,7 +57,7 @@ int varlink_connect_unix(const char *address) {
         } else
                 sa_len = strlen(path) + 1;
 
-        if (connect(fd, &sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
+        if (connect(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
         r = fd;
