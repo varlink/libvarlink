@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/epoll.h>
 
 #define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)

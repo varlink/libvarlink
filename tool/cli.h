@@ -4,6 +4,7 @@
 
 #include <getopt.h>
 #include <varlink.h>
+#include <sys/types.h>
 
 enum {
         CLI_ERROR_PANIC = 1,

@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <sys/prctl.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <wordexp.h>
