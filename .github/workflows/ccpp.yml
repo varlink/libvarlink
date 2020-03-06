@@ -19,5 +19,12 @@ jobs:
 
       - name: make
         run: make
+
       - name: make check
         run: make check
+
+      - name: Install varlink-certification
+        run: cargo install --git https://github.com/varlink/rust varlink-certification
+
+      - name: Bridge check
+        run: ./build/tool/varlink --bridge "./build/tool/varlink --bridge \"./build/tool/varlink -A 'varlink-certification --varlink=\\\$VARLINK_ADDRESS' bridge\" bridge" info
