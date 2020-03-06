@@ -62,6 +62,7 @@ static void move_rest(uint8_t **bufferp, unsigned long *startp, unsigned long *e
 long varlink_stream_flush(VarlinkStream *stream) {
         long n;
 
+write_again:
         n = write(stream->fd,
                   stream->out + stream->out_start,
                   stream->out_end - stream->out_start);
@@ -69,7 +70,11 @@ long varlink_stream_flush(VarlinkStream *stream) {
         switch (n) {
                 case -1:
                         switch (errno) {
+                                case EINTR:
+                                        goto write_again;
+
                                 case EAGAIN:
+                                        // this function returns the number of bytes still to send
                                         break;
 
                                 case EPIPE:
@@ -106,6 +111,22 @@ static long fd_nonblock(int fd) {
         return 0;
 }
 
+static long fd_block(int fd) {
+        int flags;
+
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags < 0)
+                return -errno;
+
+        if ((flags & O_NONBLOCK) == 0)
+                return 0;
+
+        if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0)
+                return -errno;
+
+        return 0;
+}
+
 long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStream *client_out, VarlinkStream *server) {
         long r;
         unsigned char buf[8192];
@@ -134,7 +155,7 @@ long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStrea
 
                 for (int i = 0; i < num_ev; i++) {
                         if (!(ev[i].events & EPOLLIN))
-                                goto out;
+                                goto bridge_out;
 
                         out = *(int *) ev[i].data.ptr;
 
@@ -143,26 +164,54 @@ long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStrea
                         else if (out == client_out->fd) {
                                 in = server->fd;
                         } else {
-                                goto out;
+                                goto bridge_out;
+                        }
+read_again:
+                        r = read(in, buf, 8192);
+                        if (r == 0)
+                                goto bridge_out;
+
+                        if (r < 0) {
+                                switch (errno) {
+                                        case EINTR:
+                                                goto read_again;
+
+                                        case EAGAIN:
+                                                // The next epoll will let us retry
+                                                continue;
+
+                                        default:
+                                                goto bridge_out;
+                                }
                         }
 
-                        r = read(in, buf, 8192);
-                        if (r <= 0)
-                                goto out;
-
+                        fd_block(out);
                         towrite = r;
                         while (towrite) {
                                 r = write(out, buf, towrite);
-                                if (r <= 0)
-                                        goto out;
+                                if (r < 0)
+                                        switch (errno) {
+                                                case EINTR:
+                                                        continue;
+
+                                                case EAGAIN:
+                                                        // Retry until success, we don't want to cache
+                                                        usleep(10000);
+                                                        continue;
+
+                                                default:
+                                                        fd_nonblock(out);
+                                                        goto bridge_out;
+                                        }
                                 towrite -= r;
                         }
+                        fd_nonblock(out);
 
                         if (ev[i].events & (EPOLLHUP | EPOLLRDHUP | EPOLLERR))
-                                goto out;
+                                goto bridge_out;
                 }
         }
-        out:
+bridge_out:
         return 0;
 }
 
@@ -185,7 +234,7 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
 
                 if (stream->in_end == CONNECTION_BUFFER_SIZE)
                         return -VARLINK_ERROR_INVALID_MESSAGE;
-
+again:
                 n = read(stream->fd,
                          stream->in + stream->in_end,
                          CONNECTION_BUFFER_SIZE - stream->in_end);
@@ -193,6 +242,9 @@ long varlink_stream_read(VarlinkStream *stream, VarlinkObject **messagep) {
                 switch (n) {
                         case -1:
                                 switch (errno) {
+                                        case EINTR:
+                                                goto again;
+
                                         case EAGAIN:
                                                 *messagep = NULL;
                                                 return 0;
