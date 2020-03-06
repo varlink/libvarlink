@@ -126,7 +126,7 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, u
                 if (r < 0)
                         return r;
 
-                /* We did not write the entire message. */
+                /* In case we wrote the entire message, mask out EPOLLOUT. */
                 if (r == 0)
                         connection->events &= ~EPOLLOUT;
         }
