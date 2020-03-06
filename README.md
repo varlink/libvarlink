@@ -1,4 +1,4 @@
-![C CI](https://github.com/varlink/libvarlink/workflows/C%20CI/badge.svg)
+![C/C++ CI](https://github.com/varlink/libvarlink/workflows/C/C++%20CI/badge.svg)
 
 # libvarlink
 
