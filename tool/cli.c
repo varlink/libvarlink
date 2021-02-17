@@ -193,7 +193,6 @@ long cli_resolve(Cli *cli,
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
-        _cleanup_(freep) char *json = NULL;
         const char *address;
         char *a;
         long r;
@@ -287,8 +286,6 @@ long cli_connect(Cli *cli,
 }
 
 long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
-        _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(freep) char *error = NULL;
         long r;
 
         if (varlink_connection_get_events(connection) == 0)

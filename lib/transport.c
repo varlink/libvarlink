@@ -22,7 +22,6 @@ int varlink_transport_listen(VarlinkURI *uri, char **pathp) {
 
 _public_ int varlink_listen(const char *address, char **pathp) {
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
-        _cleanup_(freep) char *destination = NULL;
         long r;
 
         r = varlink_uri_new(&uri, address, false);

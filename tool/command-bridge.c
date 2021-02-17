@@ -294,10 +294,7 @@ static long handleDirectBridge(Cli *cli, Bridge *bridge, VarlinkURI *bridge_uri)
 static long bridge_run(Cli *cli, int argc, char **argv) {
         int c;
         const char *connect = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
-        _cleanup_(freep) char *error = NULL;
         _cleanup_(bridge_freep) Bridge *bridge = NULL;
-        _cleanup_(varlink_connection_freep) VarlinkConnection *bridge_connection = NULL;
         _cleanup_(varlink_uri_freep) VarlinkURI *bridge_uri = NULL;
         long r;
 

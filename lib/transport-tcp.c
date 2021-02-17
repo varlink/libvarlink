@@ -153,7 +153,6 @@ int varlink_listen_tcp(const char *address) {
 
 int varlink_accept_tcp(int listen_fd) {
         _cleanup_(closep) int fd = -1;
-        _cleanup_(freep) char *address = NULL;
         int r;
 
         fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);

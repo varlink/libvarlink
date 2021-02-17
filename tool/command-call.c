@@ -125,7 +125,6 @@ static long call_run(Cli *cli, int argc, char **argv) {
         _cleanup_(varlink_connection_freep) VarlinkConnection *connection = NULL;
         _cleanup_(freep) char *buffer = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *parameters = NULL;
-        _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         long error = 0;
         long r;
 

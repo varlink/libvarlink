@@ -668,7 +668,6 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         _cleanup_(varlink_uri_freep) VarlinkURI *uri_method = NULL;
         VarlinkInterface *interface;
         VarlinkInterfaceMember *member;
-        _cleanup_(freep) char *string = NULL;
         long r;
 
         if (call != call->connection->call)

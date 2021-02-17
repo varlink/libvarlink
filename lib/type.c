@@ -536,7 +536,6 @@ static long varlink_type_print(VarlinkType *type,
 
 const char *varlink_type_get_typestring(VarlinkType *type) {
         FILE *stream = NULL;
-        _cleanup_(freep) char *string = NULL;
         size_t size;
 
         if (type->typestring)
