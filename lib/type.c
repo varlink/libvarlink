@@ -12,7 +12,7 @@
 long varlink_type_new(VarlinkType **typep, const char *typestring) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
-        int r;
+        long r;
 
         r = scanner_new(&scanner, typestring, true);
         if (r < 0)
@@ -234,8 +234,9 @@ long varlink_type_allocate(VarlinkType **typep,
         if (!type)
                 return -VARLINK_ERROR_PANIC;
 
-        type->refcount = 1;
         type->kind = kind;
+
+        varlink_type_ref(type);
 
         if (kind == VARLINK_TYPE_OBJECT) {
                 r = avl_tree_new(&type->fields_sorted, field_compare, NULL);
@@ -281,10 +282,6 @@ VarlinkType *varlink_type_unref(VarlinkType *type) {
 
                         case VARLINK_TYPE_ARRAY:
                         case VARLINK_TYPE_MAP:
-                                if (type->element_type)
-                                        varlink_type_unref(type->element_type);
-                                break;
-
                         case VARLINK_TYPE_MAYBE:
                                 if (type->element_type)
                                         varlink_type_unref(type->element_type);
@@ -400,7 +397,7 @@ static long varlink_type_print(VarlinkType *type,
 
                                                 for (const char *start = field->description; *start;) {
                                                         const char *end = strchrnul(start, '\n');
-                                                        int len = end - start;
+                                                        unsigned int len = end - start;
 
                                                         for (long l = 0; l < indent + 1; l += 1)
                                                                 if (fprintf(stream, "  ") < 0)
