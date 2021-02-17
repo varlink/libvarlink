@@ -59,7 +59,7 @@ static void move_rest(uint8_t **bufferp, unsigned long *startp, unsigned long *e
         *endp = rest;
 }
 
-long varlink_stream_flush(VarlinkStream *stream) {
+size_t varlink_stream_flush(VarlinkStream *stream) {
         long n;
 
 write_again:
@@ -186,7 +186,7 @@ read_again:
                         }
 
                         fd_block(out);
-                        towrite = r;
+                        towrite = (size_t) r;
                         while (towrite) {
                                 r = write(out, buf, towrite);
                                 if (r < 0)
@@ -257,7 +257,6 @@ again:
                                         default:
                                                 return -VARLINK_ERROR_RECEIVING_MESSAGE;
                                 }
-                                break;
 
                         case 0:
                                 stream->hup = true;
@@ -269,32 +268,32 @@ again:
                                 break;
                 }
         }
-
-        /* should not be reached */
-        return -VARLINK_ERROR_PANIC;
 }
 
 long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message) {
         _cleanup_(freep) char *json = NULL;
         long length;
-        long r;
+        unsigned long ulength;
+        size_t r;
 
         length = varlink_object_to_json(message, &json);
         if (length < 0)
                 return length;
 
-        if (length >= CONNECTION_BUFFER_SIZE - 1)
+        ulength = (unsigned long) length;
+
+        if (ulength >= CONNECTION_BUFFER_SIZE - 1)
                 return -VARLINK_ERROR_INVALID_MESSAGE;
 
-        if (stream->out_end + length + 1 >= CONNECTION_BUFFER_SIZE)
+        if (stream->out_end + ulength + 1 >= CONNECTION_BUFFER_SIZE)
                 return -VARLINK_ERROR_SENDING_MESSAGE;
 
-        memcpy(stream->out + stream->out_end, json, length + 1);
-        stream->out_end += length + 1;
+        memcpy(stream->out + stream->out_end, json, ulength + 1);
+        stream->out_end += ulength + 1;
 
         r = varlink_stream_flush(stream);
         if (r < 0)
-                return r;
+                return (long) r;
 
         /* return 1 when flush() wrote the whole message */
         return r == 0 ? 1 : 0;

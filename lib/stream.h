@@ -38,6 +38,6 @@ long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message);
  * Flushes the write buffer. Returns the amount of bytes that are still
  * in the buffer.
  */
-long varlink_stream_flush(VarlinkStream *stream);
+size_t varlink_stream_flush(VarlinkStream *stream);
 
 long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStream *client_out, VarlinkStream *server);

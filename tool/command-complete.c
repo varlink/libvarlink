@@ -6,7 +6,8 @@
 
 static long complete_run(Cli *cli, int argc, char **argv) {
         char *endptr;
-        int argindex;
+        unsigned long argindex;
+
         const char *current = NULL;
 
         if (argc < 3)
@@ -30,12 +31,13 @@ static long complete_run(Cli *cli, int argc, char **argv) {
         argc -= 3;
         argv += 3;
 
-        if (argindex == 0 || argindex > argc)
+        if (argindex == 0 || argindex > (unsigned long) argc)
                 return -CLI_ERROR_INVALID_ARGUMENT;
 
         /* don't care about arguments after the one that shall be completed */
         current = argv[argindex] ?: "",
-        argc = argindex;
+        // safe cast to int
+        argc = (int) argindex;
         argv[argc] = NULL;
 
         cli_complete(cli, argc, argv, current);
