@@ -3,9 +3,7 @@
 #include "varlink.h"
 
 #include <stddef.h>
-#include <stdio.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 

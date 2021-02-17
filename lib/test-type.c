@@ -4,7 +4,6 @@
 #include "varlink.h"
 
 #include <assert.h>
-#include <stdarg.h>
 #include <string.h>
 
 static void test_basic(void) {

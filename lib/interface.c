@@ -1,18 +1,12 @@
 #include "interface.h"
-#include "service.h"
 #include "scanner.h"
 #include "util.h"
 
-#include <ctype.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static long write_docstring(FILE *stream,
                             long indent,

@@ -2,11 +2,8 @@
 #include "transport.h"
 #include "util.h"
 
-#include <stdio.h>
 #include <sys/prctl.h>
 #include <signal.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <wordexp.h>
 
 int cli_activate(const char *command, char **pathp, pid_t *pidp) {

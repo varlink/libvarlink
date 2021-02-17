@@ -1,5 +1,4 @@
 #include "array.h"
-#include "util.h"
 
 #include <assert.h>
 #include <string.h>

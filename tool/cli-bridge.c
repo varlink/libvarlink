@@ -1,7 +1,5 @@
 #include "cli.h"
-#include "util.h"
 
-#include <stdio.h>
 #include <sys/prctl.h>
 #include <signal.h>
 #include <sys/socket.h>

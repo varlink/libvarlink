@@ -1,7 +1,5 @@
 #include "command.h"
-#include "interface.h"
 #include "object.h"
-#include "terminal-colors.h"
 #include "util.h"
 
 #include <errno.h>

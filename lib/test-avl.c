@@ -3,7 +3,6 @@
 
 #include <assert.h>
 #include <math.h>
-#include <stdlib.h>
 #include <string.h>
 
 static long compare_names(const void *key, void *value) {

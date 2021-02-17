@@ -2,9 +2,7 @@
 #include "util.h"
 #include "varlink.h"
 
-#include <ctype.h>
 #include <locale.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 

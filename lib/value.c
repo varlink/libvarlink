@@ -1,13 +1,11 @@
 #include "array.h"
 #include "object.h"
 #include "scanner.h"
-#include "util.h"
 #include "value.h"
 
 #include <float.h>
 #include <inttypes.h>
 #include <locale.h>
-#include <string.h>
 
 void varlink_value_clear(VarlinkValue *value) {
         switch (value->kind) {

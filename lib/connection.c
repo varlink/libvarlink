@@ -1,21 +1,16 @@
 #include "connection.h"
 #include "message.h"
-#include "object.h"
 #include "stream.h"
 #include "transport.h"
 #include "uri.h"
 #include "util.h"
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/epoll.h>
 #include <sys/queue.h>
-#include <unistd.h>
 
 typedef struct ReplyCallback ReplyCallback;
 

@@ -1,5 +1,4 @@
 #include "command.h"
-#include "interface.h"
 #include "object.h"
 #include "terminal-colors.h"
 #include "uri.h"
@@ -8,7 +7,6 @@
 #include <errno.h>
 #include <getopt.h>
 #include <string.h>
-#include <sys/socket.h>
 
 static const struct option options[] = {
         { "help",    no_argument,       NULL, 'h' },

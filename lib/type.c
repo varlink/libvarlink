@@ -1,19 +1,13 @@
 #include "interface.h"
 #include "scanner.h"
-#include "service.h"
 #include "util.h"
 
-#include <ctype.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 long varlink_type_new(VarlinkType **typep, const char *typestring) {
         _cleanup_(varlink_type_unrefp) VarlinkType *type = NULL;

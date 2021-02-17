@@ -1,8 +1,6 @@
 #include "avltree.h"
 #include "util.h"
 
-#include <stdlib.h>
-
 struct AVLTree {
         AVLTreeNode *root;
         AVLCompareFunc compare;

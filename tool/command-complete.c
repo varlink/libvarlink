@@ -1,10 +1,7 @@
 #include "command.h"
-#include "interface.h"
 #include "object.h"
-#include "util.h"
 
 #include <errno.h>
-#include <getopt.h>
 #include <string.h>
 
 static long complete_run(Cli *cli, int argc, char **argv) {

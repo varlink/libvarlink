@@ -6,15 +6,12 @@
 #include "uri.h"
 #include "util.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/epoll.h>
-#include <sys/prctl.h>
 #include <sys/signalfd.h>
-#include <sys/socket.h>
 #include <sys/wait.h>
 
 static const char *error_strings[] = {

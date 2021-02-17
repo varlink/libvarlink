@@ -1,11 +1,6 @@
 #include "util.h"
 #include "varlink.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 static const char *error_strings[] = {
         [VARLINK_ERROR_PANIC] = "Panic",
         [VARLINK_ERROR_INVALID_INTERFACE] ="InvalidInterface",
