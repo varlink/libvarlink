@@ -196,7 +196,7 @@ bool scanner_read_keyword(Scanner *scanner, const char *keyword) {
 }
 
 static bool interface_name_valid(const char *name, unsigned long len) {
-        int previous = 0;
+        char previous = 0;
         unsigned sections = 1;
 
         if (len < 3 || len > 255)
@@ -432,15 +432,15 @@ long scanner_expect_type_name(Scanner *scanner, char **namep) {
 static bool unhex(char d, uint8_t *valuep) {
         switch (d) {
                 case '0' ... '9':
-                        *valuep = d - '0';
+                        *valuep = (uint8_t) (d - '0');
                         return true;
 
                 case 'a' ... 'f':
-                        *valuep = d - 'a' + 0x0a;
+                        *valuep = (uint8_t) (d - 'a' + 0x0a);
                         return true;
 
                 case 'A' ... 'F':
-                        *valuep = d - 'A' + 0x0a;
+                        *valuep = (uint8_t) (d - 'A' + 0x0a);
                         return true;
 
                 default:
