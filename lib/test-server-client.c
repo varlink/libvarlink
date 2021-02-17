@@ -15,11 +15,11 @@ typedef struct {
         int epoll_fd;
 } Test;
 
-static long org_varlink_example_Echo(VarlinkService *service,
+static long org_varlink_example_Echo(VarlinkService *UNUSED(service),
                                      VarlinkCall *call,
                                      VarlinkObject *parameters,
-                                     uint64_t flags,
-                                     void *userdata) {
+                                     uint64_t UNUSED(flags),
+                                     void *UNUSED(userdata)) {
         VarlinkObject *out;
         const char *word;
 
@@ -34,10 +34,10 @@ static long org_varlink_example_Echo(VarlinkService *service,
         return 0;
 }
 
-static long org_varlink_example_Later(VarlinkService *service,
+static long org_varlink_example_Later(VarlinkService *UNUSED(service),
                                       VarlinkCall *call,
-                                      VarlinkObject *parameters,
-                                      uint64_t flags,
+                                      VarlinkObject *UNUSED(parameters),
+                                      uint64_t UNUSED(flags),
                                       void *userdata) {
         VarlinkCall **callp = userdata;
 
@@ -76,10 +76,10 @@ typedef struct {
         unsigned long n_received;
 } EchoCall;
 
-static long echo_callback(VarlinkConnection *connection,
-                          const char *error,
+static long echo_callback(VarlinkConnection *UNUSED(connection),
+                          const char *UNUSED(error),
                           VarlinkObject *parameters,
-                          uint64_t flags,
+                          uint64_t UNUSED(flags),
                           void *userdata) {
         EchoCall *call = userdata;
         const char *result;
@@ -91,10 +91,10 @@ static long echo_callback(VarlinkConnection *connection,
         return 0;
 }
 
-static long later_callback(VarlinkConnection *connection,
-                           const char *error,
+static long later_callback(VarlinkConnection *UNUSED(connection),
+                           const char *UNUSED(error),
                            VarlinkObject *parameters,
-                           uint64_t flags,
+                           uint64_t UNUSED(flags),
                            void *userdata) {
         VarlinkObject **out = userdata;
 

@@ -47,7 +47,7 @@ static const struct option options[] = {
         {}
 };
 
-static long format_run(Cli *cli, int argc, char **argv) {
+static long format_run(Cli *UNUSED(cli), int argc, char **argv) {
         int c;
         const char *filename = NULL;
         bool inplace = false;
@@ -150,7 +150,7 @@ static long format_run(Cli *cli, int argc, char **argv) {
         return 0;
 }
 
-static long format_complete(Cli *cli, int argc, char **argv, const char *current) {
+static long format_complete(Cli *cli, int argc, char **UNUSED(argv), const char *current) {
         _cleanup_(freep) char *prefix = NULL;
         DIR *dir;
         char *p;

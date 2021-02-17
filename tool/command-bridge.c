@@ -88,7 +88,7 @@ static long bridge_new(Bridge **bridgep, Cli *cli) {
         return 0;
 }
 
-static long bridge_reply(Bridge *bridge,
+static long bridge_reply(Bridge *UNUSED(bridge),
                          const char *error,
                          VarlinkObject *parameters,
                          uint64_t flags) {
@@ -343,7 +343,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
 
 }
 
-static long bridge_complete(Cli *cli, int argc, char **argv, const char *current) {
+static long bridge_complete(Cli *cli, int UNUSED(argc), char **UNUSED(argv), const char *current) {
         if (current[0] == '-')
                 return cli_complete_options(cli, options, current);
 

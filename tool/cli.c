@@ -134,7 +134,7 @@ struct Reply {
 static long reply_callback(VarlinkConnection *connection,
                            const char *error,
                            VarlinkObject *parameters,
-                           uint64_t flags,
+                           uint64_t UNUSED(flags),
                            void *userdata) {
         struct Reply *reply = userdata;
 
@@ -368,7 +368,7 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
         return 0;
 }
 
-static const CliCommand *cli_get_command(Cli *cli, const char *name) {
+static const CliCommand *cli_get_command(Cli *UNUSED(cli), const char *name) {
         for (unsigned long i = 0; cli_commands[i]; i += 1) {
                 if (strcmp(name, cli_commands[i]->name) == 0)
                         return cli_commands[i];
@@ -559,7 +559,7 @@ long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
         return 0;
 }
 
-long cli_complete_options(Cli *cli, const struct option *options, const char *current) {
+long cli_complete_options(Cli *UNUSED(cli), const struct option *options, const char *current) {
         for (const struct option *option = options; option->name; option += 1)
                 cli_print_completion(current, "--%s%s", option->name, option->has_arg ? "=" : "");
 

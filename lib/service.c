@@ -158,9 +158,9 @@ static long service_connection_close(VarlinkService *service,
 
 static long org_varlink_service_GetInfo(VarlinkService *service,
                                         VarlinkCall *call,
-                                        VarlinkObject *parameters,
-                                        uint64_t flags,
-                                        void *userdata) {
+                                        VarlinkObject *UNUSED(parameters),
+                                        uint64_t UNUSED(flags),
+                                        void *UNUSED(userdata)) {
         _cleanup_(varlink_array_unrefp) VarlinkArray *interfaces = NULL;
         _cleanup_(varlink_object_unrefp) VarlinkObject *info = NULL;
         long r;
@@ -225,8 +225,8 @@ static long varlink_call_reply_method_not_implemented(VarlinkCall *call, const c
 static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
                                                         VarlinkCall *call,
                                                         VarlinkObject *parameters,
-                                                        uint64_t flags,
-                                                        void *userdata) {
+                                                        uint64_t UNUSED(flags),
+                                                        void *UNUSED(userdata)) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         const char *name;
         VarlinkInterface *interface;
@@ -254,9 +254,9 @@ static long org_varlink_service_GetInterfaceDescription(VarlinkService *service,
 
 static long varlink_service_method_callback(VarlinkService *service,
                                             VarlinkCall *call,
-                                            VarlinkObject *parameters,
-                                            uint64_t flags,
-                                            void *userdata) {
+                                            VarlinkObject *UNUSED(parameters),
+                                            uint64_t UNUSED(flags),
+                                            void *UNUSED(userdata)) {
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         VarlinkInterface *interface;
         VarlinkMethod *method;

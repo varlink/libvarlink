@@ -117,7 +117,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
         return 0;
 }
 
-static long help_complete(Cli *cli, int argc, char **argv, const char *current) {
+static long help_complete(Cli *cli, int argc, char **UNUSED(argv), const char *current) {
         if (argc != 1)
                 return 0;
 

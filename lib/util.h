@@ -10,6 +10,15 @@
 #define _cleanup_(_x) __attribute__((__cleanup__(_x)))
 #define _public_ __attribute__((__visibility__("default")))
 
+#ifdef UNUSED
+#elif defined(__GNUC__)
+# define UNUSED(x) UNUSED_ ## x __attribute__((unused))
+#elif defined(__LCLINT__)
+# define UNUSED(x) /*@unused@*/ x
+#else
+# define UNUSED(x) x
+#endif
+
 static inline void freep(void *p) {
         free(*(void **)p);
 }

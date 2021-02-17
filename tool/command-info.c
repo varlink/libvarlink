@@ -132,7 +132,7 @@ static long info_run(Cli *cli, int argc, char **argv) {
         return 0;
 }
 
-static long info_complete(Cli *cli, int argc, char **argv, const char *current) {
+static long info_complete(Cli *UNUSED(cli), int argc, char **UNUSED(argv), const char *current) {
         _cleanup_(freep) char *prefix = NULL;
         DIR *dir;
         char *p;
