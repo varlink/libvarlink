@@ -111,7 +111,7 @@ _public_ void varlink_connection_freep(VarlinkConnection **connectionp) {
 }
 
 _public_ long varlink_connection_process_events(VarlinkConnection *connection, uint32_t events) {
-        long r = 0;
+        long r;
 
         if (!connection->stream)
                 return -VARLINK_ERROR_CONNECTION_CLOSED;

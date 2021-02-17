@@ -13,8 +13,6 @@
 #include <string.h>
 #include <sys/epoll.h>
 
-#define STREAM_BUFFER_SIZE (8 * 1024 * 1204)
-
 typedef struct {
         Cli *cli;
         int epoll_fd;

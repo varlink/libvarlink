@@ -46,6 +46,7 @@ static long string_percent_decode( const char *in, char **outp) {
                         if (sscanf(in + i + 1, "%02lx", &hex) != 1)
                                 return -VARLINK_ERROR_INVALID_ADDRESS;
 
+                        // FIXME: overflow check
                         out[j] = hex;
                         j += 1;
                         i += 2;
@@ -61,6 +62,7 @@ static long string_percent_decode( const char *in, char **outp) {
         *outp = out;
         out = NULL;
 
+        // FIXME: overflow check
         return j;
 }
 

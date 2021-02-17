@@ -47,7 +47,7 @@ typedef struct {
         const char *activate;
         const char *bridge;
         const char *resolver;
-        long timeout;
+        int timeout;
 
         const char *command;
         int remaining_argc;
@@ -301,7 +301,7 @@ long cli_process_all_events(Cli *cli, VarlinkConnection *connection) {
         for (;;) {
                 struct epoll_event ev;
 
-                r = epoll_wait(cli->epoll_fd, &ev, 1, cli->timeout);
+                r = epoll_wait(cli->epoll_fd, &ev, 1, cli->timeout * 1000);
                 if (r < 0) {
                         if (errno == EINTR)
                                 continue;
@@ -394,7 +394,7 @@ static long cli_parse_arguments(int argc, char **argv, CliArguments *arguments) 
                                 break;
 
                         case 't':
-                                arguments->timeout = strtoul(optarg, NULL, 0) * 1000;
+                                arguments->timeout = (int) strtoul(optarg, NULL, 0);
                                 break;
 
                         case 'R':
@@ -513,7 +513,7 @@ long cli_complete(Cli *cli, int argc, char **argv, const char *current) {
         CliArguments arguments = {
                 .timeout = -1
         };
-        int r;
+        long r;
 
         r = cli_parse_arguments(argc, argv, &arguments);
         if (r < 0) {
@@ -568,7 +568,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *out = NULL;
         _cleanup_(freep) char *error = NULL;
         VarlinkArray *interfaces;
-        long n_interfaces;
+        unsigned long n_interfaces;
         long r;
 
         r = varlink_connection_new(&connection, cli->resolver);
@@ -593,7 +593,7 @@ long cli_complete_interfaces(Cli *cli, const char *current, bool end_with_dot) {
                 return -CLI_ERROR_INVALID_MESSAGE;
 
         n_interfaces = varlink_array_get_n_elements(interfaces);
-        for (long i = 0; i < n_interfaces; i += 1) {
+        for (unsigned long i = 0; i < n_interfaces; i += 1) {
                 const char *interface;
 
                 varlink_array_get_string(interfaces, i, &interface);

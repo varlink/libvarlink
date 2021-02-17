@@ -145,7 +145,8 @@ static long info_complete(Cli *UNUSED(cli), int argc, char **UNUSED(argv), const
                 if (strncmp(current, "unix:", 5) != 0)
                         return 0;
 
-                prefix = strndup(current + 5, p - current + 1 - 5);
+                // safe cast to size_t
+                prefix = strndup(current + 5, (size_t)(p - current + 1 - 5));
                 if (!prefix)
                         return -CLI_ERROR_PANIC;
 
@@ -166,6 +167,8 @@ static long info_complete(Cli *UNUSED(cli), int argc, char **UNUSED(argv), const
 
                         case DT_SOCK:
                                 cli_print_completion(current, "unix:%s%s", prefix ?: "", d->d_name);
+                                break;
+                        default:
                                 break;
                 }
         }

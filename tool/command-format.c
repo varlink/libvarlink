@@ -14,7 +14,7 @@ static long read_file(FILE *file, char **contentsp) {
         unsigned long size = 0;
 
         while (!feof(file)) {
-                long n;
+                size_t n;
 
                 if (size == allocated) {
                         allocated = MAX(allocated * 2, 4096);
@@ -96,7 +96,7 @@ static long format_run(Cli *UNUSED(cli), int argc, char **argv) {
 
         r = read_file(in_file, &in);
         if (r < 0) {
-                fprintf(stderr, "Error reading %s: %s\n", filename, strerror(-r));
+                fprintf(stderr, "Error reading %s: %s\n", filename, strerror((int)-r));
                 return -CLI_ERROR_PANIC;
         }
 
@@ -116,7 +116,7 @@ static long format_run(Cli *UNUSED(cli), int argc, char **argv) {
                                                 NULL, NULL,
                                                 NULL, NULL);
         if (r < 0) {
-                fprintf(stderr, "Error writing interface: %s", strerror(-r));
+                fprintf(stderr, "Error writing interface: %s", strerror((int)-r));
                 return -CLI_ERROR_PANIC;
         }
 
@@ -129,19 +129,19 @@ static long format_run(Cli *UNUSED(cli), int argc, char **argv) {
 
                 f = fopen(filename_tmp, "w");
                 if (!f) {
-                        fprintf(stderr, "Error creating tempory file: %s", strerror(-r));
+                        fprintf(stderr, "Error creating tempory file: %s", strerror((int)-r));
                         return -CLI_ERROR_PANIC;
                 }
 
                 fwrite(out, 1, strlen(out), f);
                 fflush(f);
                 if (ferror(f) != 0) {
-                        fprintf(stderr, "Error writing interface file: %s", strerror(-r));
+                        fprintf(stderr, "Error writing interface file: %s", strerror((int)-r));
                         return -CLI_ERROR_PANIC;
                 }
 
                 if (rename(filename_tmp, filename) < 0) {
-                        fprintf(stderr, "Error renaming interface file: %s", strerror(-r));
+                        fprintf(stderr, "Error renaming interface file: %s", strerror((int)-r));
                         return -CLI_ERROR_PANIC;
                 }
         } else
@@ -163,7 +163,8 @@ static long format_complete(Cli *cli, int argc, char **UNUSED(argv), const char 
 
         p = strrchr(current, '/');
         if (p) {
-                prefix = strndup(current, p - current + 1);
+                // safe cast to size_t
+                prefix = strndup(current, (size_t) (p - current + 1));
                 if (!prefix)
                         return -CLI_ERROR_PANIC;
 
@@ -184,7 +185,7 @@ static long format_complete(Cli *cli, int argc, char **UNUSED(argv), const char 
 
                         case DT_REG:
                         case DT_LNK: {
-                                long l = strlen(d->d_name);
+                                size_t l = strlen(d->d_name);
 
                                 if (l < 9)
                                         break;
@@ -195,6 +196,8 @@ static long format_complete(Cli *cli, int argc, char **UNUSED(argv), const char 
                                 cli_print_completion(current, "%s%s", prefix ?: "", d->d_name);
                                 break;
                         }
+                        default:
+                                break;
                 }
         }
 

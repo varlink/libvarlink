@@ -28,7 +28,7 @@ typedef struct {
         const char *activate;
         const char *bridge;
         const char *resolver;
-        long timeout;
+        int timeout;
 
         char *path;
         pid_t pid;

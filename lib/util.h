@@ -23,7 +23,7 @@ static inline void freep(void *p) {
         free(*(void **)p);
 }
 
-static inline void closep(int *fd) {
+static inline void closep(const int *fd) {
         if (*fd >= 0)
                 close(*fd);
 }

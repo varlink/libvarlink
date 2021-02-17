@@ -176,7 +176,8 @@ static long call_run(Cli *cli, int argc, char **argv) {
                                 if (r <= 0)
                                         break;
 
-                                size += r;
+                                // safe cast to unsigned
+                                size += (unsigned long) r;
                         }
 
                         buffer[size] = '\0';
