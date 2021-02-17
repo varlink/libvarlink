@@ -11,7 +11,7 @@ struct AVLTree {
 struct AVLTreeNode {
         void *value;
         AVLTreeNode *parent, *left, *right;
-        long height;
+        unsigned long height;
 };
 
 AVLTreeNode *avl_tree_node_next(AVLTreeNode *node) {
@@ -131,7 +131,7 @@ static long node_get_balance(AVLTreeNode *node) {
 }
 
 static AVLTreeNode *node_rebalance(AVLTreeNode *node) {
-        int balance;
+        long balance;
 
         balance = node_get_balance(node);
         if (balance < -1) {
