@@ -7,7 +7,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-static long strip_parameters(const char *address, char **pathp) {
+static int strip_parameters(const char *address, char **pathp) {
         char *parm;
         _cleanup_(freep) char *path = NULL;
 
@@ -116,7 +116,7 @@ int varlink_listen_unix(const char *address, char **pathp) {
 
 int varlink_accept_unix(int listen_fd) {
         _cleanup_(closep) int fd = -1;
-        long r;
+        int r;
 
         fd = accept4(listen_fd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (fd < 0)

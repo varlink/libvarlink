@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
-static long strip_parameters(const char *address, char **hostp) {
+static int strip_parameters(const char *address, char **hostp) {
         char *parm;
         _cleanup_(freep) char *host = NULL;
 
@@ -29,7 +29,7 @@ static void freeaddrinfop(struct addrinfo **ai) {
                 freeaddrinfo(*ai);
 }
 
-static long resolve_addrinfo(const char *address, struct addrinfo **resultp) {
+static int resolve_addrinfo(const char *address, struct addrinfo **resultp) {
         _cleanup_(freep) char *host = NULL;
         char *endptr;
         char *port;

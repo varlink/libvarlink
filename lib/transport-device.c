@@ -4,7 +4,7 @@
 
 #include <fcntl.h>
 
-static long strip_parameters(const char *address, char **devicep) {
+static int strip_parameters(const char *address, char **devicep) {
         char *parm;
         _cleanup_(freep) char *device = NULL;
 
