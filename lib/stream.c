@@ -67,7 +67,7 @@ write_again:
                   stream->out + stream->out_start,
                   stream->out_end - stream->out_start);
 
-        switch (n) {
+        switch (n) { // NOLINT(hicpp-multiway-paths-covered)
                 case -1:
                         switch (errno) {
                                 case EINTR:
