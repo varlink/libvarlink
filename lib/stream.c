@@ -257,6 +257,11 @@ again:
                                         default:
                                                 return -VARLINK_ERROR_RECEIVING_MESSAGE;
                                 }
+                                /* should not be reached */
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnreachableCode"
+                                asm("unreachable\n");
+#pragma clang diagnostic pop
 
                         case 0:
                                 stream->hup = true;
@@ -268,6 +273,12 @@ again:
                                 break;
                 }
         }
+
+        /* should not be reached */
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnreachableCode"
+        asm("unreachable\n");
+#pragma clang diagnostic pop
 }
 
 long varlink_stream_write(VarlinkStream *stream, VarlinkObject *message) {
