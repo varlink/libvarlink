@@ -87,7 +87,7 @@ static void test_json(void) {
         assert(varlink_object_get_int(s, "int", &i) == 0);
         assert(i == 42);
         assert(varlink_object_get_float(s, "float", &f) == 0);
-        assert(fabs(f - 42.2) < 1e-100);
+        assert(fabs(f - 42.2) < 1e-11);
         assert(varlink_object_get_string(s, "string", &string) == 0);
         assert(strcmp(string, "foo") == 0);
         assert(varlink_object_get_array(s, "array", &array) == 0);

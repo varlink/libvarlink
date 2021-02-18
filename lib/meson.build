@@ -42,10 +42,19 @@ org_varlink_service_varlink_c_inc = custom_target(
         output : 'org.varlink.service.varlink.c.inc',
         command : [varlink_wrapper_py, '@INPUT@', '@OUTPUT@'])
 
+
+
+libvarlink_include = include_directories('.')
+
+if not cc.has_header('sys/queue.h')
+    libvarlink_include = [ libvarlink_include, include_directories('compat', is_system: true) ]
+endif
+
 libvarlink_a = static_library(
         'varlink',
         libvarlink_sources,
         org_varlink_service_varlink_c_inc,
+        include_directories: libvarlink_include,
         install : false)
 
 libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
@@ -55,9 +64,8 @@ libvarlink_so = shared_library(
         link_args : ['-shared',
                      '-Wl,--version-script=' + libvarlink_sym],
         link_whole : libvarlink_a,
+        include_directories: libvarlink_include,
         install : true)
-
-libvarlink_include = include_directories('.')
 
 ############################################################
 
