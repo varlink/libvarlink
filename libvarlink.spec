@@ -1,7 +1,7 @@
 %global _hardened_build 1
 
 Name:           libvarlink
-Version:        18
+Version:        20
 Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL 2.0 and BSD-3-Clause
@@ -28,7 +28,7 @@ Summary:        Varlink command line tools
 The %{name}-util package contains varlink command line tools.
 
 %prep
-%setup -q
+%autosetup
 
 %build
 %meson
@@ -41,9 +41,7 @@ export LC_CTYPE=C.utf8
 %install
 %meson_install
 
-%post -p /sbin/ldconfig
-
-%postun -p /sbin/ldconfig
+%ldconfig_scriptlets
 
 %files
 %license LICENSE
@@ -60,6 +58,12 @@ export LC_CTYPE=C.utf8
 %{_libdir}/pkgconfig/libvarlink.pc
 
 %changelog
+* Thu Feb 18 2021 <info@varlink.org> - 20-1
+- libvarlink 20
+
+* Fri Mar 06 2020 <info@varlink.org> - 19-1
+- libvarlink 19
+
 * Wed May 22 2019 <info@varlink.org> - 18-1
 - libvarlink 18
 
