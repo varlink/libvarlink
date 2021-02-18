@@ -1,0 +1,26 @@
+name: Lint
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install tools
+        run: sudo apt-get install astyle
+
+      - name: format
+        run: astyle --options=.astylerc lib/*.[ch] tool/*.[ch]
+
+      - name: check formatting
+        run: git diff --exit-code
+        
+
