@@ -15,6 +15,7 @@ c_args = '''
         -fvisibility=hidden
         -Wno-maybe-uninitialized
         -Wno-pointer-arith
+        -Wno-unknown-pragmas
         -Wundef
         -Wlogical-op
         -Wmissing-include-dirs
@@ -40,7 +41,9 @@ c_args = '''
 '''.split()
 
 foreach arg : c_args
-        add_project_arguments(arg, language : 'c')
+        if cc.has_argument(arg)
+            add_project_arguments(arg, language : 'c')
+        endif
 endforeach
 
 libm = cc.find_library('m')
