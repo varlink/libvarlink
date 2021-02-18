@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
 LIBVARLINK_1 {
 global:
         varlink_array_append_array;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #include "cli.h"
 #include "transport.h"
 #include "util.h"

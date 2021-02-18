@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #include "command.h"
 #include "interface.h"
 #include "util.h"

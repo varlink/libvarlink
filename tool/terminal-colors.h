@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #pragma once
 
 #define TERMINAL_NORMAL "\x1B[0m"

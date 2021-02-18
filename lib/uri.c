@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #include "uri.h"
 #include "util.h"
 #include "varlink.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /*
  * Copied from https://raw.githubusercontent.com/openbsd/src/master/sys/sys/queue.h
 */

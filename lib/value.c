@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 #include "array.h"
 #include "object.h"
 #include "scanner.h"
