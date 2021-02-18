@@ -245,7 +245,7 @@ long cli_connect(Cli *cli,
         _cleanup_(freep) char *address = NULL;
         long r;
 
-        if ((cli->activate || cli->bridge) && (uri && uri->protocol != VARLINK_URI_PROTOCOL_NONE))
+        if ((cli->activate || cli->bridge) && (uri && uri->type != VARLINK_URI_PROTOCOL_NONE))
                 return -CLI_ERROR_CANNOT_CONNECT;
 
         if (cli->activate) {
@@ -271,7 +271,7 @@ long cli_connect(Cli *cli,
         if (!uri)
                 return -CLI_ERROR_CANNOT_CONNECT;
 
-        if (uri->protocol != VARLINK_URI_PROTOCOL_NONE)
+        if (uri->type != VARLINK_URI_PROTOCOL_NONE)
                 return varlink_connection_new_from_uri(connectionp, uri);
 
         r = cli_resolve(cli, uri->interface, &address);
