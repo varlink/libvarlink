@@ -32,7 +32,8 @@ struct VarlinkConnection {
         void *closed_userdata;
 };
 
-long varlink_connection_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStream *client_out,VarlinkConnection *server) {
+long varlink_connection_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStream *client_out,
+                               VarlinkConnection *server) {
         return varlink_stream_bridge(signal_fd, client_in, client_out, server->stream);
 }
 

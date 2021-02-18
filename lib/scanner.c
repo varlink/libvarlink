@@ -249,7 +249,7 @@ static bool interface_name_valid(const char *name, unsigned long len) {
                         break;
 
                 default:
-                       return false;
+                        return false;
         }
 
         return true;
