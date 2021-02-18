@@ -22,11 +22,11 @@ int varlink_transport_listen(VarlinkURI *uri, char **pathp) {
 
 _public_ int varlink_listen(const char *address, char **pathp) {
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
-        int r;
+        long r;
 
         r = varlink_uri_new(&uri, address, false);
         if (r < 0)
-                return r;
+                return (int) r;
 
         return varlink_transport_listen(uri, pathp);
 }

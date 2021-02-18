@@ -51,11 +51,11 @@ int varlink_connect_unix(const char *address) {
         strcpy(sa.sun_path, path);
         if (sa.sun_path[0] == '@') {
                 sa.sun_path[0] = '\0';
-                sa_len = strlen(path);
+                sa_len = (socklen_t) strlen(path);
         } else
-                sa_len = strlen(path) + 1;
+                sa_len = (socklen_t) (strlen(path) + 1);
 
-        if (connect(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
+        if (connect(fd, (struct sockaddr *)&sa, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + sa_len)) < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
         r = fd;
@@ -91,14 +91,14 @@ int varlink_listen_unix(const char *address, char **pathp) {
         strcpy(sa.sun_path, path);
         if (sa.sun_path[0] == '@') {
                 sa.sun_path[0] = '\0';
-                sa_len = strlen(path);
+                sa_len = (socklen_t) strlen(path);
 
         } else {
                 unlink(path);
-                sa_len = strlen(path) + 1;
+                sa_len = (socklen_t) (strlen(path) + 1);
         }
 
-        if (bind(fd, (struct sockaddr *)&sa, offsetof(struct sockaddr_un, sun_path) + sa_len) < 0)
+        if (bind(fd, (struct sockaddr *)&sa, (socklen_t) (offsetof(struct sockaddr_un, sun_path) + sa_len)) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
         if (listen(fd, SOMAXCONN) < 0)
