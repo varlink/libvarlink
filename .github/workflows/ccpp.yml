@@ -15,7 +15,10 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: install tools
-        run: sudo apt-get install valgrind meson
+        run: sudo apt-get install valgrind meson language-pack-de
+
+      - name: update locale
+        run: sudo locale-gen de_DE.UTF-8
 
       - name: make
         run: make
