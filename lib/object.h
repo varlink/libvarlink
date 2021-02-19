@@ -2,13 +2,14 @@
 
 #pragma once
 
+#include <locale.h>
 #include "scanner.h"
 #include "value.h"
 #include "varlink.h"
 
 #include <stdio.h>
 
-long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner);
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale);
 
 long varlink_object_write_json(VarlinkObject *object,
                                FILE *stream,
