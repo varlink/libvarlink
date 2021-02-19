@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <math.h>
 #include <string.h>
+#include <locale.h>
+#include <stdio.h>
 
 static void test_api(void) {
         VarlinkObject *s;
@@ -53,6 +55,8 @@ static void test_json(void) {
         const char *string;
         VarlinkArray *array;
         VarlinkObject *nested;
+        char *json;
+        long len;
 
         /* some invalid json */
         assert(varlink_object_new_from_json(&s, "") == -VARLINK_ERROR_INVALID_JSON);
@@ -89,13 +93,23 @@ static void test_json(void) {
         assert(varlink_object_get_int(s, "int", &i) == 0);
         assert(i == 42);
         assert(varlink_object_get_float(s, "float", &f) == 0);
-        assert(fabs(f - 42.2) < 1e-11);
+        assert(fabs(f - 42.2) < 1e-100);
         assert(varlink_object_get_string(s, "string", &string) == 0);
         assert(strcmp(string, "foo") == 0);
         assert(varlink_object_get_array(s, "array", &array) == 0);
         assert(array);
         assert(varlink_object_get_object(s, "object", &nested) == 0);
         assert(nested);
+
+        len = varlink_object_to_json(s, &json);
+        assert(len >= 0);
+
+        assert(varlink_object_unref(s) == NULL);
+        assert(varlink_object_new_from_json(&s, json) == 0);
+        assert(varlink_object_get_float(s, "float", &f) == 0);
+        assert(fabs(f - 42.2) < 1e-100);
+        free(json);
+
         assert(varlink_object_unref(s) == NULL);
 
         /* json escape sequences */
@@ -106,6 +120,9 @@ static void test_json(void) {
 }
 
 int main(void) {
+        // Uses `,` as the radix character
+        assert(setlocale(LC_NUMERIC, "de_DE.UTF-8") != 0);
+
         test_api();
         test_json();
 
