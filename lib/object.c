@@ -8,6 +8,7 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include <locale.h>
 
 typedef struct Field Field;
 
@@ -137,12 +138,35 @@ _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
         long r;
+        locale_t old_locale, new_locale;
 
         r = scanner_new(&scanner, json, false);
         if (r < 0)
                 return r;
 
+        old_locale = uselocale((locale_t) 0);
+
+        if (old_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        new_locale = duplocale(old_locale);
+
+        if (new_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        new_locale = newlocale(LC_NUMERIC_MASK, "C", new_locale);
+
+        if (new_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        if (uselocale(new_locale) == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
         r = varlink_object_new_from_scanner(&object, scanner);
+
+        uselocale(old_locale);
+        freelocale(new_locale);
+
         if (r < 0)
                 return r;
 
@@ -535,5 +559,31 @@ long varlink_object_to_pretty_json(VarlinkObject *object,
 }
 
 _public_ long varlink_object_to_json(VarlinkObject *object, char **stringp) {
-        return varlink_object_to_pretty_json(object, stringp, -1, NULL, NULL, NULL, NULL);
+        long ret;
+        locale_t old_locale, new_locale;
+
+        old_locale = uselocale((locale_t) 0);
+
+        if (old_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        new_locale = duplocale(old_locale);
+
+        if (new_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        new_locale = newlocale(LC_NUMERIC_MASK, "C", new_locale);
+
+        if (new_locale == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        if (uselocale(new_locale) == (locale_t) 0)
+                return -VARLINK_ERROR_PANIC;
+
+        ret = varlink_object_to_pretty_json(object, stringp, -1, NULL, NULL, NULL, NULL);
+
+        uselocale(old_locale);
+        freelocale(new_locale);
+
+        return ret;
 }

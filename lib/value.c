@@ -7,7 +7,6 @@
 
 #include <float.h>
 #include <inttypes.h>
-#include <locale.h>
 
 void varlink_value_clear(VarlinkValue *value) {
         switch (value->kind) {
@@ -168,13 +167,8 @@ long varlink_value_write_json(VarlinkValue *value,
                         break;
 
                 case VARLINK_VALUE_FLOAT: {
-                        locale_t loc;
-
-                        loc = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
-
                         if (fprintf(stream, "%s%.*e%s", value_pre, DECIMAL_DIG, value->f, value_post) < 0)
                                 return -VARLINK_ERROR_PANIC;
-                        freelocale(loc);
                         break;
                 }
 
