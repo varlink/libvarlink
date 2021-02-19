@@ -34,19 +34,19 @@ void varlink_value_clear(VarlinkValue *value) {
         }
 }
 
-long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner) {
+long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale) {
         ScannerNumber number;
         long r;
 
         if (scanner_peek(scanner) == '{') {
-                r = varlink_object_new_from_scanner(&value->object, scanner);
+                r = varlink_object_new_from_scanner(&value->object, scanner, locale);
                 if (r < 0)
                         return false;
 
                 value->kind = VARLINK_VALUE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
-                r = varlink_array_new_from_scanner(&value->array, scanner);
+                r = varlink_array_new_from_scanner(&value->array, scanner, locale);
                 if (r < 0)
                         return false;
 
@@ -70,7 +70,7 @@ long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner) {
 
                 value->kind = VARLINK_VALUE_STRING;
 
-        } else if (scanner_read_number(scanner, &number)) {
+        } else if (scanner_read_number(scanner, &number, locale)) {
                 if (number.is_double) {
                         value->f = number.d;
                         value->kind = VARLINK_VALUE_FLOAT;

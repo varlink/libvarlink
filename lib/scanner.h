@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <locale.h>
 
 enum {
         SCANNER_ERROR_PANIC = 1,
@@ -88,4 +89,4 @@ long scanner_expect_type_name(Scanner *scanner, char **namep);
  * is of the expected type. Otherwise, they return false.
  */
 bool scanner_read_keyword(Scanner *scanner, const char *keyword);
-bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp);
+bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t locale);

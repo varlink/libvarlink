@@ -578,7 +578,7 @@ long scanner_expect_string(Scanner *scanner, char **stringp) {
         return 0;
 }
 
-bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
+bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t locale) {
         ScannerNumber number = {};
         char *end;
 
@@ -590,7 +590,7 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
 
         if (*end == '.' || *end == 'e' || *end == 'E') {
                 number.is_double = true;
-                number.d = strtod(scanner->p, &end);
+                number.d = strtod_l(scanner->p, &end, locale);
         }
 
         scanner->p = end;

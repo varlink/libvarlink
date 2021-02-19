@@ -7,6 +7,7 @@
 #include "varlink.h"
 
 #include <stdio.h>
+#include <locale.h>
 
 typedef enum {
         VARLINK_VALUE_UNDEFINED,
@@ -31,7 +32,7 @@ typedef struct {
         };
 } VarlinkValue;
 
-long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner);
+long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale);
 long varlink_value_write_json(VarlinkValue *value,
                               FILE *stream,
                               long indent,

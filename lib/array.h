@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include <locale.h>
 #include "value.h"
 #include "scanner.h"
 #include "varlink.h"
 
-long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner);
+long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner, locale_t locale);
 long varlink_array_get_value(VarlinkArray *array, unsigned long index, VarlinkValue **valuep);
 VarlinkValueKind varlink_array_get_element_kind(VarlinkArray *array);
 long varlink_array_write_json(VarlinkArray *array,

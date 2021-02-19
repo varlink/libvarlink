@@ -83,7 +83,7 @@ _public_ long varlink_object_new(VarlinkObject **objectp) {
         return 0;
 }
 
-long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) {
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         bool first = true;
         long r;
@@ -115,7 +115,7 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner) 
                 if (r < 0)
                         return r;
 
-                if (!varlink_value_read_from_scanner(&field->value, scanner))
+                if (!varlink_value_read_from_scanner(&field->value, scanner, locale))
                         return -VARLINK_ERROR_INVALID_JSON;
 
                 /* Treat `null` the same as non-existent keys */
@@ -138,33 +138,19 @@ _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         _cleanup_(scanner_freep) Scanner *scanner = NULL;
         long r;
-        locale_t old_locale, new_locale;
+        locale_t new_locale;
 
         r = scanner_new(&scanner, json, false);
         if (r < 0)
                 return r;
 
-        old_locale = uselocale((locale_t) 0);
-
-        if (old_locale == (locale_t) 0)
-                return -VARLINK_ERROR_PANIC;
-
-        new_locale = duplocale(old_locale);
+        new_locale = newlocale(LC_NUMERIC_MASK, "C",  (locale_t) 0);
 
         if (new_locale == (locale_t) 0)
                 return -VARLINK_ERROR_PANIC;
 
-        new_locale = newlocale(LC_NUMERIC_MASK, "C", new_locale);
+        r = varlink_object_new_from_scanner(&object, scanner, new_locale);
 
-        if (new_locale == (locale_t) 0)
-                return -VARLINK_ERROR_PANIC;
-
-        if (uselocale(new_locale) == (locale_t) 0)
-                return -VARLINK_ERROR_PANIC;
-
-        r = varlink_object_new_from_scanner(&object, scanner);
-
-        uselocale(old_locale);
         freelocale(new_locale);
 
         if (r < 0)
