@@ -4,7 +4,6 @@
 #include "util.h"
 #include "varlink.h"
 
-#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -590,14 +589,8 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp) {
                 return false;
 
         if (*end == '.' || *end == 'e' || *end == 'E') {
-                locale_t loc;
-
-                loc = newlocale(LC_NUMERIC_MASK, "C", (locale_t) 0);
-
                 number.is_double = true;
                 number.d = strtod(scanner->p, &end);
-
-                freelocale(loc);
         }
 
         scanner->p = end;

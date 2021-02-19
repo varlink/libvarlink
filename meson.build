@@ -50,6 +50,7 @@ libm = cc.find_library('m')
 
 conf = configuration_data()
 conf.set('_GNU_SOURCE', true)
+conf.set('_XOPEN_SOURCE', 700)
 conf.set('__SANE_USERSPACE_TYPES__', true)
 conf.set_quoted('VERSION', meson.project_version())
 
