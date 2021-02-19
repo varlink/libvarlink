@@ -14,7 +14,7 @@ install: build
 .PHONY: install
 
 check: build
-	meson test -C build --wrap=valgrind
+	meson test -C build --wrap=valgrind --print-errorlogs
 .PHONY: check
 
 format:
