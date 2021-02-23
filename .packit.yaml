@@ -10,5 +10,9 @@ synced_files:
 
 # name in upstream package repository/registry (e.g. in PyPI)
 upstream_package_name: libvarlink
+upstream_project_url: https://github.com/varlink/libvarlink
+
+copy_upstream_release_description: true
+
 # downstream (Fedora) RPM package name
 downstream_package_name: libvarlink
