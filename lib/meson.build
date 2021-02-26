@@ -94,7 +94,7 @@ exe = executable(
         'test-object',
         'test-object.c',
         link_with : libvarlink_a)
-test('test-object', exe)
+test('test-object', exe, args: [ meson.source_root() + '/test'] )
 
 exe = executable(
         'test-array',
