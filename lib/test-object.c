@@ -124,7 +124,7 @@ static void test_json(void) {
         assert(varlink_object_unref(s) == NULL);
 }
 
-int main() {
+int main(int argc, char **argv) {
         // Uses `,` as the radix character
         assert(setlocale(LC_NUMERIC, "de_DE.UTF-8") != 0);
 
