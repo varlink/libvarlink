@@ -94,7 +94,7 @@ exe = executable(
         'test-object',
         'test-object.c',
         link_with : libvarlink_a)
-test('test-object', exe, args: [ meson.source_root() + '/test'] )
+test('test-object', exe)
 
 exe = executable(
         'test-array',
@@ -124,3 +124,38 @@ test('test-avl', exe)
 exe = find_program('test-symbols.sh')
 test('test-symbols', exe,
      args : [libvarlink_sym, join_paths(meson.build_root(), 'lib/libvarlink.a')])
+
+exe = executable(
+        'test-json',
+        'test-json.c',
+        link_with : libvarlink_a)
+
+c = run_command('/bin/sh', ['-c', 'cd $1; echo y_*.json', '--', meson.source_root() + '/tests-json' ] )
+sources = c.stdout().strip().split(' ')
+foreach arg : sources
+    test(arg, exe, args: [ meson.source_root() + '/tests-json/' + arg ] )
+endforeach
+
+c = run_command('/bin/sh', ['-c', 'cd $1; echo n_*.json', '--', meson.source_root() + '/tests-json' ] )
+sources = c.stdout().strip().split(' ')
+foreach arg : sources
+    test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
+endforeach
+
+c = run_command('/bin/sh', ['-c', 'cd $1; echo FAILS/y_*.json', '--', meson.source_root() + '/tests-json' ] )
+sources = c.stdout().strip().split(' ')
+foreach arg : sources
+    test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
+endforeach
+
+c = run_command('/bin/sh', ['-c', 'cd $1; echo FAILS/n_*.json', '--', meson.source_root() + '/tests-json' ] )
+sources = c.stdout().strip().split(' ')
+foreach arg : sources
+    test(arg, exe, should_fail: false, args: [ meson.source_root() + '/tests-json/' + arg ] )
+endforeach
+
+c = run_command('/bin/sh', ['-c', 'cd $1; echo SEGFAULTS/*.json', '--', meson.source_root() + '/tests-json' ] )
+sources = c.stdout().strip().split(' ')
+foreach arg : sources
+    test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
+endforeach
