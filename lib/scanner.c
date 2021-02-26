@@ -449,15 +449,45 @@ static bool unhex(char d, uint8_t *valuep) {
         }
 }
 
-static bool read_unicode_char(const char *p, FILE *stream) {
+static size_t read_unicode_char(const char *p, FILE *stream) {
         uint8_t digits[4];
-        uint16_t cp;
+        uint32_t cp;
+        uint16_t cu;
+        size_t size = 4;
 
         for (unsigned long i = 0; i < 4; i += 1)
                 if (p[i] == '\0' || !unhex(p[i], &digits[i]))
-                        return false;
+                        return 0;
 
-        cp = digits[0] << 12 | digits[1] << 8 | digits[2] << 4 | digits[3];
+        cu = digits[0] << 12 | digits[1] << 8 | digits[2] << 4 | digits[3];
+
+        switch (cu) {
+                case 0xD800 ... 0xDBFF:
+                        cp = 0x10000 + ((cu - 0xD800) << 10);
+
+                        if (p[4] != '\\' || p[5] != 'u')
+                                return 0;
+
+                        for (unsigned long i = 0; i < 4; i += 1)
+                                if (p[i + 6] == '\0' || !unhex(p[i + 6], &digits[i]))
+                                        return 0;
+
+                        cu = digits[0] << 12 | digits[1] << 8 | digits[2] << 4 | digits[3];
+
+                        size = 10;
+
+                        if (cu < 0xDC00 || cu > 0xDFFF)
+                                return 0;
+
+                        cp += cu - 0xDC00;
+
+                        break;
+                case 0xDC00 ... 0xDFFF:
+                        return 0;
+                default:
+                        cp = cu;
+                        break;
+        }
 
         if (cp <= 0x007f) {
                 fprintf(stream, "%c", (char)cp);
@@ -467,13 +497,20 @@ static bool read_unicode_char(const char *p, FILE *stream) {
                 fprintf(stream, "%c", (char)(0x80 | (cp & 0x3f)));
         }
 
-        else {
+        else if (cp >= 0x0800 && cp <= 0xFFFF) {
                 fprintf(stream, "%c", (char)(0xe0 | (cp >> 12)));
                 fprintf(stream, "%c", (char)(0x80 | ((cp >> 6) & 0x3f)));
                 fprintf(stream, "%c", (char)(0x80 | (cp & 0x3f)));
         }
 
-        return true;
+        else if (cp >= 0x10000 && cp <= 0x10FFFF) {
+                fprintf(stream, "%c", (char)(0xf0 | (cp >> 18)));
+                fprintf(stream, "%c", (char)(0x80 | ((cp >> 12) & 0x3f)));
+                fprintf(stream, "%c", (char)(0x80 | ((cp >> 6) & 0x3f)));
+                fprintf(stream, "%c", (char)(0x80 | (cp & 0x3f)));
+        }
+
+        return size;
 }
 
 
@@ -547,12 +584,13 @@ long scanner_expect_string(Scanner *scanner, char **stringp) {
                                         break;
 
                                 case 'u':
-                                        if (!read_unicode_char(p + 1, stream)) {
+                                        size =read_unicode_char(p + 1, stream);
+                                        if ( size == 0) {
                                                 scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER);
                                                 return -VARLINK_ERROR_INVALID_JSON;
                                         }
 
-                                        p += 4;
+                                        p += size;
                                         break;
 
                                 default:
