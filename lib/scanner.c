@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "c-utf8.h"
 
 static const char *error_strings[] = {
         [SCANNER_ERROR_PANIC] = "Panic",
@@ -517,8 +518,9 @@ static size_t read_unicode_char(const char *p, FILE *stream) {
 long scanner_expect_string(Scanner *scanner, char **stringp) {
         _cleanup_(freep) char *string = NULL;
         _cleanup_(fclosep) FILE *stream = NULL;
-        size_t size;
+        size_t size, utf8_len;
         const char *p;
+        const char *utf8_str;
 
         p = scanner_advance(scanner);
 
@@ -533,6 +535,12 @@ long scanner_expect_string(Scanner *scanner, char **stringp) {
 
         for (;;) {
                 if (*p == '\0')
+                        return -VARLINK_ERROR_INVALID_JSON;
+
+                if (*p == '\t')
+                        return -VARLINK_ERROR_INVALID_JSON;
+
+                if (*p == '\n')
                         return -VARLINK_ERROR_INVALID_JSON;
 
                 if (*p == '"') {
@@ -606,6 +614,15 @@ long scanner_expect_string(Scanner *scanner, char **stringp) {
 
         fclose(stream);
         stream = NULL;
+
+        utf8_str = string;
+        utf8_len = size;
+        c_utf8_verify(&utf8_str, &utf8_len);
+        if (utf8_len != 0) {
+                fprintf(stderr, "%ld != %ld\n", utf8_len, size);
+                scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER);
+                return -VARLINK_ERROR_INVALID_JSON;
+        }
 
         if (stringp) {
                 *stringp = string;

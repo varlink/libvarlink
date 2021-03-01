@@ -33,6 +33,8 @@ libvarlink_sources = '''
         uri.h
         value.c
         value.h
+        c-utf8.c
+        c-utf8.h
         varlink.h
 '''.split()
 
