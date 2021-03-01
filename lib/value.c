@@ -34,19 +34,26 @@ void varlink_value_clear(VarlinkValue *value) {
         }
 }
 
-long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale) {
+long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale, unsigned long depth_cnt) {
         ScannerNumber number;
         long r;
 
+        depth_cnt++;
+
+        if (depth_cnt >= JSON_MAX_DEPTH) {
+                scanner_error(scanner, SCANNER_ERROR_UNKNOWN_TYPE);
+                return false;
+        }
+
         if (scanner_peek(scanner) == '{') {
-                r = varlink_object_new_from_scanner(&value->object, scanner, locale);
+                r = varlink_object_new_from_scanner(&value->object, scanner, locale, depth_cnt);
                 if (r < 0)
                         return false;
 
                 value->kind = VARLINK_VALUE_OBJECT;
 
         } else if (scanner_peek(scanner) == '[') {
-                r = varlink_array_new_from_scanner(&value->array, scanner, locale);
+                r = varlink_array_new_from_scanner(&value->array, scanner, locale, depth_cnt);
                 if (r < 0)
                         return false;
 

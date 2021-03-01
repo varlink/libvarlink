@@ -50,7 +50,7 @@ _public_ long varlink_array_new(VarlinkArray **arrayp) {
         return 0;
 }
 
-long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner, locale_t locale) {
+long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner, locale_t locale, unsigned long depth_cnt) {
         _cleanup_(varlink_array_unrefp) VarlinkArray *array = NULL;
         bool first = true;
         long r;
@@ -74,7 +74,7 @@ long varlink_array_new_from_scanner(VarlinkArray **arrayp, Scanner *scanner, loc
                 if (r < 0)
                         return r;
 
-                if (!varlink_value_read_from_scanner(value, scanner, locale))
+                if (!varlink_value_read_from_scanner(value, scanner, locale, depth_cnt))
                         return -VARLINK_ERROR_INVALID_JSON;
 
                 /* Accept `null` value for any element kind */

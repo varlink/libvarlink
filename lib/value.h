@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <locale.h>
 
+// Only accept a nested array/object depth to 1000
+#define JSON_MAX_DEPTH 1000
+
 typedef enum {
         VARLINK_VALUE_UNDEFINED,
         VARLINK_VALUE_NULL,
@@ -32,7 +35,7 @@ typedef struct {
         };
 } VarlinkValue;
 
-long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale);
+long varlink_value_read_from_scanner(VarlinkValue *value, Scanner *scanner, locale_t locale, unsigned long depth_cnt);
 long varlink_value_write_json(VarlinkValue *value,
                               FILE *stream,
                               long indent,
