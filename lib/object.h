@@ -9,7 +9,8 @@
 
 #include <stdio.h>
 
-long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale);
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale,
+                                     unsigned long depth_cnt);
 
 long varlink_object_write_json(VarlinkObject *object,
                                FILE *stream,

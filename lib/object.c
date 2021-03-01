@@ -83,7 +83,8 @@ _public_ long varlink_object_new(VarlinkObject **objectp) {
         return 0;
 }
 
-long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale) {
+long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, locale_t locale,
+                                     unsigned long depth_cnt) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *object = NULL;
         bool first = true;
         long r;
@@ -115,7 +116,7 @@ long varlink_object_new_from_scanner(VarlinkObject **objectp, Scanner *scanner, 
                 if (r < 0)
                         return r;
 
-                if (!varlink_value_read_from_scanner(&field->value, scanner, locale))
+                if (!varlink_value_read_from_scanner(&field->value, scanner, locale, depth_cnt))
                         return -VARLINK_ERROR_INVALID_JSON;
 
                 /* Treat `null` the same as non-existent keys */
@@ -149,7 +150,7 @@ _public_ long varlink_object_new_from_json(VarlinkObject **objectp, const char *
         if (new_locale == (locale_t) 0)
                 return -VARLINK_ERROR_PANIC;
 
-        r = varlink_object_new_from_scanner(&object, scanner, new_locale);
+        r = varlink_object_new_from_scanner(&object, scanner, new_locale, 0);
 
         freelocale(new_locale);
 
