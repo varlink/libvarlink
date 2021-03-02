@@ -1,7 +1,7 @@
 %global _hardened_build 1
 
 Name:           libvarlink
-Version:        21
+Version:        22
 Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL 2.0 and BSD-3-Clause
@@ -59,6 +59,9 @@ export LC_CTYPE=C.utf8
 %{_libdir}/pkgconfig/libvarlink.pc
 
 %changelog
+* Tue Mar 02 2021 <info@varlink.org> - 22-1
+- libvarlink 22
+
 * Fri Feb 19 2021 <info@varlink.org> - 21-1
 - libvarlink 21
 
