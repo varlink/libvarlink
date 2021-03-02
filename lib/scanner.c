@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 #include "c-utf8.h"
 
 static const char *error_strings[] = {
@@ -646,6 +648,9 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t loca
         if (*end == '.' || *end == 'e' || *end == 'E') {
                 number.is_double = true;
                 number.d = strtod_l(scanner->p, &end, locale);
+        } else {
+                if ((errno == ERANGE) && (number.i == LONG_MIN || number.i == LONG_MAX))
+                        return false;
         }
 
         scanner->p = end;
