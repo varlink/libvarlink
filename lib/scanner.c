@@ -8,6 +8,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <math.h>
 #include "c-utf8.h"
 
 static const char *error_strings[] = {
@@ -648,6 +649,12 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t loca
         if (*end == '.' || *end == 'e' || *end == 'E') {
                 number.is_double = true;
                 number.d = strtod_l(scanner->p, &end, locale);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+                // Exactly `±HUGE_VAL` is returned on ERANGE
+                if ((errno == ERANGE) && (number.d == -HUGE_VAL || number.d == HUGE_VAL))
+                        return false;
+#pragma GCC diagnostic pop
         } else {
                 if ((errno == ERANGE) && (number.i == LONG_MIN || number.i == LONG_MAX))
                         return false;
