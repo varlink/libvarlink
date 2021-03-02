@@ -143,21 +143,3 @@ sources = c.stdout().strip().split(' ')
 foreach arg : sources
     test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
 endforeach
-
-c = run_command('/bin/sh', ['-c', 'cd $1; echo FAILS/y_*.json', '--', meson.source_root() + '/tests-json' ] )
-sources = c.stdout().strip().split(' ')
-foreach arg : sources
-    test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
-endforeach
-
-c = run_command('/bin/sh', ['-c', 'cd $1; echo FAILS/n_*.json', '--', meson.source_root() + '/tests-json' ] )
-sources = c.stdout().strip().split(' ')
-foreach arg : sources
-    test(arg, exe, should_fail: false, args: [ meson.source_root() + '/tests-json/' + arg ] )
-endforeach
-
-c = run_command('/bin/sh', ['-c', 'cd $1; echo SEGFAULTS/*.json', '--', meson.source_root() + '/tests-json' ] )
-sources = c.stdout().strip().split(' ')
-foreach arg : sources
-    test(arg, exe, should_fail: true, args: [ meson.source_root() + '/tests-json/' + arg ] )
-endforeach
