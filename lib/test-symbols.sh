@@ -19,7 +19,7 @@ if readelf -s -W "${libvarlink_a}" | grep -q 'FUNC    GLOBAL DEFAULT.*varlink_';
 		sort >symbols.list
 elif readelf -s -W "${libvarlink_a}" | grep -q gnu_lto; then
 	if ! readelf -s -W --lto-syms "${libvarlink_a}" &>/dev/null; then
-		echo "readelf is too old and does not understand $(--lto-syms)" >&2
+		echo "readelf is too old and does not understand \"--lto-syms\"" >&2
 		exit 77
 	fi
 
