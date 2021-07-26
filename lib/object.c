@@ -432,16 +432,16 @@ static long object_write_json(FILE *stream,
                               long indent,
                               bool first) {
         if (!first) {
-                if (fprintf(stream, ",") < 0)
+                if (fputc(',', stream) == EOF)
                         return -VARLINK_ERROR_PANIC;
 
                 if (indent >= 0)
-                        if (fprintf(stream, "\n") < 0)
+                        if (fputc('\n', stream) == EOF)
                                 return -VARLINK_ERROR_PANIC;
         }
 
         for (long l = 0; l < indent; l += 1)
-                if (fprintf(stream, "  ") < 0)
+                if (fputs("  ", stream) < 0)
                         return -VARLINK_ERROR_PANIC;
 
         return 0;
@@ -461,16 +461,16 @@ long varlink_object_write_json(VarlinkObject *object,
                 return n_fields;
 
         if (n_fields == 0) {
-                if (fprintf(stream, "{}") < 0)
+                if (fputs("{}", stream) < 0)
                         return -VARLINK_ERROR_PANIC;
                 return 0;
         }
 
-        if (fprintf(stream, "{") < 0)
+        if (fputc('{', stream) == EOF)
                 return -VARLINK_ERROR_PANIC;
 
         if (indent >= 0)
-                if (fprintf(stream, "\n") < 0)
+                if (fputc('\n', stream) == EOF)
                         return -VARLINK_ERROR_PANIC;
 
         for (unsigned long i = 0; i < n_fields; i += 1) {
@@ -496,11 +496,11 @@ long varlink_object_write_json(VarlinkObject *object,
         }
 
         if (indent >= 0)
-                if (fprintf(stream, "\n") < 0)
+                if (fputc('\n', stream) == EOF)
                         return -VARLINK_ERROR_PANIC;
 
         object_write_json(stream, indent, true);
-        if (fprintf(stream, "}") < 0)
+        if (fputc('}', stream) == EOF)
                 return -VARLINK_ERROR_PANIC;
 
         return 0;
