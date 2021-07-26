@@ -169,7 +169,7 @@ long varlink_stream_bridge(int signal_fd, VarlinkStream *client_in, VarlinkStrea
                                 goto bridge_out;
                         }
 read_again:
-                        r = read(in, buf, 8192);
+                        r = read(in, buf, sizeof buf);
                         if (r == 0)
                                 goto bridge_out;
 
