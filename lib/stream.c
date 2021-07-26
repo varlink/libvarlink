@@ -25,8 +25,10 @@ long varlink_stream_new(VarlinkStream **streamp, int fd) {
                 return -VARLINK_ERROR_PANIC;
 
         stream->out = malloc(CONNECTION_BUFFER_SIZE);
-        if (!stream->out)
+        if (!stream->out) {
+                free(stream->in);
                 return -VARLINK_ERROR_PANIC;
+        }
 
         *streamp = stream;
         stream = NULL;
