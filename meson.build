@@ -1,5 +1,5 @@
 project('libvarlink', 'c',
-        version : '22',
+        version : '23',
         license : ['Apache-2.0', 'BSD-3-Clause'],
         default_options: [
                 'c_std=gnu99',

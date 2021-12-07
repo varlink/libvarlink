@@ -211,6 +211,7 @@ static bool interface_name_valid(const char *name, unsigned long len) {
         for (unsigned long i = 0; i < len; i += 1) {
                 switch (name[i]) {
                         case 'a' ... 'z':
+                        case 'A' ... 'Z':
                         case '0' ... '9':
                                 break;
 
@@ -237,6 +238,7 @@ static bool interface_name_valid(const char *name, unsigned long len) {
         /* The top-level element starts with an alpha character. */
         switch (name[0]) {
                 case 'a' ... 'z':
+                case 'A' ... 'Z':
                         break;
 
                 default:
@@ -250,6 +252,7 @@ static bool interface_name_valid(const char *name, unsigned long len) {
         /* The last element ends alphanumeric. */
         switch (name[len - 1]) {
                 case 'a' ... 'z':
+                case 'A' ... 'Z':
                 case '0' ... '9':
                         break;
 
