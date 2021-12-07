@@ -1,7 +1,7 @@
 %global _hardened_build 1
 
 Name:           libvarlink
-Version:        22
+Version:        23
 Release:        1%{?dist}
 Summary:        Varlink C Library
 License:        ASL 2.0 and BSD-3-Clause

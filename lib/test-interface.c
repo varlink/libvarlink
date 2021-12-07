@@ -42,6 +42,9 @@ static void test_name(void) {
                 "a.21.c",
                 "a.1",
                 "a.0.0"
+                "AbC.0.0"
+                "a.AbC.0"
+                "a.0.AbC"
         };
 
         const char *invalid[] = {
