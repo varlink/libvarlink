@@ -32,13 +32,16 @@ static long field_compare(const void *key, void *value) {
 static void field_freep(void *ptr) {
         Field *field = *(void **)ptr;
 
+        if (!field)
+                return;
+
         free(field->name);
         varlink_value_clear(&field->value);
         free(field);
 }
 
 static long object_add_field(VarlinkObject *object, const char *name, Field **fieldp) {
-        _cleanup_(freep) Field *field = NULL;
+        _cleanup_(field_freep) Field *field = NULL;
         long r;
 
         field = calloc(1, sizeof(Field));
