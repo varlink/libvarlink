@@ -53,7 +53,7 @@ static int read_file(FILE *file, char **contentsp) {
 int main(int argc, char **argv) {
         _cleanup_(freep) char *input = NULL;
         _cleanup_(fclosep) FILE *file = NULL;
-        VarlinkObject *s;
+        _cleanup_(varlink_object_unrefp) VarlinkObject *s = NULL;
 
         assert(argc != 1);
 
