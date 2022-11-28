@@ -625,7 +625,6 @@ long scanner_expect_string(Scanner *scanner, char **stringp) {
         utf8_len = size;
         c_utf8_verify(&utf8_str, &utf8_len);
         if (utf8_len != 0) {
-                fprintf(stderr, "%ld != %ld\n", utf8_len, size);
                 scanner_error(scanner, SCANNER_ERROR_INVALID_CHARACTER);
                 return -VARLINK_ERROR_INVALID_JSON;
         }
