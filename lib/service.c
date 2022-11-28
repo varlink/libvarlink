@@ -109,6 +109,11 @@ _public_ void varlink_call_unrefp(VarlinkCall **callp) {
                 varlink_call_unref(*callp);
 }
 
+static void varlink_call_remove_from_connection(VarlinkCall *call) {
+        ServiceConnection *connection = call->connection;
+        connection->call = varlink_call_unref(call);
+}
+
 _public_ const char *varlink_call_get_method(VarlinkCall *call) {
         return call->method;
 }
@@ -640,7 +645,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 return -VARLINK_ERROR_INVALID_CALL;
 
         if (call->flags & VARLINK_CALL_ONEWAY) {
-                call->connection->call = varlink_call_unref(call);
+                varlink_call_remove_from_connection(call);
                 return 0;
         }
 
@@ -657,7 +662,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 call->connection->events_mask |= EPOLLOUT;
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
-                call->connection->call = varlink_call_unref(call);
+                varlink_call_remove_from_connection(call);
 
         return 0;
 }
@@ -710,7 +715,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r == 0)
                 call->connection->events_mask |= EPOLLOUT;
 
-        call->connection->call = varlink_call_unref(call);
+        varlink_call_remove_from_connection(call);
         return 0;
 }
 
