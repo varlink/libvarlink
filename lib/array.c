@@ -18,10 +18,14 @@ struct VarlinkArray {
 
 static long array_append(VarlinkArray *array, VarlinkValue **valuep) {
         if (array->n_elements == array->n_allocated_elements) {
+                unsigned long prev_n_allocated_elements = array->n_allocated_elements;
                 array->n_allocated_elements = MAX(array->n_allocated_elements * 2, 16);
                 array->elements = realloc(array->elements, array->n_allocated_elements * sizeof(VarlinkValue));
                 if (!array->elements)
                         return -VARLINK_ERROR_PANIC;
+                memset(array->elements + prev_n_allocated_elements,
+                       0,
+                       (array->n_allocated_elements - prev_n_allocated_elements) * sizeof(VarlinkValue));
         }
 
         *valuep = &array->elements[array->n_elements];
