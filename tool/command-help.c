@@ -100,7 +100,7 @@ static long help_run(Cli *cli, int argc, char **argv) {
                 return -CLI_ERROR_MISSING_ARGUMENT;
         }
 
-        r = varlink_uri_new(&uri, argv[optind], true);
+        r = varlink_uri_new(&uri, argv[optind], true, false);
         if (r < 0 || !uri->interface) {
                 fprintf(stderr, "Unable to parse ADDRESS/INTERFACE\n");
                 return -CLI_ERROR_INVALID_ARGUMENT;

@@ -615,7 +615,7 @@ long cli_complete_methods(Cli *cli, const char *current) {
         const char *description = NULL;
         long r;
 
-        r = varlink_uri_new(&uri, current, true);
+        r = varlink_uri_new(&uri, current, true, false);
         if (r < 0 || !uri->interface)
                 return cli_complete_interfaces(cli, current, true);
 

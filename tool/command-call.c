@@ -70,7 +70,7 @@ static long call_arguments_new(CallArguments **argumentsp, int argc, char **argv
         if (optind >= argc)
                 return -CLI_ERROR_MISSING_ARGUMENT;
 
-        r = varlink_uri_new(&arguments->uri, argv[optind], true);
+        r = varlink_uri_new(&arguments->uri, argv[optind], true, true);
         if (r < 0)
                 return -CLI_ERROR_INVALID_ARGUMENT;
 

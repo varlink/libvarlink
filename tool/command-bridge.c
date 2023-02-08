@@ -229,7 +229,7 @@ static long handleBridge(Cli *cli, Bridge *bridge) {
                         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
                         _cleanup_(freep) char *address = NULL;
 
-                        r = varlink_uri_new(&uri, method, true);
+                        r = varlink_uri_new(&uri, method, true, true);
                         if (r < 0) {
                                 bridge_reply(bridge, "org.varlink.service.InvalidParameter", NULL, 0);
                                 return -CLI_ERROR_INVALID_MESSAGE;
@@ -326,7 +326,7 @@ static long bridge_run(Cli *cli, int argc, char **argv) {
 
 
         if (connect) {
-                r = varlink_uri_new(&bridge_uri, connect, false);
+                r = varlink_uri_new(&bridge_uri, connect, false, false);
                 if (r < 0) {
                         fprintf(stderr, "Unable to parse --connect ADDRESS\n");
                         return -CLI_ERROR_INVALID_ARGUMENT;

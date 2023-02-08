@@ -114,7 +114,7 @@ static long info_run(Cli *cli, int argc, char **argv) {
 
         address = argv[optind];
         if (address) {
-                r = varlink_uri_new(&uri, address, false);
+                r = varlink_uri_new(&uri, address, false, false);
                 if (r < 0) {
                         fprintf(stderr, "Unable to parse ADDRESS\n");
                         return -CLI_ERROR_INVALID_ARGUMENT;
