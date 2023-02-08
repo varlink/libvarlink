@@ -80,7 +80,7 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         long r;
 
-        r = varlink_uri_new(&uri, address, false);
+        r = varlink_uri_new(&uri, address, false, false);
         if (r < 0)
                 return r;
 
