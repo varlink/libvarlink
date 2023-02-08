@@ -269,7 +269,7 @@ static long varlink_service_method_callback(VarlinkService *service,
         VarlinkMethod *method;
         long r;
 
-        r = varlink_uri_new(&uri, call->method, true);
+        r = varlink_uri_new(&uri, call->method, true, true);
         if (r < 0 || !uri->member)
                 return varlink_call_reply_invalid_parameter(call, call->method);
 
@@ -302,7 +302,7 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
         service->listen_fd = -1;
         service->epoll_fd = -1;
 
-        r = varlink_uri_new(&service->uri, address, false);
+        r = varlink_uri_new(&service->uri, address, false, false);
         if (r < 0)
                 return r;
 
@@ -680,7 +680,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        r = varlink_uri_new(&uri_error, error, true);
+        r = varlink_uri_new(&uri_error, error, true, true);
         if (r < 0)
                 return r;
 
@@ -695,7 +695,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (!member || member->type != VARLINK_MEMBER_ERROR)
                 return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
-        r = varlink_uri_new(&uri_method, call->method, true);
+        r = varlink_uri_new(&uri_method, call->method, true, true);
         if (r < 0)
                 return r;
 

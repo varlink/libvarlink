@@ -122,6 +122,11 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
  * to supply this information in `has_interface`, depending on the
  * context the URI is parsed.
  *
+ * Same happens with interface and member when the interface name
+ * is camel case, e.g: io.systemd.UserDatabase.GetUserRecord. The
+ * caller needs to supply this information in `has_member`, depending
+ * on the context the URI is parsed.
+ *
  * unix:/run/org.example.foo/org.example.foo.List?foo=bar#baz
  *   address:          unix:/run/org.example.foo
  *   protocol:         unix
@@ -132,7 +137,7 @@ static long uri_parse_protocol(VarlinkURI *uri, const char *address, char **stri
  *   query:            foo=bar
  *   fragment:         baz
  */
-long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface) {
+long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface, bool has_member) {
         _cleanup_(varlink_uri_freep) VarlinkURI *uri = NULL;
         _cleanup_(freep) char *string = NULL;
         char *p;
@@ -207,7 +212,7 @@ long varlink_uri_new(VarlinkURI **urip, const char *address, bool has_interface)
                 if (!p)
                         return -VARLINK_ERROR_INVALID_IDENTIFIER;
 
-                if (p[1] >= 'A' && p[1] <= 'Z') {
+                if (has_member) {
                         /* Split interface and member */
                         uri->qualified_member = uri->interface;
                         uri->interface = strndup(uri->interface, p - uri->interface);
