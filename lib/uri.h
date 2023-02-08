@@ -21,6 +21,6 @@ typedef struct {
         char *fragment;
 } VarlinkURI;
 
-long varlink_uri_new(VarlinkURI **urip, const char *uri, bool has_interface);
+long varlink_uri_new(VarlinkURI **urip, const char *uri, bool has_interface, bool has_member);
 VarlinkURI *varlink_uri_free(VarlinkURI *uri);
 void varlink_uri_freep(VarlinkURI **urip);
