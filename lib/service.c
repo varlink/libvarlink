@@ -658,8 +658,16 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 return r;
 
         /* We did not write all data, wake up when we can write to the socket. */
-        if (r == 0)
+        if (r == 0) {
                 call->connection->events_mask |= EPOLLOUT;
+
+                r = service_connection_set_events_mask(
+                            call->service, call->connection,
+                            call->connection->events_mask);
+                if (r < 0) {
+                        return r;
+                }
+        }
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
                 varlink_call_remove_from_connection(call);
