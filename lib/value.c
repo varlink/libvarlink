@@ -133,7 +133,7 @@ static long json_write_string(FILE *stream, const char *s) {
                                 break;
 
                         default:
-                                if (*(uint8_t *)s < 0x20) {
+                                if (*(const uint8_t *)s < 0x20) {
                                         if (fprintf(stream, "\\u%04x", *s) < 0)
                                                 return -VARLINK_ERROR_PANIC;
                                 } else {
