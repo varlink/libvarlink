@@ -38,6 +38,7 @@ c_args = '''
         -Werror=missing-declarations
         -Werror=return-type
         -Werror=incompatible-pointer-types
+        -Werror=cast-qual
 '''.split()
 
 foreach arg : c_args
