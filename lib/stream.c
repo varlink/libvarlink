@@ -267,6 +267,7 @@ again:
                                 asm("unreachable\n");
 #pragma clang diagnostic pop
 
+			/* fall through */
                         case 0:
                                 stream->hup = true;
                                 *messagep = NULL;
