@@ -46,7 +46,7 @@ static inline int c_utf8_word_is_ascii(const size_t *word) {
  * byte, without any upper bound on its length.
  */
 static void c_utf8_verify_ascii(const char **strp, size_t *lenp) {
-        unsigned char *str = (unsigned char *)*strp;
+        const unsigned char *str = (const unsigned char *)*strp;
         size_t len = lenp ? *lenp : (size_t)-1;
 
         while (len > 0 && *str < 128) {
@@ -60,8 +60,8 @@ static void c_utf8_verify_ascii(const char **strp, size_t *lenp) {
                          * available.
                          */
                         while (len >= 2 * sizeof(size_t)) {
-                                if (!c_utf8_word_is_ascii((size_t *)str) ||
-                                    !c_utf8_word_is_ascii(((size_t *)str) + 1))
+                                if (!c_utf8_word_is_ascii((const size_t *)str) ||
+                                    !c_utf8_word_is_ascii(((const size_t *)str) + 1))
                                         break;
 
                                 str += 2 * sizeof(size_t);
@@ -91,7 +91,7 @@ static void c_utf8_verify_ascii(const char **strp, size_t *lenp) {
         }
 
 out:
-        *strp = (char *)str;
+        *strp = (const char *)str;
         if (lenp)
                 *lenp = len;
 }
@@ -113,7 +113,7 @@ out:
  * byte, without any upper bound on its length.
  */
 void c_utf8_verify(const char **strp, size_t *lenp) {
-        unsigned char *str = (unsigned char *)*strp;
+        const unsigned char *str = (const unsigned char *)*strp;
         size_t len = lenp ? *lenp : (size_t)-1;
 
         /* See Unicode 10.0.0, Chapter 3, Section D92 */
@@ -235,7 +235,7 @@ void c_utf8_verify(const char **strp, size_t *lenp) {
         }
 
 out:
-        *strp = (char *)str;
+        *strp = (const char *)str;
         if (lenp)
                 *lenp = len;
 }
