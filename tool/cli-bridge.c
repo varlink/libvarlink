@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "cli.h"
+#include "util.h"
 
-#include <sys/prctl.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -39,7 +39,7 @@ int cli_bridge(const char *command, pid_t *pidp) {
                 if (sp[1] != STDIN_FILENO && sp[1] != STDOUT_FILENO)
                         close(sp[1]);
 
-                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+                if (set_pdeathsig(SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
 
                 if (wordexp(command, &p, WRDE_NOCMD|WRDE_UNDEF) < 0)

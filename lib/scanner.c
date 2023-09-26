@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#ifdef __FreeBSD__
+#include <xlocale.h>
+#endif
 #include "c-utf8.h"
 
 static const char *error_strings[] = {
