@@ -47,8 +47,10 @@ int varlink_connect_unix(const char *address) {
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
 
+#ifdef __linux__
         if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0)
                 return -VARLINK_ERROR_CANNOT_CONNECT;
+#endif
 
         strcpy(sa.sun_path, path);
         if (sa.sun_path[0] == '@') {
@@ -80,8 +82,10 @@ int varlink_listen_unix(const char *address, char **pathp) {
         if (fd < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
 
+#ifdef __linux__
         if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) < 0)
                 return -VARLINK_ERROR_CANNOT_LISTEN;
+#endif
 
         r = strip_parameters(address, &path);
         if (r < 0)

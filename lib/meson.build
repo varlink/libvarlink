@@ -52,11 +52,18 @@ if not cc.has_header('sys/queue.h')
     libvarlink_include = [ libvarlink_include, include_directories('compat', is_system: true) ]
 endif
 
+if host_machine.system() == 'freebsd'
+        epoll_dep = dependency('epoll-shim')
+else
+        epoll_dep = []
+endif
+
 libvarlink_a = static_library(
         'varlink',
         libvarlink_sources,
         org_varlink_service_varlink_c_inc,
         include_directories: libvarlink_include,
+        dependencies : epoll_dep,
         install : false)
 
 libvarlink_sym = '@0@/@1@'.format(meson.current_source_dir(), 'libvarlink.sym')
@@ -67,6 +74,7 @@ libvarlink_so = shared_library(
                      '-Wl,--version-script=' + libvarlink_sym],
         link_whole : libvarlink_a,
         include_directories: libvarlink_include,
+        dependencies : epoll_dep,
         install : true)
 
 ############################################################
@@ -89,6 +97,7 @@ test('test-interface', exe)
 exe = executable(
         'test-server-client',
         'test-server-client.c',
+        dependencies : epoll_dep,
         link_with : libvarlink_a)
 test('test-server-client', exe)
 
