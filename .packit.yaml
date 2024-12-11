@@ -4,7 +4,7 @@
 specfile_path: libvarlink.spec
 
 # add or remove files that should be synced
-synced_files:
+files_to_sync:
     - libvarlink.spec
     - .packit.yaml
 
