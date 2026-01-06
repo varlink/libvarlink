@@ -3,6 +3,8 @@
 #pragma once
 
 #include "varlink.h"
+#include "avltree.h"
+#include "scanner.h"
 
 #include <stdio.h>
 
