@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 static long write_docstring(FILE *stream,
                             long indent,
@@ -16,8 +17,8 @@ static long write_docstring(FILE *stream,
                             const char *description) {
         for (const char *start = description; *start;) {
                 const char *end = strchrnul(start, '\n');
-                // FIXME assert < INT_MAX
-                int len = end - start;
+                ptrdiff_t diff = end - start;
+                int len = (diff > INT_MAX) ? INT_MAX : (int)diff;
 
                 for (long l = 0; l < indent; l += 1)
                         if (fprintf(stream, "  ") < 0)
