@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "avltree.h"
+#include "scanner.h"
 #include "varlink.h"
 
 #include <stdio.h>
