@@ -4,7 +4,6 @@
 #include "transport.h"
 #include "util.h"
 
-#include <sys/prctl.h>
 #include <signal.h>
 #include <wordexp.h>
 
@@ -45,7 +44,7 @@ int cli_activate(const char *command, char **pathp, pid_t *pidp) {
                 if (dup2(fd, 3) != 3)
                         _exit(EXIT_FAILURE);
 
-                if (prctl(PR_SET_PDEATHSIG, SIGTERM) < 0)
+                if (set_pdeathsig(SIGTERM) < 0)
                         _exit(EXIT_FAILURE);
 
                 sprintf(s, "%d", getpid());

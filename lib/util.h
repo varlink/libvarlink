@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#elif defined(__FreeBSD__)
+#include <sys/procctl.h>
+#endif
 
 #define _cleanup_(_x) __attribute__((__cleanup__(_x)))
 #define _public_ __attribute__((__visibility__("default")))
@@ -43,3 +48,13 @@ int epoll_del(int epfd, int fd);
 #define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 #define ARRAY_SIZE(_x) (sizeof(_x) / sizeof((_x)[0]))
 #define ALIGN_TO(_val, _to) (((_val) + (_to) - 1) & ~((_to) - 1))
+
+static inline int set_pdeathsig(int signal) {
+#ifdef __linux__
+        return prctl(PR_SET_PDEATHSIG, signal);
+#elif defined(__FreeBSD__)
+        return procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &signal);
+#else
+#error portme
+#endif
+}

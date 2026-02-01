@@ -22,4 +22,5 @@ executable(
         varlink_sources,
         link_with : libvarlink_a,
         include_directories : libvarlink_include,
+        dependencies : epoll_dep,
         install : true)
