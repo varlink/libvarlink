@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 
 static int strip_parameters(const char *address, char **hostp) {
-        char *parm;
+        const char *parm;
         _cleanup_(freep) char *host = NULL;
 
         parm = strchr(address, ';');
@@ -34,7 +34,7 @@ static void freeaddrinfop(struct addrinfo **ai) {
 static int resolve_addrinfo(const char *address, struct addrinfo **resultp) {
         _cleanup_(freep) char *host = NULL;
         char *endptr;
-        char *port;
+        const char *port;
         struct addrinfo hints = {
                 .ai_family = AF_UNSPEC,
                 .ai_socktype = SOCK_STREAM,
