@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 static int strip_parameters(const char *address, char **pathp) {
-        char *parm;
+        const char *parm;
         _cleanup_(freep) char *path = NULL;
 
         parm = strchr(address, ';');

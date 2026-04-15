@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 static int strip_parameters(const char *address, char **devicep) {
-        char *parm;
+        const char *parm;
         _cleanup_(freep) char *device = NULL;
 
         parm = strchr(address, ';');

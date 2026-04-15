@@ -155,7 +155,7 @@ static long format_run(Cli *UNUSED(cli), int argc, char **argv) {
 static long format_complete(Cli *cli, int argc, char **UNUSED(argv), const char *current) {
         _cleanup_(freep) char *prefix = NULL;
         DIR *dir;
-        char *p;
+        const char *p;
 
         if (argc != 1)
                 return 0;
