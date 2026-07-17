@@ -50,11 +50,23 @@ endforeach
 
 libm = cc.find_library('m')
 
+buffer_size_choice = get_option('connection-buffer-size')
+buffer_size_value = buffer_size_choice.substring(0, -3).to_int()
+
+if buffer_size_choice.endswith('KiB')
+        buffer_size = buffer_size_value * 1024
+elif buffer_size_choice.endswith('MiB')
+        buffer_size = buffer_size_value * 1024 * 1024
+else
+        error('Invalid buffer size format: @0@'.format(buffer_size_choice))
+endif
+
 conf = configuration_data()
 conf.set('_GNU_SOURCE', true)
 conf.set('_XOPEN_SOURCE', 700)
 conf.set('__SANE_USERSPACE_TYPES__', true)
 conf.set_quoted('VERSION', meson.project_version())
+conf.set('CONNECTION_BUFFER_SIZE', buffer_size)
 
 config_h = configure_file(
         output : 'config.h',
