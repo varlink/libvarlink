@@ -1,0 +1,5 @@
+option('connection-buffer-size',
+       type: 'combo',
+       choices: ['64KiB', '128KiB', '256KiB', '512KiB', '1MiB', '2MiB', '4MiB', '8MiB', '16MiB'],
+       value: '16MiB',
+       description: 'Size of connection buffers')

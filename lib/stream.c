@@ -9,8 +9,6 @@
 #include <unistd.h>
 #include <sys/epoll.h>
 
-#define CONNECTION_BUFFER_SIZE (16 * 1024 * 1024)
-
 long varlink_stream_new(VarlinkStream **streamp, int fd) {
         _cleanup_(freep) VarlinkStream *stream = NULL;
 
