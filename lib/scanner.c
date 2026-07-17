@@ -644,7 +644,7 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t loca
 
         scanner_advance(scanner);
 
-        number.i = strtol(scanner->p, &end, 10);
+        number.i = strtoll(scanner->p, &end, 10);
         if (end == scanner->p)
                 return false;
 
@@ -658,7 +658,7 @@ bool scanner_read_number(Scanner *scanner, ScannerNumber *numberp, locale_t loca
                         return false;
 #pragma GCC diagnostic pop
         } else {
-                if ((errno == ERANGE) && (number.i == LONG_MIN || number.i == LONG_MAX))
+                if ((errno == ERANGE) && (number.i == LLONG_MIN || number.i == LLONG_MAX))
                         return false;
         }
 
