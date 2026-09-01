@@ -35,6 +35,21 @@ static inline void fclosep(FILE **fp) {
                 fclose(*fp);
 }
 
+static inline void close_fds(const int *fds, unsigned long n_fds) {
+        for (unsigned long i = 0; i < n_fds; i += 1)
+                if (fds[i] >= 0)
+                        close(fds[i]);
+}
+
+/* Closes the descriptors, releases the array and resets both */
+static inline void close_and_free_fds(int **fdsp, unsigned long *n_fdsp) {
+        close_fds(*fdsp, *n_fdsp);
+
+        free(*fdsp);
+        *fdsp = NULL;
+        *n_fdsp = 0;
+}
+
 int epoll_add(int epfd, int fd, uint32_t events, void *ptr);
 int epoll_mod(int epfd, int fd, uint32_t events, void *ptr);
 int epoll_del(int epfd, int fd);

@@ -70,7 +70,7 @@ static long bridge_new(Bridge **bridgep, Cli *cli) {
         if (fd_nonblock(STDIN_FILENO) < 0)
                 return -CLI_ERROR_PANIC;
 
-        r = varlink_stream_new(&bridge->in, STDIN_FILENO);
+        r = varlink_stream_new(&bridge->in, STDIN_FILENO, false);
         if (r < 0)
                 return r;
 
@@ -280,7 +280,7 @@ static long handleDirectBridge(Cli *cli, Bridge *bridge, VarlinkURI *bridge_uri)
                 return r;
         }
 
-        r = varlink_stream_new(&out_stream, STDOUT_FILENO);
+        r = varlink_stream_new(&out_stream, STDOUT_FILENO, false);
         if (r < 0)
                 return r;
 
