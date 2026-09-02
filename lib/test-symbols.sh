@@ -12,10 +12,9 @@ test -e "${libvarlink_a}" || exit 77
 
 rm -f symbols.list symbols.lib
 
-if readelf -s -W "${libvarlink_a}" | grep -q 'FUNC    GLOBAL DEFAULT.*varlink_'; then
+if readelf -s -W "${libvarlink_a}" | grep -E 'FUNC\s+(GLOBAL|WEAK)\s+DEFAULT\s+.*varlink_' >/dev/null 2>&1; then
 	readelf -s -W "${libvarlink_a}" |
-		grep 'FUNC    GLOBAL DEFAULT.*varlink_' |
-		awk '{ print $8 }' |
+		awk '/FUNC/ && /DEFAULT/ && /varlink_/ { print $NF }' |
 		sort >symbols.list
 elif readelf -s -W "${libvarlink_a}" | grep -q gnu_lto; then
 	if ! readelf -s -W --lto-syms "${libvarlink_a}" &>/dev/null; then
@@ -24,12 +23,13 @@ elif readelf -s -W "${libvarlink_a}" | grep -q gnu_lto; then
 	fi
 
 	readelf -s -W --lto-syms "${libvarlink_a}" 2>/dev/null |
-		grep ' DEF.*DEFAULT.*FUNCTION.*varlink_' |
-		while read _ _ _ _ _ _ _ f; do
-			echo ${f#_}
+		awk '$2 == "DEF" && $3 == "DEFAULT" && /varlink_/ { print $NF }' |
+		while read -r f; do
+			echo "${f#_}"
 		done |
-		sort >symbols.list
+		sort -u >symbols.list
 else
+	echo "Error: No varlink_ symbols found in ${libvarlink_a}" >&2
 	exit 1
 fi
 
