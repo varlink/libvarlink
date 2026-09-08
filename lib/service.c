@@ -109,9 +109,18 @@ _public_ void varlink_call_unrefp(VarlinkCall **callp) {
                 varlink_call_unref(*callp);
 }
 
-static void varlink_call_remove_from_connection(VarlinkCall *call) {
+static long service_connection_set_events_mask(VarlinkService *service,
+                                               ServiceConnection *connection,
+                                               uint32_t events_mask);
+
+static long varlink_call_remove_from_connection(VarlinkCall *call) {
+        VarlinkService *service = call->service;
         ServiceConnection *connection = call->connection;
+
         connection->call = varlink_call_unref(call);
+
+        return service_connection_set_events_mask(service, connection,
+                                                  connection->events_mask | EPOLLIN);
 }
 
 _public_ const char *varlink_call_get_method(VarlinkCall *call) {
@@ -644,10 +653,8 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (call->flags & VARLINK_CALL_ONEWAY && flags & VARLINK_REPLY_CONTINUES)
                 return -VARLINK_ERROR_INVALID_CALL;
 
-        if (call->flags & VARLINK_CALL_ONEWAY) {
-                varlink_call_remove_from_connection(call);
-                return 0;
-        }
+        if (call->flags & VARLINK_CALL_ONEWAY)
+                return varlink_call_remove_from_connection(call);
 
         r = varlink_message_pack_reply(NULL, parameters, flags, &message);
         if (r < 0)
@@ -670,7 +677,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         }
 
         if (!(flags & VARLINK_REPLY_CONTINUES))
-                varlink_call_remove_from_connection(call);
+                return varlink_call_remove_from_connection(call);
 
         return 0;
 }
@@ -723,8 +730,7 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r == 0)
                 call->connection->events_mask |= EPOLLOUT;
 
-        varlink_call_remove_from_connection(call);
-        return 0;
+        return varlink_call_remove_from_connection(call);
 }
 
 _public_ long varlink_call_reply_invalid_parameter(VarlinkCall *call, const char *parameter) {

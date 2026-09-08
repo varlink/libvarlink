@@ -199,6 +199,27 @@ int main(void) {
                 assert(varlink_object_unref(out) == NULL);
         }
 
+        /* Answering a call after its dispatch returned must leave the
+         * connection listening for further calls. */
+        {
+                EchoCall call = {
+                        .words = words,
+                        .n_received = 0
+                };
+                VarlinkObject *parameters;
+
+                assert(varlink_object_new(&parameters) == 0);
+                assert(varlink_object_set_string(parameters, "word", words[0]) == 0);
+                assert(varlink_connection_call(test.connection, "org.varlink.example.Echo", parameters, 0,
+                                               echo_callback, &call) == 0);
+                assert(varlink_object_unref(parameters) == NULL);
+
+                for (long i = 0; call.n_received == 0 && i < 10; i += 1)
+                        assert(test_process_events(&test) == 0);
+
+                assert(call.n_received == 1);
+        }
+
         assert(varlink_connection_free(test.connection) == NULL);
         assert(varlink_service_free(test.service) == NULL);
         close(test.epoll_fd);
