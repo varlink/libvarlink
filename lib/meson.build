@@ -87,6 +87,12 @@ exe = executable(
 test('test-interface', exe)
 
 exe = executable(
+        'test-service-loop',
+        'test-service-loop.c',
+        link_with : libvarlink_a)
+test('test-service-loop', exe)
+
+exe = executable(
         'test-server-client',
         'test-server-client.c',
         link_with : libvarlink_a)

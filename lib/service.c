@@ -20,12 +20,21 @@
 
 #include "org.varlink.service.varlink.c.inc"
 
-typedef struct {
+struct VarlinkServiceConnection {
+        long refcount;
+
+        VarlinkService *service;
         VarlinkStream *stream;
         uint32_t events_mask;
         uint32_t current_events_mask;
         VarlinkCall *call;
-} ServiceConnection;
+        bool dispatching;
+
+        VarlinkServiceConnectionClosedFunc closed_callback;
+        void *closed_userdata;
+};
+
+typedef struct VarlinkServiceConnection ServiceConnection;
 
 struct VarlinkService {
         char *vendor;
@@ -38,6 +47,8 @@ struct VarlinkService {
 
         int listen_fd;
         char *path_to_unlink;
+
+        /* -1 once the caller drives the loop */
         int epoll_fd;
 
         AVLTree *connections;
@@ -59,6 +70,8 @@ struct VarlinkCall {
         void *closed_callback_userdata;
 };
 
+static long service_connection_apply_events_mask(ServiceConnection *connection);
+
 static long varlink_call_new(VarlinkCall **callp,
                              VarlinkService *service,
                              ServiceConnection *connection,
@@ -72,7 +85,7 @@ static long varlink_call_new(VarlinkCall **callp,
 
         call->refcount = 1;
         call->service = service;
-        call->connection = connection;
+        call->connection = varlink_service_connection_ref(connection);
 
         r = varlink_message_unpack_call(message, &call->method, &call->parameters, &call->flags);
         if (r < 0)
@@ -97,6 +110,8 @@ _public_ VarlinkCall *varlink_call_unref(VarlinkCall *call) {
                 if (call->parameters)
                         varlink_object_unref(call->parameters);
 
+                varlink_service_connection_unref(call->connection);
+
                 free(call->method);
                 free(call);
         }
@@ -109,9 +124,20 @@ _public_ void varlink_call_unrefp(VarlinkCall **callp) {
                 varlink_call_unref(*callp);
 }
 
-static void varlink_call_remove_from_connection(VarlinkCall *call) {
+static long varlink_call_remove_from_connection(VarlinkCall *call) {
         ServiceConnection *connection = call->connection;
+
         connection->call = varlink_call_unref(call);
+
+        /* A message that arrived alongside the one just answered is already in
+         * the read buffer, where waiting for the socket to become readable would
+         * never find it. Dispatching also restores the event mask an idle
+         * connection should have; inside a dispatch that happens on the way
+         * out. */
+        if (!connection->dispatching)
+                return varlink_service_connection_process_events(connection, EPOLLIN);
+
+        return 0;
 }
 
 _public_ const char *varlink_call_get_method(VarlinkCall *call) {
@@ -131,9 +157,53 @@ static long connection_compare(const void *key, void *value) {
         return fd - connection->stream->fd;
 }
 
-static ServiceConnection *service_connection_free(ServiceConnection *connection) {
+_public_ VarlinkServiceConnection *varlink_service_connection_ref(VarlinkServiceConnection *connection) {
+        connection->refcount += 1;
+
+        return connection;
+}
+
+_public_ VarlinkServiceConnection *varlink_service_connection_unref(VarlinkServiceConnection *connection) {
+        connection->refcount -= 1;
+
+        if (connection->refcount == 0) {
+                if (connection->stream)
+                        varlink_stream_free(connection->stream);
+
+                free(connection);
+        }
+
+        return NULL;
+}
+
+_public_ void varlink_service_connection_unrefp(VarlinkServiceConnection **connectionp) {
+        if (*connectionp)
+                varlink_service_connection_unref(*connectionp);
+}
+
+_public_ long varlink_service_connection_close(VarlinkServiceConnection *connection) {
+        VarlinkService *service = connection->service;
+
+        if (!connection->stream)
+                return 0;
+
+        /* Removing it from the service drops a reference */
+        varlink_service_connection_ref(connection);
+
+        if (service) {
+                if (service->epoll_fd >= 0)
+                        epoll_ctl(service->epoll_fd, EPOLL_CTL_DEL, connection->stream->fd, NULL);
+
+                avl_tree_remove(service->connections, (void *)(unsigned long)connection->stream->fd);
+                connection->service = NULL;
+        }
+
+        connection->stream = varlink_stream_free(connection->stream);
+
         if (connection->call) {
                 VarlinkCall *call = connection->call;
+
+                connection->call = NULL;
 
                 if (call->closed_callback)
                         call->closed_callback(call, call->closed_callback_userdata);
@@ -141,26 +211,38 @@ static ServiceConnection *service_connection_free(ServiceConnection *connection)
                 varlink_call_unref(call);
         }
 
-        if (connection->stream)
-                varlink_stream_free(connection->stream);
+        if (connection->closed_callback)
+                connection->closed_callback(connection, connection->closed_userdata);
 
-        free(connection);
-        return NULL;
-}
-
-static void service_connection_freep(ServiceConnection **connectionp) {
-        if (*connectionp)
-                service_connection_free(*connectionp);
-}
-
-static long service_connection_close(VarlinkService *service,
-                                     ServiceConnection *connection) {
-        if (connection->stream) {
-                epoll_ctl(service->epoll_fd, EPOLL_CTL_DEL, connection->stream->fd, NULL);
-                avl_tree_remove(service->connections, (void *)(unsigned long)connection->stream->fd);
-        }
+        varlink_service_connection_unref(connection);
 
         return 0;
+}
+
+_public_ bool varlink_service_connection_is_closed(VarlinkServiceConnection *connection) {
+        return connection->stream == NULL;
+}
+
+_public_ void varlink_service_connection_set_closed_callback(VarlinkServiceConnection *connection,
+                                                             VarlinkServiceConnectionClosedFunc callback,
+                                                             void *userdata) {
+        connection->closed_callback = callback;
+        connection->closed_userdata = userdata;
+}
+
+_public_ void *varlink_service_connection_get_userdata(VarlinkServiceConnection *connection) {
+        return connection->closed_userdata;
+}
+
+_public_ int varlink_service_connection_get_fd(VarlinkServiceConnection *connection) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return connection->stream->fd;
+}
+
+_public_ uint32_t varlink_service_connection_get_events(VarlinkServiceConnection *connection) {
+        return connection->current_events_mask;
 }
 
 static long org_varlink_service_GetInfo(VarlinkService *service,
@@ -309,7 +391,7 @@ _public_ long varlink_service_new_raw(VarlinkService **servicep,
         service->method_callback = callback;
         service->method_callback_userdata = userdata;
 
-        avl_tree_new(&service->connections, connection_compare, (AVLFreepFunc)service_connection_freep);
+        avl_tree_new(&service->connections, connection_compare, (AVLFreepFunc)varlink_service_connection_unrefp);
 
         if (listen_fd < 0) {
                 _cleanup_(freep) char *path = NULL;
@@ -406,8 +488,14 @@ _public_ VarlinkService *varlink_service_free(VarlinkService *service) {
                 free(service->path_to_unlink);
         }
 
-        if (service->connections)
+        if (service->connections) {
+                AVLTreeNode *node;
+
+                while ((node = avl_tree_first(service->connections)))
+                        varlink_service_connection_close(avl_tree_node_get(node));
+
                 avl_tree_free(service->connections);
+        }
 
         if (service->interfaces)
                 avl_tree_free(service->interfaces);
@@ -478,42 +566,91 @@ _public_ long varlink_service_add_interface(VarlinkService *service,
 }
 
 _public_ int varlink_service_get_fd(VarlinkService *service) {
+        if (service->epoll_fd < 0)
+                return -VARLINK_ERROR_INVALID_CALL;
+
         return service->epoll_fd;
 }
 
-static long varlink_service_accept(VarlinkService *service) {
-        _cleanup_(service_connection_freep) ServiceConnection *connection = NULL;
+_public_ int varlink_service_get_listen_fd(VarlinkService *service) {
+        return service->listen_fd;
+}
+
+_public_ long varlink_service_set_external_loop(VarlinkService *service, bool enable) {
+        if (avl_tree_first(service->connections))
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        if (enable == (service->epoll_fd < 0))
+                return 0;
+
+        if (enable) {
+                close(service->epoll_fd);
+                service->epoll_fd = -1;
+
+                return 0;
+        }
+
+        service->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+        if (service->epoll_fd < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        if (epoll_add(service->epoll_fd, service->listen_fd, EPOLLIN, service) < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        return 0;
+}
+
+_public_ long varlink_service_accept(VarlinkService *service,
+                                    VarlinkServiceConnection **connectionp) {
+        _cleanup_(varlink_service_connection_unrefp) ServiceConnection *connection = NULL;
         long r;
 
         connection = calloc(1, sizeof(ServiceConnection));
         if (!connection)
                 return -VARLINK_ERROR_PANIC;
 
+        connection->refcount = 1;
+        connection->service = service;
         connection->current_events_mask = EPOLLIN;
 
         r = varlink_transport_accept(service->uri, service->listen_fd);
+        if (r == -VARLINK_ERROR_CANNOT_ACCEPT)
+                return 0;
+
         if (r < 0)
-                return r; /* CannotAccept */
+                return r;
 
         varlink_stream_new(&connection->stream, (int)r);
 
-        r = epoll_add(service->epoll_fd, connection->stream->fd, connection->current_events_mask, connection);
-        if (r < 0)
+        if (service->epoll_fd >= 0 &&
+            epoll_add(service->epoll_fd, connection->stream->fd,
+                      connection->current_events_mask, connection) < 0)
                 return -VARLINK_ERROR_PANIC;
 
-        avl_tree_insert(service->connections, (void *)(unsigned long)connection->stream->fd, connection);
+        avl_tree_insert(service->connections, (void *)(unsigned long)connection->stream->fd,
+                        varlink_service_connection_ref(connection));
 
+        *connectionp = connection;
         connection = NULL;
-        return 0;
+
+        return 1;
 }
 
-static long service_connection_set_events_mask(VarlinkService *service,
-                                               ServiceConnection *connection,
+static long service_connection_set_events_mask(ServiceConnection *connection,
                                                uint32_t events_mask) {
         if (events_mask == connection->current_events_mask)
                 return 0;
 
         connection->current_events_mask = events_mask;
+
+        return service_connection_apply_events_mask(connection);
+}
+
+static long service_connection_apply_events_mask(ServiceConnection *connection) {
+        VarlinkService *service = connection->service;
+
+        if (!service || service->epoll_fd < 0 || !connection->stream)
+                return 0;
 
         if (epoll_mod(service->epoll_fd,
                       connection->stream->fd,
@@ -524,17 +661,26 @@ static long service_connection_set_events_mask(VarlinkService *service,
         return 0;
 }
 
-static long varlink_service_dispatch_connection(VarlinkService *service,
-                                                ServiceConnection *connection,
-                                                uint32_t events) {
+_public_ long varlink_service_connection_process_events(VarlinkServiceConnection *connection,
+                                                       uint32_t events) {
+        VarlinkService *service = connection->service;
         long r;
 
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        if (connection->dispatching)
+                return 0;
+
+        connection->dispatching = true;
         connection->events_mask = 0;
 
         if (events & EPOLLOUT) {
                 r = varlink_stream_flush(connection->stream);
-                if (r < 0)
+                if (r < 0) {
+                        connection->dispatching = false;
                         return r;
+                }
 
                 /* We did not write all data, wake up when we can write to the socket. */
                 if (r > 0)
@@ -546,39 +692,61 @@ static long varlink_service_dispatch_connection(VarlinkService *service,
                         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
 
                         r = varlink_stream_read(connection->stream, &message);
-                        if (r < 0)
-                                return service_connection_close(service, connection);
+                        if (r < 0) {
+                                connection->dispatching = false;
+                                varlink_service_connection_close(connection);
+                                return -VARLINK_ERROR_CONNECTION_CLOSED;
+                        }
 
                         /* We did not receive a full message. */
                         if (r == 0)
                                 break;
 
                         r = varlink_call_new(&connection->call, service, connection, message);
-                        if (r < 0)
+                        if (r < 0) {
+                                connection->dispatching = false;
                                 return r;
+                        }
 
                         r = service->method_callback(service,
                                                      connection->call,
                                                      connection->call->parameters,
                                                      connection->call->flags,
                                                      service->method_callback_userdata);
-                        if (r < 0)
-                                return service_connection_close(service, connection);
+                        if (r < 0) {
+                                connection->dispatching = false;
+                                varlink_service_connection_close(connection);
+                                return -VARLINK_ERROR_CONNECTION_CLOSED;
+                        }
+
+                        /* The callback might have closed the connection. */
+                        if (!connection->stream) {
+                                connection->dispatching = false;
+                                return -VARLINK_ERROR_CONNECTION_CLOSED;
+                        }
                 }
         }
 
         /* Catch POLLHUP, we never try to read the EOF from a busy connection. */
-        if (events & EPOLLHUP || connection->stream->hup)
-                return service_connection_close(service, connection);
+        if (events & EPOLLHUP || connection->stream->hup) {
+                connection->dispatching = false;
+                varlink_service_connection_close(connection);
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+        }
 
         /* Listen for incoming data whenever the connection is idle. */
         if (!connection->call)
                 connection->events_mask |= EPOLLIN;
 
-        return service_connection_set_events_mask(service, connection, connection->events_mask);
+        connection->dispatching = false;
+
+        return service_connection_set_events_mask(connection, connection->events_mask);
 }
 
 _public_ long varlink_service_process_events(VarlinkService *service) {
+        if (service->epoll_fd < 0)
+                return -VARLINK_ERROR_INVALID_CALL;
+
         for(;;) {
                 int n;
                 struct epoll_event ev;
@@ -592,22 +760,24 @@ _public_ long varlink_service_process_events(VarlinkService *service) {
                         return 0;
 
                 if (ev.data.ptr == service) {
+                        _cleanup_(varlink_service_connection_unrefp) ServiceConnection *connection = NULL;
+
                         if ((ev.events & EPOLLIN) == 0)
                                 return -VARLINK_ERROR_PANIC;
 
-                        r = varlink_service_accept(service);
+                        r = varlink_service_accept(service, &connection);
                         switch (r) {
                                 case -VARLINK_ERROR_ACCESS_DENIED:
                                         break;
 
                                 default:
-                                        return r;
+                                        return r < 0 ? r : 0;
                         }
                 } else {
                         ServiceConnection *connection = ev.data.ptr;
 
-                        r = varlink_service_dispatch_connection(service, connection, ev.events);
-                        if (r < 0)
+                        r = varlink_service_connection_process_events(connection, ev.events);
+                        if (r < 0 && r != -VARLINK_ERROR_CONNECTION_CLOSED)
                                 return r;
                 }
         }
@@ -628,6 +798,10 @@ _public_ void *varlink_call_get_connection_userdata(VarlinkCall *call) {
         return call->closed_callback_userdata;
 }
 
+_public_ VarlinkServiceConnection *varlink_call_get_connection(VarlinkCall *call) {
+        return call->connection;
+}
+
 _public_ int varlink_call_get_connection_fd(VarlinkCall *call) {
         return call->connection->stream->fd;
 }
@@ -637,6 +811,9 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                                  uint64_t flags) {
         _cleanup_(varlink_object_unrefp) VarlinkObject *message = NULL;
         long r;
+
+        if (!call->connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
@@ -662,7 +839,7 @@ _public_ long varlink_call_reply(VarlinkCall *call,
                 call->connection->events_mask |= EPOLLOUT;
 
                 r = service_connection_set_events_mask(
-                            call->service, call->connection,
+                            call->connection,
                             call->connection->events_mask);
                 if (r < 0) {
                         return r;
@@ -684,6 +861,9 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         VarlinkInterface *interface;
         VarlinkInterfaceMember *member;
         long r;
+
+        if (!call->connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
 
         if (call != call->connection->call)
                 return -VARLINK_ERROR_INVALID_CALL;
