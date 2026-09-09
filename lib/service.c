@@ -9,6 +9,7 @@
 #include "uri.h"
 #include "util.h"
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -43,6 +44,9 @@ struct VarlinkService {
         AVLTree *connections;
         VarlinkMethodCallback method_callback;
         void *method_callback_userdata;
+
+        bool allow_fd_passing_in;
+        bool allow_fd_passing_out;
 };
 
 struct VarlinkCall {
@@ -54,6 +58,12 @@ struct VarlinkCall {
         char *method;
         VarlinkObject *parameters;
         uint64_t flags;
+
+        int *in_fds;
+        unsigned long n_in_fds;
+
+        int *out_fds;
+        unsigned long n_out_fds;
 
         VarlinkCallConnectionClosed closed_callback;
         void *closed_callback_userdata;
@@ -78,6 +88,8 @@ static long varlink_call_new(VarlinkCall **callp,
         if (r < 0)
                 return r;
 
+        varlink_stream_take_in_fds(connection->stream, &call->in_fds, &call->n_in_fds);
+
         *callp = call;
         call = NULL;
 
@@ -96,6 +108,9 @@ _public_ VarlinkCall *varlink_call_unref(VarlinkCall *call) {
         if (call->refcount == 0) {
                 if (call->parameters)
                         varlink_object_unref(call->parameters);
+
+                close_and_free_fds(&call->in_fds, &call->n_in_fds);
+                close_and_free_fds(&call->out_fds, &call->n_out_fds);
 
                 free(call->method);
                 free(call);
@@ -495,7 +510,9 @@ static long varlink_service_accept(VarlinkService *service) {
         if (r < 0)
                 return r; /* CannotAccept */
 
-        varlink_stream_new(&connection->stream, (int)r);
+        varlink_stream_new(&connection->stream, (int)r, service->allow_fd_passing_in);
+
+        varlink_stream_set_allow_fd_passing_output(connection->stream, service->allow_fd_passing_out);
 
         r = epoll_add(service->epoll_fd, connection->stream->fd, connection->current_events_mask, connection);
         if (r < 0)
@@ -632,6 +649,104 @@ _public_ int varlink_call_get_connection_fd(VarlinkCall *call) {
         return call->connection->stream->fd;
 }
 
+_public_ long varlink_service_set_allow_fd_passing_input(VarlinkService *service, bool enable) {
+        AVLTreeNode *node;
+
+        service->allow_fd_passing_in = enable;
+
+        for (node = avl_tree_first(service->connections); node; node = avl_tree_node_next(node)) {
+                ServiceConnection *connection = avl_tree_node_get(node);
+
+                varlink_stream_set_allow_fd_passing_input(connection->stream, enable);
+        }
+
+        return 0;
+}
+
+_public_ long varlink_service_set_allow_fd_passing_output(VarlinkService *service, bool enable) {
+        AVLTreeNode *node;
+
+        service->allow_fd_passing_out = enable;
+
+        for (node = avl_tree_first(service->connections); node; node = avl_tree_node_next(node)) {
+                ServiceConnection *connection = avl_tree_node_get(node);
+
+                varlink_stream_set_allow_fd_passing_output(connection->stream, enable);
+        }
+
+        return 0;
+}
+
+_public_ long varlink_call_get_n_fds(VarlinkCall *call) {
+        return (long) call->n_in_fds;
+}
+
+_public_ int varlink_call_peek_fd(VarlinkCall *call, unsigned long index) {
+        if (index >= call->n_in_fds || call->in_fds[index] < 0)
+                return -VARLINK_ERROR_INVALID_INDEX;
+
+        return call->in_fds[index];
+}
+
+_public_ int varlink_call_peek_dup_fd(VarlinkCall *call, unsigned long index) {
+        int fd, copy;
+
+        fd = varlink_call_peek_fd(call, index);
+        if (fd < 0)
+                return fd;
+
+        copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+        if (copy < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        return copy;
+}
+
+_public_ int varlink_call_take_fd(VarlinkCall *call, unsigned long index) {
+        int fd;
+
+        if (index >= call->n_in_fds || call->in_fds[index] < 0)
+                return -VARLINK_ERROR_INVALID_INDEX;
+
+        fd = call->in_fds[index];
+        call->in_fds[index] = -1;
+
+        return fd;
+}
+
+_public_ long varlink_call_push_fd(VarlinkCall *call, int fd) {
+        int *fds;
+
+        if (!call->connection->stream->allow_fd_passing_out)
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        fds = realloc(call->out_fds, sizeof(int) * (call->n_out_fds + 1));
+        if (!fds)
+                return -VARLINK_ERROR_PANIC;
+
+        fds[call->n_out_fds] = fd;
+        call->out_fds = fds;
+        call->n_out_fds += 1;
+
+        return 0;
+}
+
+_public_ long varlink_call_push_dup_fd(VarlinkCall *call, int fd) {
+        _cleanup_(closep) int copy = -1;
+        long r;
+
+        copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+        if (copy < 0)
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        r = varlink_call_push_fd(call, copy);
+        if (r < 0)
+                return r;
+
+        copy = -1;
+        return 0;
+}
+
 _public_ long varlink_call_reply(VarlinkCall *call,
                                  VarlinkObject *parameters,
                                  uint64_t flags) {
@@ -653,7 +768,10 @@ _public_ long varlink_call_reply(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        r = varlink_stream_write(call->connection->stream, message);
+        r = varlink_stream_write_with_fds(call->connection->stream, message,
+                                          call->out_fds, call->n_out_fds);
+        call->out_fds = NULL;
+        call->n_out_fds = 0;
         if (r < 0)
                 return r;
 
@@ -715,7 +833,10 @@ _public_ long varlink_call_reply_error(VarlinkCall *call,
         if (r < 0)
                 return r;
 
-        r = varlink_stream_write(call->connection->stream, message);
+        r = varlink_stream_write_with_fds(call->connection->stream, message,
+                                          call->out_fds, call->n_out_fds);
+        call->out_fds = NULL;
+        call->n_out_fds = 0;
         if (r < 0)
                 return r;
 

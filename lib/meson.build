@@ -93,6 +93,12 @@ exe = executable(
 test('test-server-client', exe)
 
 exe = executable(
+        'test-fd-passing',
+        'test-fd-passing.c',
+        link_with : libvarlink_a)
+test('test-fd-passing', exe)
+
+exe = executable(
         'test-object',
         'test-object.c',
         link_with : libvarlink_a)

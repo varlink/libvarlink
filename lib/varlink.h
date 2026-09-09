@@ -433,6 +433,55 @@ long varlink_connection_close(VarlinkConnection *connection);
 
 bool varlink_connection_is_closed(VarlinkConnection *connection);
 
+/*
+ * File descriptor passing.
+ *
+ * Descriptors travel as SCM_RIGHTS ancillary data attached to the message they
+ * belong to, so both peers must be connected over a UNIX domain socket and both
+ * must enable passing for the direction they use. It is disabled by default.
+ *
+ * The descriptors themselves do not appear in the message. An interface refers
+ * to them by their index in the batch, carried in the parameters as a plain
+ * integer.
+ *
+ * Returns 0 or a negative VARLINK_ERROR.
+ */
+long varlink_connection_set_allow_fd_passing_input(VarlinkConnection *connection, bool enable);
+long varlink_connection_set_allow_fd_passing_output(VarlinkConnection *connection, bool enable);
+long varlink_service_set_allow_fd_passing_input(VarlinkService *service, bool enable);
+long varlink_service_set_allow_fd_passing_output(VarlinkService *service, bool enable);
+
+/*
+ * Queue a descriptor to be sent with the next call or reply. push() takes
+ * ownership of @fd, push_dup() leaves it with the caller.
+ *
+ * Returns 0 or a negative VARLINK_ERROR.
+ */
+long varlink_connection_push_fd(VarlinkConnection *connection, int fd);
+long varlink_connection_push_dup_fd(VarlinkConnection *connection, int fd);
+long varlink_call_push_fd(VarlinkCall *call, int fd);
+long varlink_call_push_dup_fd(VarlinkCall *call, int fd);
+
+/*
+ * Access the descriptors received with a message. take() passes ownership of
+ * the descriptor to the caller and leaves the slot empty, peek() and peek_dup()
+ * leave it in place.
+ *
+ * On a connection these are only valid for the duration of the VarlinkReplyFunc
+ * they arrived in; the descriptors not taken are closed once it returns. On a
+ * call they live as long as the call does.
+ *
+ * Returns the number of descriptors, a descriptor, or a negative VARLINK_ERROR.
+ */
+long varlink_connection_get_n_fds(VarlinkConnection *connection);
+int varlink_connection_peek_fd(VarlinkConnection *connection, unsigned long index);
+int varlink_connection_peek_dup_fd(VarlinkConnection *connection, unsigned long index);
+int varlink_connection_take_fd(VarlinkConnection *connection, unsigned long index);
+long varlink_call_get_n_fds(VarlinkCall *call);
+int varlink_call_peek_fd(VarlinkCall *call, unsigned long index);
+int varlink_call_peek_dup_fd(VarlinkCall *call, unsigned long index);
+int varlink_call_take_fd(VarlinkCall *call, unsigned long index);
+
 #ifdef __cplusplus
 }
 #endif

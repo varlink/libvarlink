@@ -9,6 +9,7 @@ Varlink C [library](https://github.com/varlink/libvarlink/blob/master/lib/varlin
 
 Examples:
 - [test-server-client.c](https://github.com/varlink/libvarlink/blob/master/lib/test-server-client.c)
+- [test-fd-passing.c](https://github.com/varlink/libvarlink/blob/master/lib/test-fd-passing.c)
 - org.varlink.service.GetInfo
     - [client](https://github.com/varlink/libvarlink/blob/master/tool/command-info.c)
     - [server](https://github.com/varlink/libvarlink/search?q=org_varlink_service_GetInfo)

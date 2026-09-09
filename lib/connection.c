@@ -7,6 +7,7 @@
 #include "uri.h"
 #include "util.h"
 
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -30,6 +31,9 @@ struct VarlinkConnection {
 
         STAILQ_HEAD(pending, ReplyCallback) pending;
 
+        int *out_fds;
+        unsigned long n_out_fds;
+
         VarlinkConnectionClosedFunc closed_callback;
         void *closed_userdata;
 };
@@ -50,7 +54,7 @@ long varlink_connection_new_from_fd(VarlinkConnection **connectionp, int fd) {
 
         STAILQ_INIT(&connection->pending);
 
-        r = varlink_stream_new(&connection->stream, fd);
+        r = varlink_stream_new(&connection->stream, fd, false);
         if (r < 0)
                 return r;
 
@@ -94,6 +98,8 @@ _public_ long varlink_connection_new(VarlinkConnection **connectionp, const char
 _public_ VarlinkConnection *varlink_connection_free(VarlinkConnection *connection) {
         if (connection->stream)
                 varlink_connection_close(connection);
+
+        close_and_free_fds(&connection->out_fds, &connection->n_out_fds);
 
         while (!STAILQ_EMPTY(&connection->pending)) {
                 ReplyCallback *cb;
@@ -161,6 +167,9 @@ _public_ long varlink_connection_process_events(VarlinkConnection *connection, u
                         return -VARLINK_ERROR_INVALID_MESSAGE;
 
                 r = callback->func(connection, error, parameters, flags, callback->userdata);
+
+                if (connection->stream)
+                        varlink_stream_close_in_fds(connection->stream);
 
                 if (!(flags & VARLINK_REPLY_CONTINUES)) {
                         STAILQ_REMOVE_HEAD(&connection->pending, entry);
@@ -236,7 +245,10 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 connection->events |= EPOLLIN;
         }
 
-        r = varlink_stream_write(connection->stream, call);
+        r = varlink_stream_write_with_fds(connection->stream, call,
+                                          connection->out_fds, connection->n_out_fds);
+        connection->out_fds = NULL;
+        connection->n_out_fds = 0;
         if (r < 0)
                 return r;
 
@@ -245,6 +257,91 @@ _public_ long varlink_connection_call(VarlinkConnection *connection,
                 connection->events |= EPOLLOUT;
 
         return 0;
+}
+
+_public_ long varlink_connection_set_allow_fd_passing_input(VarlinkConnection *connection, bool enable) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return varlink_stream_set_allow_fd_passing_input(connection->stream, enable);
+}
+
+_public_ long varlink_connection_set_allow_fd_passing_output(VarlinkConnection *connection, bool enable) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return varlink_stream_set_allow_fd_passing_output(connection->stream, enable);
+}
+
+_public_ long varlink_connection_push_fd(VarlinkConnection *connection, int fd) {
+        int *fds;
+
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        if (!connection->stream->allow_fd_passing_out)
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        fds = realloc(connection->out_fds, sizeof(int) * (connection->n_out_fds + 1));
+        if (!fds)
+                return -VARLINK_ERROR_PANIC;
+
+        fds[connection->n_out_fds] = fd;
+        connection->out_fds = fds;
+        connection->n_out_fds += 1;
+
+        return 0;
+}
+
+_public_ long varlink_connection_push_dup_fd(VarlinkConnection *connection, int fd) {
+        _cleanup_(closep) int copy = -1;
+        long r;
+
+        copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+        if (copy < 0)
+                return -VARLINK_ERROR_INVALID_CALL;
+
+        r = varlink_connection_push_fd(connection, copy);
+        if (r < 0)
+                return r;
+
+        copy = -1;
+        return 0;
+}
+
+_public_ long varlink_connection_get_n_fds(VarlinkConnection *connection) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return varlink_stream_get_n_in_fds(connection->stream);
+}
+
+_public_ int varlink_connection_peek_fd(VarlinkConnection *connection, unsigned long index) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return varlink_stream_peek_in_fd(connection->stream, index);
+}
+
+_public_ int varlink_connection_peek_dup_fd(VarlinkConnection *connection, unsigned long index) {
+        int fd, copy;
+
+        fd = varlink_connection_peek_fd(connection, index);
+        if (fd < 0)
+                return fd;
+
+        copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+        if (copy < 0)
+                return -VARLINK_ERROR_PANIC;
+
+        return copy;
+}
+
+_public_ int varlink_connection_take_fd(VarlinkConnection *connection, unsigned long index) {
+        if (!connection->stream)
+                return -VARLINK_ERROR_CONNECTION_CLOSED;
+
+        return varlink_stream_take_in_fd(connection->stream, index);
 }
 
 _public_ void *varlink_connection_get_userdata(VarlinkConnection *connection) {
