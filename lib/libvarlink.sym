@@ -21,6 +21,7 @@ global:
         varlink_array_unref;
         varlink_array_unrefp;
         varlink_call_get_connection_userdata;
+        varlink_call_get_connection;
         varlink_call_get_connection_fd;
         varlink_call_get_method;
         varlink_call_ref;
@@ -64,6 +65,19 @@ global:
         varlink_object_unref;
         varlink_object_unrefp;
         varlink_service_add_interface;
+        varlink_service_accept;
+        varlink_service_connection_close;
+        varlink_service_connection_get_events;
+        varlink_service_connection_get_userdata;
+        varlink_service_connection_get_fd;
+        varlink_service_connection_is_closed;
+        varlink_service_connection_process_events;
+        varlink_service_connection_ref;
+        varlink_service_connection_set_closed_callback;
+        varlink_service_connection_unref;
+        varlink_service_connection_unrefp;
+        varlink_service_get_listen_fd;
+        varlink_service_set_external_loop;
         varlink_service_free;
         varlink_service_freep;
         varlink_service_get_fd;

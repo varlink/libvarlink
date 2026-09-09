@@ -76,6 +76,11 @@ typedef struct VarlinkCall VarlinkCall;
 typedef struct VarlinkConnection VarlinkConnection;
 
 /*
+ * A connection accepted by a service.
+ */
+typedef struct VarlinkServiceConnection VarlinkServiceConnection;
+
+/*
  * Called when a client calls a method of a service.
  */
 typedef long (*VarlinkMethodCallback)(VarlinkService *service,
@@ -96,6 +101,12 @@ typedef void (*VarlinkConnectionClosedFunc)(VarlinkConnection *connection,
  */
 typedef void (*VarlinkCallConnectionClosed)(VarlinkCall *call,
                                             void *userdata);
+
+/*
+ * Called when a connection accepted by a service is closed.
+ */
+typedef void (*VarlinkServiceConnectionClosedFunc)(VarlinkServiceConnection *connection,
+                                                   void *userdata);
 
 /*
  * Called when a client receives a reply to its call.
@@ -310,6 +321,92 @@ int varlink_listen(const char *address, char **pathp);
  */
 long varlink_service_process_events(VarlinkService *service);
 
+/*
+ * Hand the event loop to the caller. The service stops maintaining the epoll
+ * descriptor returned by varlink_service_get_fd(), and connections are accepted
+ * with varlink_service_accept() and driven with
+ * varlink_service_connection_process_events().
+ *
+ * Only valid while the service has no connections. Afterwards
+ * varlink_service_get_fd() and varlink_service_process_events() fail with
+ * VARLINK_ERROR_INVALID_CALL, and so does varlink_service_accept() on a service
+ * running its own loop.
+ *
+ * Returns 0 or a negative VARLINK_ERROR.
+ */
+long varlink_service_set_external_loop(VarlinkService *service, bool enable);
+
+/*
+ * Get the descriptor the service listens on, to poll for incoming connections.
+ *
+ * Returns the file descriptor or a negative VARLINK_ERROR.
+ */
+int varlink_service_get_listen_fd(VarlinkService *service);
+
+/*
+ * Accept a pending connection. The caller owns the returned reference.
+ *
+ * Returns 1 and sets @connectionp, 0 if no connection was pending, or a
+ * negative VARLINK_ERROR.
+ */
+long varlink_service_accept(VarlinkService *service,
+                            VarlinkServiceConnection **connectionp);
+
+VarlinkServiceConnection *varlink_service_connection_ref(VarlinkServiceConnection *connection);
+VarlinkServiceConnection *varlink_service_connection_unref(VarlinkServiceConnection *connection);
+
+/*
+ * varlink_service_connection_unref() to be used with the cleanup attribute.
+ */
+void varlink_service_connection_unrefp(VarlinkServiceConnection **connectionp);
+
+/*
+ * Get the file descriptor of the connection.
+ *
+ * Returns the file descriptor or a negative VARLINK_ERROR.
+ */
+int varlink_service_connection_get_fd(VarlinkServiceConnection *connection);
+
+/*
+ * Get the events to wait for on the connection's file descriptor. It changes
+ * whenever the connection is processed or a call is answered, so it has to be
+ * read again before every wait.
+ */
+uint32_t varlink_service_connection_get_events(VarlinkServiceConnection *connection);
+
+/*
+ * Process pending events on the connection; messages are sent and received, and
+ * method calls are dispatched according to their registered callbacks.
+ *
+ * Returns 0, -VARLINK_ERROR_CONNECTION_CLOSED once the connection is gone, or
+ * another negative VARLINK_ERROR.
+ */
+long varlink_service_connection_process_events(VarlinkServiceConnection *connection,
+                                               uint32_t events);
+
+/*
+ * Close @connection, which stays valid until the last reference to it is
+ * dropped. Does nothing if it is closed already.
+ */
+long varlink_service_connection_close(VarlinkServiceConnection *connection);
+
+bool varlink_service_connection_is_closed(VarlinkServiceConnection *connection);
+
+/*
+ * Register a function to be called when the connection is closed, whether by
+ * the peer, by varlink_service_connection_close(), or by the service being
+ * freed.
+ */
+void varlink_service_connection_set_closed_callback(VarlinkServiceConnection *connection,
+                                                    VarlinkServiceConnectionClosedFunc callback,
+                                                    void *userdata);
+
+/*
+ * Retrieve the userdata pointer set with
+ * varlink_service_connection_set_closed_callback().
+ */
+void *varlink_service_connection_get_userdata(VarlinkServiceConnection *connection);
+
 VarlinkCall *varlink_call_ref(VarlinkCall *call);
 VarlinkCall *varlink_call_unref(VarlinkCall *call);
 void varlink_call_unrefp(VarlinkCall **callp);
@@ -332,6 +429,11 @@ long varlink_call_set_connection_closed_callback(VarlinkCall *call,
  * Retrieve the userdata pointer set with varlink_call_set_connection_closed_callback().
  */
 void *varlink_call_get_connection_userdata(VarlinkCall *call);
+
+/*
+ * Get the connection the call arrived on.
+ */
+VarlinkServiceConnection *varlink_call_get_connection(VarlinkCall *call);
 
 /*
  * Get the file descriptor of the connection of the current call.
